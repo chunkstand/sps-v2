@@ -2,17 +2,6 @@
 
 ## Active
 
-### R003 — Legal hold prevents purge or destructive delete of bound evidence (INV-004)
-- Class: compliance/security
-- Status: active
-- Description: Any purge/destructive delete of evidence is denied while a legal hold is active.
-- Why it matters: Tier 3 compliance; audit reconstruction depends on evidence preservation.
-- Source: spec (INV-004; SEC-004; runbook legal-hold.md)
-- Primary owning slice: M001/S03
-- Supporting slices: none
-- Validation: mapped
-- Notes: Implement guardrails and negative tests early so later workflows can rely on them.
-
 ### R004 — Temporal harness runs PermitCaseWorkflow with replay-safe semantics
 - Class: core-capability
 - Status: active
@@ -59,6 +48,17 @@
 - Validation: proved (MinIO-backed adapter tests + end-to-end roundtrip)
 - Notes: Retrieval SLA enforcement is later; Phase 1 focuses on correctness and stable identifiers.
 
+### R003 — Legal hold prevents purge or destructive delete of bound evidence (INV-004)
+- Class: compliance/security
+- Status: validated
+- Description: Any purge/destructive delete of evidence is denied while a legal hold is active.
+- Why it matters: Tier 3 compliance; audit reconstruction depends on evidence preservation.
+- Source: spec (INV-004; SEC-004; runbook legal-hold.md)
+- Primary owning slice: M001/S03
+- Supporting slices: none
+- Validation: proved (hold bindings + INV-004 guard + denial + purge exclusion tests)
+- Notes: Phase 1 proves fail-closed denial semantics; destructive purge remains disabled.
+
 ## Deferred
 
 (none)
@@ -82,14 +82,14 @@
 |---|---|---|---|---|---|
 | R001 | core-capability | validated | M001/S01 | M001/S02,M001/S03 | proved (alembic + pytest) |
 | R002 | integration | validated | M001/S02 | M001/S03 | proved (minio + e2e pytest) |
-| R003 | compliance/security | active | M001/S03 | none | mapped |
+| R003 | compliance/security | validated | M001/S03 | none | proved (deny + purge tests) |
 | R004 | core-capability | active | M002/S01 | M002/S02 | mapped |
 | R005 | compliance/security | active | M002/S02 | M002/S03 | mapped |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 3
+- Active requirements: 2
 - Mapped to slices: 5
-- Validated: 2
+- Validated: 3
 - Unmapped active requirements: 0

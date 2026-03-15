@@ -50,7 +50,7 @@ This milestone is complete only when all are true:
   > After this: local Postgres schema can be migrated and queried; typed models validate core entities.
 - [x] **S02: Evidence registry API + MinIO content roundtrip** `risk:high` `depends:[S01]`
   > After this: evidence can be registered, uploaded, and retrieved by stable ID end-to-end.
-- [ ] **S03: Retention + legal hold guardrails (INV-004) + purge denial tests** `risk:medium` `depends:[S02]`
+- [x] **S03: Retention + legal hold guardrails (INV-004) + purge denial tests** `risk:medium` `depends:[S02]`
   > After this: legal-hold is enforced and destructive operations fail closed with diagnostic detail.
 
 ## Boundary Map

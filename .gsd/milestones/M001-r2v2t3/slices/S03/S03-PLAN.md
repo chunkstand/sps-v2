@@ -35,21 +35,21 @@
 
 ## Tasks
 
-- [ ] **T01: Add legal-hold schema + domain model** `est:1h`
+- [x] **T01: Add legal-hold schema + domain model** `est:1h`
   - Why: Legal hold must be durable, queryable, and enforceable against purge operations.
   - Files: `src/sps/db/models.py`, `alembic/versions/*`, `src/sps/retention/models.py`
   - Do: Add tables for legal holds and hold bindings (artifact or case scope); include who/when/why fields; ensure hold lookup by artifact stable ID is efficient.
   - Verify: `./.venv/bin/alembic upgrade head`
   - Done when: migration applies and a test can insert/read a hold.
 
-- [ ] **T02: Implement storage guard enforcing INV-004** `est:1h`
+- [x] **T02: Implement storage guard enforcing INV-004** `est:1h`
   - Why: INV-004 is critical; destructive delete must fail closed under legal hold.
   - Files: `src/sps/retention/guard.py`, `src/sps/evidence/service.py`
   - Do: Implement `assert_not_on_legal_hold(artifact_id)` used by delete/purge paths; ensure denial includes invariant_id and a human-readable reason.
   - Verify: `./.venv/bin/pytest -q tests/s03_legal_hold_test.py -k deny`
   - Done when: destructive delete attempt is denied with invariant_id=INV-004.
 
-- [ ] **T03: Add purge workflow stub (dry-run) + tests** `est:1h`
+- [x] **T03: Add purge workflow stub (dry-run) + tests** `est:1h`
   - Why: We need an operationally safe way to evaluate purge eligibility without risking data loss.
   - Files: `src/sps/retention/purge.py`, `tests/s03_legal_hold_test.py`
   - Do: Implement a `dry_run_purge()` that lists purge-eligible evidence (based on retention_until and no legal hold); ensure held artifacts never appear; (actual destructive purge can remain disabled until later).

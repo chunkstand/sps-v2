@@ -14,6 +14,7 @@ from sps.db.models import EvidenceArtifact as EvidenceArtifactRow
 from sps.db.session import get_db
 from sps.evidence.ids import evidence_object_key, new_evidence_id
 from sps.evidence.models import ArtifactClass, EvidenceArtifact, RetentionClass
+from sps.retention.guard import InvariantDenied, assert_not_on_legal_hold
 from sps.storage.s3 import IntegrityError as StorageIntegrityError
 from sps.storage.s3 import S3Storage, StorageError
 
@@ -209,3 +210,22 @@ def get_evidence_download_link(artifact_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=502, detail={"artifact_id": artifact_id, "error": "s3_error"})
 
     return {"artifact_id": artifact_id, "url": url}
+
+
+@router.delete("/evidence/artifacts/{artifact_id}")
+def delete_evidence_artifact(artifact_id: str, db: Session = Depends(get_db)):
+    """Destructive delete entrypoint (guarded by INV-004).
+
+    Phase 1 keeps actual deletion disabled; this exists to prove legal-hold denial behavior.
+    """
+
+    row = db.get(EvidenceArtifactRow, artifact_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail={"artifact_id": artifact_id, "error": "not_found"})
+
+    try:
+        assert_not_on_legal_hold(db=db, artifact_id=artifact_id, operation="delete_evidence_artifact")
+    except InvariantDenied as e:
+        raise HTTPException(status_code=423, detail=e.to_dict())
+
+    raise HTTPException(status_code=501, detail={"artifact_id": artifact_id, "error": "delete_not_enabled_in_phase1"})

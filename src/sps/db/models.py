@@ -176,6 +176,58 @@ class EvidenceArtifact(Base):
     legal_hold_flag: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default=sa.text("false"))
 
 
+class LegalHold(Base):
+    __tablename__ = "legal_holds"
+
+    hold_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+
+    reason: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    requested_by: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    authorized_by: Mapped[str] = mapped_column(sa.Text, nullable=False)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    released_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+    status: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default=sa.text("'ACTIVE'"))
+
+
+class LegalHoldBinding(Base):
+    __tablename__ = "legal_hold_bindings"
+
+    binding_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+
+    hold_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("legal_holds.hold_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    # Exactly one of these should be set.
+    artifact_id: Mapped[str | None] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("evidence_artifacts.artifact_id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    case_id: Mapped[str | None] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.CheckConstraint(
+            "(artifact_id IS NOT NULL AND case_id IS NULL) OR (artifact_id IS NULL AND case_id IS NOT NULL)",
+            name="ck_legal_hold_bindings_exactly_one_target",
+        ),
+    )
+
+
 class ReleaseBundle(Base):
     __tablename__ = "release_bundles"
 
