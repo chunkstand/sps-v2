@@ -27,6 +27,10 @@ htmlcov/
 .gsd/metrics.json
 .gsd/completed-units.json
 .gsd/STATE.md
+
+# pi bg_shell runtime state
+.bg-shell/
+
 Thumbs.db
 *.swp
 *.swo

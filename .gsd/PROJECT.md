@@ -14,6 +14,7 @@ A governed workflow system that can produce and submit permit packages with revi
 - CI verifies repo wiring + `PACKAGE-MANIFEST.json` integrity + JSON schema metaschema validity.
 - Local dev infra scaffold exists (`docker-compose.yml`: Postgres, Temporal, Temporal UI, MinIO).
 - Python monorepo scaffold exists (`pyproject.toml`, `src/sps/`).
+- Phase 1 Postgres schema + Alembic migrations + Postgres-backed schema tests are in place (M001/S01).
 
 ## Architecture / Key Patterns
 
@@ -29,7 +30,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 ## Milestone Sequence
 
-- [x] M001: Phase 1 — authoritative data foundations — Postgres schema + evidence registry + retention/legal-hold guardrails
+- [ ] M001: Phase 1 — authoritative data foundations — Postgres schema + evidence registry + retention/legal-hold guardrails
 - [ ] M002: Phase 2 — Temporal harness + guarded state transitions
 - [ ] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance
 - [ ] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
