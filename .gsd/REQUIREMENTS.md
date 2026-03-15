@@ -2,17 +2,6 @@
 
 ## Active
 
-### R001 — Authoritative Postgres schema for core SPS entities
-- Class: core-capability
-- Status: active
-- Description: Postgres schema + migrations exist for PermitCase, Project, review records, contradiction records, transition ledger, and evidence metadata.
-- Why it matters: Everything else (Temporal workflows, reviewer gates, release controls) depends on authoritative state being durable and queryable.
-- Source: inferred (spec Phase 1 / tasks B-001)
-- Primary owning slice: M001/S01
-- Supporting slices: M001/S02, M001/S03
-- Validation: mapped
-- Notes: Initial schema must support stable IDs and future guard/ledger requirements.
-
 ### R002 — Evidence registry with stable IDs and object storage binding
 - Class: integration
 - Status: active
@@ -59,7 +48,16 @@
 
 ## Validated
 
-(none)
+### R001 — Authoritative Postgres schema for core SPS entities
+- Class: core-capability
+- Status: validated
+- Description: Postgres schema + migrations exist for PermitCase, Project, review records, contradiction records, transition ledger, and evidence metadata.
+- Why it matters: Everything else (Temporal workflows, reviewer gates, release controls) depends on authoritative state being durable and queryable.
+- Source: inferred (spec Phase 1 / tasks B-001)
+- Primary owning slice: M001/S01
+- Supporting slices: M001/S02, M001/S03
+- Validation: proved (alembic upgrade + Postgres-backed integration tests)
+- Notes: Schema is intentionally thin in some places (string enums, JSONB payloads) in Phase 1; tighten with constraints as guarded workflows land.
 
 ## Deferred
 
@@ -82,7 +80,7 @@
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
 |---|---|---|---|---|---|
-| R001 | core-capability | active | M001/S01 | M001/S02,M001/S03 | mapped |
+| R001 | core-capability | validated | M001/S01 | M001/S02,M001/S03 | proved (alembic + pytest) |
 | R002 | integration | active | M001/S02 | M001/S03 | mapped |
 | R003 | compliance/security | active | M001/S03 | none | mapped |
 | R004 | core-capability | active | M002/S01 | M002/S02 | mapped |
@@ -91,7 +89,7 @@
 
 ## Coverage Summary
 
-- Active requirements: 5
+- Active requirements: 4
 - Mapped to slices: 5
-- Validated: 0
+- Validated: 1
 - Unmapped active requirements: 0

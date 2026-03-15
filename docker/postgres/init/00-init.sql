@@ -12,16 +12,14 @@ BEGIN
 END
 $$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'sps') THEN
-    CREATE DATABASE sps OWNER sps;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'temporal') THEN
-    CREATE DATABASE temporal OWNER temporal;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'temporal_visibility') THEN
-    CREATE DATABASE temporal_visibility OWNER temporal;
-  END IF;
-END
-$$;
+-- Databases must be created outside transaction blocks.
+-- `CREATE DATABASE` cannot run inside a DO $$ ... $$ block.
+
+SELECT format('CREATE DATABASE %I OWNER %I', 'sps', 'sps')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'sps')\gexec
+
+SELECT format('CREATE DATABASE %I OWNER %I', 'temporal', 'temporal')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'temporal')\gexec
+
+SELECT format('CREATE DATABASE %I OWNER %I', 'temporal_visibility', 'temporal')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'temporal_visibility')\gexec

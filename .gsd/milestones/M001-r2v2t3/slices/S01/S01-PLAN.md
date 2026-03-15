@@ -43,14 +43,14 @@
   - Verify: `./.venv/bin/python -c "from sps.api.main import app; print('ok')"`
   - Done when: API module imports and health endpoints return 200 without DB access.
 
-- [ ] **T02: Implement SQLAlchemy models + Alembic migrations for Phase 1 entities** `est:2h`
+- [x] **T02: Implement SQLAlchemy models + Alembic migrations for Phase 1 entities** `est:2h`
   - Why: Phase 1 exit criteria requires authoritative stores and keys before workflow logic.
   - Files: `src/sps/db/models.py`, `alembic/versions/*`, `alembic.ini`
   - Do: Define tables for PermitCase/Project/ReviewDecision/Contradiction/StateTransitionLedger/EvidenceArtifact metadata plus release applicability and artifact metadata; add indexes for stable IDs; enforce foreign keys and non-null constraints; generate and commit Alembic migrations.
   - Verify: `docker compose up -d postgres && ./.venv/bin/alembic upgrade head`
   - Done when: migrations apply cleanly on a fresh Postgres volume and `alembic current` shows head.
 
-- [ ] **T03: Add DB smoke + schema constraint tests** `est:1h`
+- [x] **T03: Add DB smoke + schema constraint tests** `est:1h`
   - Why: Prove the schema is real and enforceable before building APIs on top of it.
   - Files: `tests/s01_db_schema_test.py`, `src/sps/db/session.py`
   - Do: Add pytest integration test that connects to Postgres, runs minimal insert/read for each core table, and asserts constraints (e.g. required fields, FK integrity) fail as expected.

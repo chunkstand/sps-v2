@@ -46,7 +46,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Postgres schema + migrations + typed model package** `risk:high` `depends:[]`
+- [x] **S01: Postgres schema + migrations + typed model package** `risk:high` `depends:[]`
   > After this: local Postgres schema can be migrated and queried; typed models validate core entities.
 - [ ] **S02: Evidence registry API + MinIO content roundtrip** `risk:high` `depends:[S01]`
   > After this: evidence can be registered, uploaded, and retrieved by stable ID end-to-end.
