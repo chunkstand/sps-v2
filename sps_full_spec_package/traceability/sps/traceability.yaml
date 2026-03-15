@@ -1,0 +1,582 @@
+artifact_metadata:
+  artifact_id: ART-SPS-TRACE-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: traceability export workflow
+  consumer_list:
+  - reviewers
+  - release_gate
+  - audit
+  owner: Architecture Lead
+  freshness_expectation: must be regenerated for every release candidate
+  failure_if_missing: release_block
+spec_version: 2.0.1
+generated_at: '2026-03-15T00:00:00Z'
+requirement_map:
+  F-001:
+    stories:
+    - '5.1'
+    objects:
+    - PermitCase
+    - Project
+    controls:
+    - CTL-01
+    tests:
+    - create_case_unit
+    - create_case_integration
+  F-002:
+    stories:
+    - '5.1'
+    objects:
+    - JurisdictionResolution
+    - AuthorityProfile
+    controls:
+    - CTL-02
+    tests:
+    - jurisdiction_resolution_integration
+  F-003:
+    stories:
+    - '5.1'
+    objects:
+    - RequirementSet
+    - EvidenceArtifact
+    controls:
+    - CTL-03
+    - CTL-14
+    tests:
+    - requirement_retrieval
+    - contradiction_handling
+  F-004:
+    stories:
+    - '5.1'
+    objects:
+    - ComplianceEvaluation
+    - IncentiveAssessment
+    controls:
+    - CTL-04
+    tests:
+    - compliance_rule_engine
+    - incentive_assessment
+  F-005:
+    stories:
+    - '5.1'
+    objects:
+    - SubmissionPackage
+    - EvidenceArtifact
+    controls:
+    - CTL-05
+    tests:
+    - document_generation
+    - package_digest_validation
+  F-006:
+    stories:
+    - '5.1'
+    - '5.4'
+    objects:
+    - SubmissionAttempt
+    controls:
+    - CTL-06
+    tests:
+    - submission_preflight_negative
+    - submission_adapter_integration
+  F-007:
+    stories:
+    - '5.4'
+    objects:
+    - ExternalStatusEvent
+    - ReviewComment
+    controls:
+    - CTL-07
+    tests:
+    - tracking_polling
+    - status_normalization
+  F-008:
+    stories:
+    - '5.3'
+    objects:
+    - CorrectionTask
+    - SubmissionPackage
+    controls:
+    - CTL-08
+    tests:
+    - comment_resolution_workflow
+  F-009:
+    stories:
+    - '5.4'
+    objects:
+    - ApprovalRecord
+    - InspectionMilestone
+    controls:
+    - CTL-09
+    tests:
+    - approval_recording_e2e
+  F-010:
+    stories:
+    - '5.1'
+    - '5.2'
+    objects:
+    - EvidenceArtifact
+    - EvidenceArtifact
+    - PermitCase
+    controls:
+    - CTL-10
+    tests:
+    - evidence_retrieval_sla
+    - audit_event_schema_validation
+  GOV-001:
+    stories:
+    - '5.1'
+    - '5.2'
+    objects:
+    - PermitCase
+    - ReviewDecision
+    - EvidenceArtifact
+    controls:
+    - CTL-01
+    - CTL-06
+    tests:
+    - authority_boundary_negative
+    - guarded_mutation_e2e
+  GOV-002:
+    stories:
+    - '5.2'
+    objects:
+    - ReviewDecision
+    - PermitCase
+    controls:
+    - CTL-01
+    tests:
+    - review_gate_negative
+    - submission_state_gate_negative
+  GOV-003:
+    stories:
+    - '5.2'
+    objects:
+    - ReviewDecision
+    controls:
+    - CTL-11
+    tests:
+    - review_independence_policy
+    - small_team_exception_negative
+  GOV-004:
+    stories:
+    - '5.2'
+    objects:
+    - ReviewDecision
+    controls:
+    - CTL-12
+    tests:
+    - dissent_release_gate
+    - high_risk_dissent_preservation
+  GOV-005:
+    stories:
+    - '5.3'
+    objects:
+    - ReviewDecision
+    controls:
+    - CTL-13
+    tests:
+    - exception_duration_policy
+    - anti_normalization_thresholds
+  GOV-006:
+    stories:
+    - '5.2'
+    - '5.3'
+    objects:
+    - ContradictionArtifact
+    controls:
+    - CTL-14
+    tests:
+    - same_rank_contradiction_negative
+    - review_resolution_required
+  SEC-001:
+    stories:
+    - '5.2'
+    - '5.3'
+    - '5.5'
+    objects:
+    - ReviewDecision
+    - EvidenceArtifact
+    controls: []
+    tests:
+    - api_auth_integration
+  SEC-002:
+    stories:
+    - '5.2'
+    - '5.3'
+    - '5.5'
+    objects:
+    - ReviewDecision
+    - PermitCase
+    controls: []
+    tests:
+    - rbac_authorization_matrix
+  SEC-003:
+    stories:
+    - '5.3'
+    objects:
+    - EvidenceArtifact
+    - EvidenceArtifact
+    controls: []
+    tests:
+    - log_redaction_validation
+  SEC-004:
+    stories:
+    - '5.3'
+    objects:
+    - EvidenceArtifact
+    - PermitCase
+    controls: []
+    tests:
+    - legal_hold_retention_tests
+  SEC-005:
+    stories:
+    - '5.3'
+    - '5.5'
+    objects:
+    - EvidenceArtifact
+    - PermitCase
+    controls: []
+    tests:
+    - mtls_and_service_principal_integration
+  OBS-001:
+    stories:
+    - '5.3'
+    objects:
+    - EvidenceArtifact
+    - PermitCase
+    controls: []
+    tests:
+    - audit_event_schema_validation
+    - correlation_field_presence
+  OBS-002:
+    stories:
+    - '5.3'
+    objects:
+    - PermitCase
+    - RequirementSet
+    - SubmissionAttempt
+    controls: []
+    tests:
+    - dashboard_validation
+  OBS-003:
+    stories:
+    - '5.3'
+    objects:
+    - EvidenceArtifact
+    - SubmissionAttempt
+    - ReviewDecision
+    controls: []
+    tests:
+    - alert_drills
+  OBS-004:
+    stories:
+    - '5.3'
+    objects:
+    - PermitCase
+    - EvidenceArtifact
+    controls: []
+    tests:
+    - observability_no_mutation_negative
+  VAL-001:
+    stories:
+    - '5.1'
+    - '5.3'
+    objects:
+    - PermitCase
+    - ReviewDecision
+    - EvidenceArtifact
+    controls: []
+    tests:
+    - traceability_export_completeness
+  VAL-002:
+    stories:
+    - '5.1'
+    - '5.2'
+    - '5.3'
+    objects:
+    - PermitCase
+    - ReviewDecision
+    - SubmissionAttempt
+    controls:
+    - CTL-01
+    - CTL-06
+    - CTL-11
+    - CTL-14
+    tests:
+    - runtime_guard_positive
+    - runtime_guard_negative
+  REL-001:
+    stories:
+    - '5.2'
+    - '5.3'
+    objects:
+    - EvidenceArtifact
+    - ReviewDecision
+    - ContradictionArtifact
+    controls:
+    - CTL-12
+    - CTL-14
+    tests:
+    - release_gate_bypass_tests
+  REL-002:
+    stories:
+    - '5.3'
+    objects:
+    - EvidenceArtifact
+    - PermitCase
+    controls: []
+    tests:
+    - rollback_rehearsal_tests
+  REL-003:
+    stories:
+    - '5.3'
+    objects:
+    - EvidenceArtifact
+    - PermitCase
+    controls:
+    - CTL-13
+    tests:
+    - rollout_stage_policy_drill
+control_map:
+  CTL-01:
+    invariants:
+    - INV-001
+    guards:
+    - CTL-01A
+    - CTL-01B
+    guard_assertions:
+    - INV-SPS-STATE-001
+    - INV-SPS-STATE-002
+    runbooks: []
+  CTL-02:
+    invariants: []
+    guards: []
+    guard_assertions: []
+    runbooks: []
+  CTL-03:
+    invariants:
+    - INV-003
+    guards:
+    - CTL-03A
+    guard_assertions:
+    - INV-SPS-RULE-001
+    runbooks:
+    - stale-rule.md
+  CTL-04:
+    invariants: []
+    guards: []
+    guard_assertions: []
+    runbooks:
+    - stale-rule.md
+  CTL-05:
+    invariants:
+    - INV-007
+    guards:
+    - CTL-05A
+    guard_assertions:
+    - INV-SPS-PKG-001
+    runbooks:
+    - submission-failure.md
+  CTL-06:
+    invariants:
+    - INV-002
+    guards:
+    - CTL-06A
+    guard_assertions:
+    - INV-SPS-SUB-001
+    runbooks:
+    - manual-fallback.md
+    - submission-failure.md
+  CTL-07:
+    invariants:
+    - INV-003
+    guards:
+    - CTL-07A
+    - CTL-07B
+    guard_assertions:
+    - INV-SPS-TRACK-001
+    - INV-SPS-TRACK-002
+    runbooks:
+    - submission-failure.md
+  CTL-08:
+    invariants: []
+    guards: []
+    guard_assertions: []
+    runbooks:
+    - manual-fallback.md
+  CTL-09:
+    invariants:
+    - INV-002
+    guards:
+    - CTL-09A
+    guard_assertions:
+    - INV-SPS-APPROVAL-001
+    runbooks: []
+  CTL-10:
+    invariants:
+    - INV-004
+    guards:
+    - CTL-10A
+    guard_assertions:
+    - INV-SPS-EVID-001
+    runbooks:
+    - legal-hold.md
+  CTL-11:
+    invariants:
+    - INV-008
+    guards:
+    - CTL-11A
+    guard_assertions:
+    - INV-SPS-REV-001
+    runbooks:
+    - emergency-declaration.md
+  CTL-12:
+    invariants: []
+    guards: []
+    guard_assertions: []
+    runbooks:
+    - emergency-declaration.md
+  CTL-13:
+    invariants:
+    - INV-006
+    guards:
+    - CTL-13A
+    guard_assertions:
+    - INV-SPS-EMERG-001
+    runbooks:
+    - emergency-declaration.md
+    - release-rollback.md
+  CTL-14:
+    invariants:
+    - INV-003
+    guards:
+    - CTL-14A
+    guard_assertions:
+    - INV-SPS-CONTRA-001
+    runbooks:
+    - stale-rule.md
+test_map:
+  authority_boundary_negative_tests:
+  - GOV-001
+  - GOV-002
+  - OBS-004
+  - SEC-002
+  release_gate_bypass_tests:
+  - REL-001
+  - REL-002
+  - REL-003
+  rollback_rehearsal_tests:
+  - REL-002
+  evidence_queryability_sla_tests:
+  - F-010
+  - OBS-003
+  reviewer_independence_policy_tests:
+  - GOV-003
+  - GOV-004
+  - GOV-005
+runbook_map:
+  manual-fallback.md:
+  - F-006
+  - F-008
+  - REL-001
+  submission-failure.md:
+  - F-006
+  - OBS-003
+  - REL-001
+  stale-rule.md:
+  - F-003
+  - F-004
+  - GOV-006
+  emergency-declaration.md:
+  - GOV-003
+  - GOV-005
+  - REL-003
+  release-rollback.md:
+  - REL-002
+  - REL-003
+  legal-hold.md:
+  - SEC-004
+  - INV-004
+invariant_map:
+  INV-001:
+    owner: governance
+    linked_control: CTL-01B
+  INV-002:
+    owner: platform
+    linked_control: CTL-06A
+  INV-003:
+    owner: compliance
+    linked_control: CTL-14A
+  INV-004:
+    owner: compliance
+    linked_control: SEC-004
+  INV-005:
+    owner: security
+    linked_control: OBS-004
+  INV-006:
+    owner: ops
+    linked_control: CTL-13A
+  INV-007:
+    owner: document service
+    linked_control: CTL-05A
+  INV-008:
+    owner: governance
+    linked_control: CTL-11A
+guard_assertion_map:
+  INV-SPS-STATE-001:
+    linked_control: CTL-01A
+    normalized_business_invariants:
+    - INV-001
+  INV-SPS-STATE-002:
+    linked_control: CTL-01B
+    normalized_business_invariants:
+    - INV-001
+  INV-SPS-RULE-001:
+    linked_control: CTL-03A
+    normalized_business_invariants:
+    - INV-003
+  INV-SPS-PKG-001:
+    linked_control: CTL-05A
+    normalized_business_invariants:
+    - INV-007
+  INV-SPS-SUB-001:
+    linked_control: CTL-06A
+    normalized_business_invariants:
+    - INV-002
+  INV-SPS-TRACK-001:
+    linked_control: CTL-07A
+    normalized_business_invariants:
+    - INV-003
+  INV-SPS-TRACK-002:
+    linked_control: CTL-07B
+    normalized_business_invariants:
+    - INV-002
+  INV-SPS-APPROVAL-001:
+    linked_control: CTL-09A
+    normalized_business_invariants:
+    - INV-002
+  INV-SPS-EVID-001:
+    linked_control: CTL-10A
+    normalized_business_invariants:
+    - INV-004
+  INV-SPS-REV-001:
+    linked_control: CTL-11A
+    normalized_business_invariants:
+    - INV-008
+  INV-SPS-EMERG-001:
+    linked_control: CTL-13A
+    normalized_business_invariants:
+    - INV-006
+  INV-SPS-CONTRA-001:
+    linked_control: CTL-14A
+    normalized_business_invariants:
+    - INV-003
+normalization_notes:
+- 20A guard-matrix `INV-SPS-*` identifiers are materialized as guard assertions in
+  /invariants/sps/guard-assertions.yaml.
+- Requirement-map object names are normalized to canonical model object names from
+  /model/sps/model.yaml.
+unresolved_gaps: []

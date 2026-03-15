@@ -1,0 +1,30 @@
+artifact_metadata:
+  artifact_id: ART-INV-006
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  consumer_list:
+  - runtime_guards
+  - ops
+  - release_gate
+  - auditors
+  owner: ops
+  freshness_expectation: must match current spec version
+  failure_if_missing: release_block
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: invariant registry workflow from section 20
+invariant_id: INV-006
+severity: high
+statement: Emergency exceptions cannot remain active past allowed duration without
+  renewed override.
+prevention: emergency timer
+detection: dashboard alerts
+runtime_guard: orchestrator timer guard
+owner: ops
+linked_controls:
+- CTL-13A
+linked_runbooks:
+- emergency-declaration.md
+linked_tests:
+- inv-006_positive
+- inv-006_negative

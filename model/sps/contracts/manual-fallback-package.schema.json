@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/sps/contracts/ManualFallbackPackage.schema.json",
+  "title": "ManualFallbackPackage",
+  "version": "1.0.0",
+  "description": "Manual fallback proof bundle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bundle_id",
+    "case_id",
+    "package_id",
+    "package_version",
+    "package_hash",
+    "channel_type",
+    "proof_artifact_ids",
+    "operator_id",
+    "recorded_at"
+  ],
+  "properties": {
+    "bundle_id": {
+      "type": "string"
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "package_id": {
+      "type": "string"
+    },
+    "package_version": {
+      "type": "string"
+    },
+    "package_hash": {
+      "type": "string"
+    },
+    "channel_type": {
+      "type": "string"
+    },
+    "proof_artifact_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "operator_id": {
+      "type": "string"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewer_validation_id": {
+      "type": "string"
+    }
+  },
+  "x-artifact-metadata": {
+    "artifact_id": "ART-SPS-CONTRACT-007",
+    "authoritative_or_informative": "authoritative",
+    "authored_or_generated": "generated_from_spec",
+    "consumer_list": [
+      "services",
+      "CI",
+      "reviewers"
+    ],
+    "owner": "Architecture Lead / Platform",
+    "freshness_expectation": "must match current model export for release",
+    "failure_if_missing": "merge_block"
+  }
+}

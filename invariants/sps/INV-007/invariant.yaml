@@ -1,0 +1,30 @@
+artifact_metadata:
+  artifact_id: ART-INV-007
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  consumer_list:
+  - runtime_guards
+  - ops
+  - release_gate
+  - auditors
+  owner: document service
+  freshness_expectation: must match current spec version
+  failure_if_missing: release_block
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: invariant registry workflow from section 20
+invariant_id: INV-007
+severity: high
+statement: Every active package manifest digest must match referenced artifact digests
+  at submission time.
+prevention: package sealing
+detection: digest verification logs
+runtime_guard: submission preflight guard
+owner: document service
+linked_controls:
+- CTL-05A
+linked_runbooks:
+- submission-failure.md
+linked_tests:
+- inv-007_positive
+- inv-007_negative

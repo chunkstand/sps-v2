@@ -1,0 +1,88 @@
+artifact_metadata:
+  artifact_id: ART-SPS-GUARD-ASSERT-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: guard assertion normalization workflow from section 20A
+  consumer_list:
+  - runtime_guards
+  - reviewers
+  - release_gate
+  - auditors
+  owner: Architecture Lead / Governance Lead
+  freshness_expectation: must match current guard placement matrix
+  failure_if_missing: release_block
+spec_version: 2.0.1
+generated_at: '2026-03-15T00:00:00Z'
+guard_assertions:
+- guard_assertion_id: INV-SPS-STATE-001
+  linked_control: CTL-01A
+  statement: Specialist agent direct mutation of PermitCase state is forbidden.
+  normalized_business_invariants:
+  - INV-001
+- guard_assertion_id: INV-SPS-STATE-002
+  linked_control: CTL-01B
+  statement: Advancement into submission-bearing states requires a valid ReviewDecision
+    for the active package.
+  normalized_business_invariants:
+  - INV-001
+- guard_assertion_id: INV-SPS-RULE-001
+  linked_control: CTL-03A
+  statement: A stale or unknown-freshness RequirementSet cannot auto-advance governed
+    workflow state.
+  normalized_business_invariants:
+  - INV-003
+- guard_assertion_id: INV-SPS-PKG-001
+  linked_control: CTL-05A
+  statement: Package hash or manifest drift after approval is forbidden at submission
+    time.
+  normalized_business_invariants:
+  - INV-007
+- guard_assertion_id: INV-SPS-SUB-001
+  linked_control: CTL-06A
+  statement: No case may enter SUBMITTED without verified receipt or validated manual
+    proof.
+  normalized_business_invariants:
+  - INV-002
+- guard_assertion_id: INV-SPS-TRACK-001
+  linked_control: CTL-07A
+  statement: Unmapped or contradictory external status cannot auto-advance authoritative
+    state.
+  normalized_business_invariants:
+  - INV-003
+- guard_assertion_id: INV-SPS-TRACK-002
+  linked_control: CTL-07B
+  statement: Approval-reported external status requires proof sufficiency and reviewer
+    confirmation where applicable.
+  normalized_business_invariants:
+  - INV-002
+- guard_assertion_id: INV-SPS-APPROVAL-001
+  linked_control: CTL-09A
+  statement: ApprovalRecord creation requires linked approval evidence and reviewer
+    confirmation where applicable.
+  normalized_business_invariants:
+  - INV-002
+- guard_assertion_id: INV-SPS-EVID-001
+  linked_control: CTL-10A
+  statement: Binding-surface evidence must resolve by stable identifier for review,
+    release, and audit.
+  normalized_business_invariants:
+  - INV-004
+- guard_assertion_id: INV-SPS-REV-001
+  linked_control: CTL-11A
+  statement: Reviewer self-approval or threshold-breaching repeated pair approval
+    on high-risk surfaces is prohibited absent valid override.
+  normalized_business_invariants:
+  - INV-008
+- guard_assertion_id: INV-SPS-EMERG-001
+  linked_control: CTL-13A
+  statement: Emergency bypass outside declared scope, duration, or policy allowances
+    is forbidden.
+  normalized_business_invariants:
+  - INV-006
+- guard_assertion_id: INV-SPS-CONTRA-001
+  linked_control: CTL-14A
+  statement: Same-rank blocking contradiction forbids advancement until reviewer resolution.
+  normalized_business_invariants:
+  - INV-003

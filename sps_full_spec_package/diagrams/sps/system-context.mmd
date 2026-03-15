@@ -1,0 +1,42 @@
+%% artifact_id: ART-SPS-DIAG-001
+%% authoritative_or_informative: authoritative
+%% authored_or_generated: authored
+%% consumer_list: builders,reviewers,release_managers,auditors
+%% owner: Architecture Lead
+%% freshness_expectation: update when corresponding model or flow changes
+%% failure_if_missing: operator_execution_degraded
+%% title: SPS system context
+%% purpose: Show the SPS boundary, adjacent external systems, and authoritative control points.
+flowchart LR
+  User[Developer / Applicant]
+  Reviewer[Reviewer Service UI/API]
+  Ops[Operator / Release / Governance]
+  SPS[SPS Orchestrator + Planner + Workers]
+  Guard[State Transition Guard]
+  DB[(Postgres)]
+  Store[(Object Storage)]
+  AHJ[AHJ Portals]
+  Utility[Utility Portals]
+  Geo[GIS / Parcel / Zoning Sources]
+  Incentive[Incentive Sources]
+  Obs[Observability]
+  CI[CI / Release Pipeline]
+
+  User --> SPS
+  SPS --> Guard
+  Guard --> DB
+  SPS --> Store
+  SPS --> Reviewer
+  Reviewer --> Guard
+  SPS --> AHJ
+  SPS --> Utility
+  SPS --> Geo
+  SPS --> Incentive
+  SPS --> Obs
+  CI --> Guard
+  CI --> DB
+
+  classDef authoritative fill:#e8f0fe,stroke:#1a73e8,stroke-width:2px;
+  classDef external fill:#f7f7f7,stroke:#777,stroke-dasharray: 5 5;
+  class SPS,Guard,DB,Store,Reviewer authoritative;
+  class AHJ,Utility,Geo,Incentive,Obs,CI external;

@@ -1,0 +1,28 @@
+artifact_metadata:
+  artifact_id: ART-INV-005
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  consumer_list:
+  - runtime_guards
+  - ops
+  - release_gate
+  - auditors
+  owner: security
+  freshness_expectation: must match current spec version
+  failure_if_missing: release_block
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: invariant registry workflow from section 20
+invariant_id: INV-005
+severity: high
+statement: Observability outputs may not mutate authoritative state.
+prevention: network and auth separation
+detection: audit anomaly detection
+runtime_guard: API auth guard
+owner: security
+linked_controls:
+- OBS-004
+linked_runbooks: []
+linked_tests:
+- inv-005_positive
+- inv-005_negative

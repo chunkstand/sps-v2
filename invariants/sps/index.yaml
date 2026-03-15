@@ -1,0 +1,140 @@
+artifact_metadata:
+  artifact_id: ART-SPS-INVARIANTS-INDEX-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: invariant registry workflow
+  consumer_list:
+  - runtime_guards
+  - ops
+  - release_gate
+  owner: Architecture Lead / Ops
+  freshness_expectation: must match current release bundle
+  failure_if_missing: release_block
+spec_version: 2.0.1
+generated_at: '2026-03-15T00:00:00Z'
+invariant_ids:
+- INV-001
+- INV-002
+- INV-003
+- INV-004
+- INV-005
+- INV-006
+- INV-007
+- INV-008
+severities:
+  INV-001: critical
+  INV-002: critical
+  INV-003: critical
+  INV-004: critical
+  INV-005: high
+  INV-006: high
+  INV-007: high
+  INV-008: high
+enforcement_map:
+  INV-001: CTL-01B
+  INV-002: CTL-06A
+  INV-003: CTL-14A
+  INV-004: SEC-004
+  INV-005: OBS-004
+  INV-006: CTL-13A
+  INV-007: CTL-05A
+  INV-008: CTL-11A
+test_refs:
+  INV-001:
+  - tests/inv-001_negative
+  - tests/inv-001_positive
+  INV-002:
+  - tests/inv-002_negative
+  - tests/inv-002_positive
+  INV-003:
+  - tests/inv-003_negative
+  - tests/inv-003_positive
+  INV-004:
+  - tests/inv-004_negative
+  - tests/inv-004_positive
+  INV-005:
+  - tests/inv-005_negative
+  - tests/inv-005_positive
+  INV-006:
+  - tests/inv-006_negative
+  - tests/inv-006_positive
+  INV-007:
+  - tests/inv-007_negative
+  - tests/inv-007_positive
+  INV-008:
+  - tests/inv-008_negative
+  - tests/inv-008_positive
+runtime_guard_refs:
+  INV-001: orchestrator state guard
+  INV-002: submission guard
+  INV-003: state guard
+  INV-004: storage guard
+  INV-005: API auth guard
+  INV-006: orchestrator timer guard
+  INV-007: submission preflight guard
+  INV-008: review API guard
+guard_assertion_artifact: /invariants/sps/guard-assertions.yaml
+guard_assertion_ids:
+- INV-SPS-STATE-001
+- INV-SPS-STATE-002
+- INV-SPS-RULE-001
+- INV-SPS-PKG-001
+- INV-SPS-SUB-001
+- INV-SPS-TRACK-001
+- INV-SPS-TRACK-002
+- INV-SPS-APPROVAL-001
+- INV-SPS-EVID-001
+- INV-SPS-REV-001
+- INV-SPS-EMERG-001
+- INV-SPS-CONTRA-001
+guard_assertion_map:
+  INV-SPS-STATE-001:
+    linked_control: CTL-01A
+    normalized_business_invariants:
+    - INV-001
+  INV-SPS-STATE-002:
+    linked_control: CTL-01B
+    normalized_business_invariants:
+    - INV-001
+  INV-SPS-RULE-001:
+    linked_control: CTL-03A
+    normalized_business_invariants:
+    - INV-003
+  INV-SPS-PKG-001:
+    linked_control: CTL-05A
+    normalized_business_invariants:
+    - INV-007
+  INV-SPS-SUB-001:
+    linked_control: CTL-06A
+    normalized_business_invariants:
+    - INV-002
+  INV-SPS-TRACK-001:
+    linked_control: CTL-07A
+    normalized_business_invariants:
+    - INV-003
+  INV-SPS-TRACK-002:
+    linked_control: CTL-07B
+    normalized_business_invariants:
+    - INV-002
+  INV-SPS-APPROVAL-001:
+    linked_control: CTL-09A
+    normalized_business_invariants:
+    - INV-002
+  INV-SPS-EVID-001:
+    linked_control: CTL-10A
+    normalized_business_invariants:
+    - INV-004
+  INV-SPS-REV-001:
+    linked_control: CTL-11A
+    normalized_business_invariants:
+    - INV-008
+  INV-SPS-EMERG-001:
+    linked_control: CTL-13A
+    normalized_business_invariants:
+    - INV-006
+  INV-SPS-CONTRA-001:
+    linked_control: CTL-14A
+    normalized_business_invariants:
+    - INV-003

@@ -1,0 +1,22 @@
+artifact_metadata:
+  artifact_id: ART-SPS-MANUAL-PROOF-TEMPLATE-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored_template
+  consumer_list:
+  - orchestrator
+  - reviewers
+  - audit
+  owner: Operations Lead / Reviewer
+  freshness_expectation: proof must correspond to current approved package version
+    at validation time
+  failure_if_missing: review_invalid
+bundle_id: MFB-001
+case_id: CASE-001
+package_id: PKG-001
+package_version: '1'
+package_hash: sha256:...
+channel_type: official_authority_email
+proof_artifact_ids: []
+operator_id: ops-1
+reviewer_validation_id: null
+recorded_at: '2026-03-15T00:00:00Z'

@@ -1,0 +1,22 @@
+%% artifact_id: ART-SPS-DIAG-006
+%% authoritative_or_informative: authoritative
+%% authored_or_generated: authored
+%% consumer_list: builders,reviewers,release_managers,auditors
+%% owner: Architecture Lead
+%% freshness_expectation: update when domain model relationships change
+%% failure_if_missing: operator_execution_degraded
+erDiagram
+  Project ||--o{ PermitCase : anchors
+  PermitCase ||--o{ JurisdictionResolution : resolves
+  PermitCase ||--o{ RequirementSet : requires
+  PermitCase ||--o{ ComplianceEvaluation : evaluates
+  PermitCase ||--o{ IncentiveAssessment : assesses
+  PermitCase ||--o{ SubmissionPackage : packages
+  SubmissionPackage ||--o{ SubmissionAttempt : submits
+  PermitCase ||--o{ ReviewDecision : reviewed_by
+  PermitCase ||--o{ ContradictionArtifact : blocks
+  PermitCase ||--o{ EvidenceArtifact : evidenced_by
+  SubmissionAttempt ||--o{ ExternalStatusEvent : emits
+  PermitCase ||--o{ ReviewComment : receives
+  PermitCase ||--o{ ApprovalRecord : records
+  PermitCase ||--o{ CorrectionTask : corrects

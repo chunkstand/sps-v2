@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/sps/contracts/ExternalStatusEvent.schema.json",
+  "title": "ExternalStatusEvent",
+  "version": "1.0.0",
+  "description": "Normalized external status event.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "case_id",
+    "submission_attempt_id",
+    "raw_status",
+    "normalized_status",
+    "confidence",
+    "auto_advance_eligible",
+    "evidence_ids",
+    "received_at"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string"
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "submission_attempt_id": {
+      "type": "string"
+    },
+    "raw_status": {
+      "type": "string"
+    },
+    "normalized_status": {
+      "type": "string",
+      "enum": [
+        "RECEIVED_UNCONFIRMED",
+        "RECEIVED_CONFIRMED",
+        "IN_REVIEW",
+        "COMMENT_ISSUED",
+        "RESUBMISSION_REQUESTED",
+        "APPROVAL_REPORTED",
+        "APPROVAL_CONFIRMED",
+        "REJECTION_REPORTED",
+        "WITHDRAWN_REPORTED",
+        "CLOSED_REPORTED",
+        "UNKNOWN_EXTERNAL_STATUS",
+        "CONTRADICTORY_EXTERNAL_STATUS"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "HIGH",
+        "MEDIUM",
+        "LOW",
+        "NONE"
+      ]
+    },
+    "auto_advance_eligible": {
+      "type": "boolean"
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "x-artifact-metadata": {
+    "artifact_id": "ART-SPS-CONTRACT-008",
+    "authoritative_or_informative": "authoritative",
+    "authored_or_generated": "generated_from_spec",
+    "consumer_list": [
+      "services",
+      "CI",
+      "reviewers"
+    ],
+    "owner": "Architecture Lead / Platform",
+    "freshness_expectation": "must match current model export for release",
+    "failure_if_missing": "merge_block"
+  }
+}

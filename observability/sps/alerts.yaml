@@ -1,0 +1,36 @@
+artifact_metadata:
+  artifact_id: ART-SPS-OBS-ALERT-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored
+  consumer_list:
+  - ops
+  - security
+  - release_managers
+  owner: Operations Lead
+  freshness_expectation: update when alert policy changes
+  failure_if_missing: operator_execution_degraded
+alerts:
+- name: evidence_retrieval_p99_gt_5s
+  condition: p99 > 5 seconds
+  severity: high
+- name: submission_pending_timeout_breach
+  condition: SUBMISSION_PENDING timeout breached
+  severity: high
+- name: emergency_hold_expiring
+  condition: EMERGENCY_HOLD approaching expiration
+  severity: critical
+- name: same_rank_contradiction_backlog
+  condition: contradiction backlog > threshold
+  severity: high
+- name: reviewer_independence_threshold_breach
+  condition: threshold breach
+  severity: high
+- name: digest_mismatch_submission_preflight
+  condition: digest mismatch detected
+  severity: critical
+- name: stalled_review_sla_breach
+  condition: review gate age > configured SLA
+  severity: high
+- name: submission_failure_spike
+  condition: submission failure rate > configured threshold
+  severity: high

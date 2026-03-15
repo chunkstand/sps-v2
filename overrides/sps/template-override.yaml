@@ -1,0 +1,19 @@
+artifact_metadata:
+  artifact_id: ART-SPS-OVERRIDE-TEMPLATE-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored_template
+  consumer_list:
+  - runtime_guards
+  - governance
+  - audit
+  owner: Escalation Owner
+  freshness_expectation: must not be expired at time of use
+  failure_if_missing: runtime_unsafe
+override_id: OVR-001
+scope: REVIEWER_INDEPENDENCE_EXCEPTION
+justification: ''
+start_at: '2026-03-15T00:00:00Z'
+expires_at: '2026-03-15T12:00:00Z'
+affected_surfaces: []
+approver_id: exec-1
+cleanup_required: true

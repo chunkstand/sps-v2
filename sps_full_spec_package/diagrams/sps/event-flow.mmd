@@ -1,0 +1,24 @@
+%% artifact_id: ART-SPS-DIAG-007
+%% authoritative_or_informative: authoritative
+%% authored_or_generated: authored
+%% consumer_list: builders,reviewers,release_managers,auditors
+%% owner: Architecture Lead
+%% freshness_expectation: update when event sequencing changes
+%% failure_if_missing: operator_execution_degraded
+flowchart LR
+  Intake[intake received]
+  Normalize[project normalized]
+  Research[requirements gathered]
+  Review[review decision captured]
+  Seal[submission package sealed]
+  Submit[submission attempted]
+  Status[external status ingested]
+  Resolve[comments resolved / resubmission]
+  Approve[approval recorded]
+  Audit[audit and evidence retrieval]
+
+  Intake --> Normalize --> Research --> Review --> Seal --> Submit --> Status
+  Status -->|comment issued| Resolve --> Review
+  Status -->|approval reported| Approve --> Audit
+  Review -->|block| Audit
+  Submit -->|manual fallback| Audit

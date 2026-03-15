@@ -1,0 +1,29 @@
+artifact_metadata:
+  artifact_id: ART-INV-003
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  consumer_list:
+  - runtime_guards
+  - ops
+  - release_gate
+  - auditors
+  owner: compliance
+  freshness_expectation: must match current spec version
+  failure_if_missing: release_block
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: invariant registry workflow from section 20
+invariant_id: INV-003
+severity: critical
+statement: Same-rank authoritative contradiction must block auto-advance.
+prevention: contradiction detector
+detection: review queue metrics
+runtime_guard: state guard
+owner: compliance
+linked_controls:
+- CTL-14A
+linked_runbooks:
+- stale-rule.md
+linked_tests:
+- inv-003_positive
+- inv-003_negative

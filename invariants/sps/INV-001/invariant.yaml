@@ -1,0 +1,29 @@
+artifact_metadata:
+  artifact_id: ART-INV-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  consumer_list:
+  - runtime_guards
+  - ops
+  - release_gate
+  - auditors
+  owner: governance
+  freshness_expectation: must match current spec version
+  failure_if_missing: release_block
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: invariant registry workflow from section 20
+invariant_id: INV-001
+severity: critical
+statement: No case may enter APPROVED_FOR_SUBMISSION without a valid review decision
+  for the active package.
+prevention: reviewer gate
+detection: audit query
+runtime_guard: orchestrator state guard
+owner: governance
+linked_controls:
+- CTL-01B
+linked_runbooks: []
+linked_tests:
+- inv-001_positive
+- inv-001_negative

@@ -1,0 +1,26 @@
+%% artifact_id: ART-SPS-DIAG-005
+%% authoritative_or_informative: authoritative
+%% authored_or_generated: authored
+%% consumer_list: builders,reviewers,release_managers,auditors
+%% owner: Architecture Lead
+%% freshness_expectation: update when corresponding model or flow changes
+%% failure_if_missing: operator_execution_degraded
+%% title: SPS governance and release pipeline
+%% purpose: Show the required merge and release gates for a production-authoritative rollout.
+flowchart TD
+  Spec[Spec validation]
+  Schema[Schema validation]
+  Model[Model export freshness]
+  Trace[Traceability coverage]
+  Surface[Surface classification]
+  Invariants[Invariant compatibility]
+  Metrics[Reviewer independence metrics]
+  Gov[Governance policy evaluation]
+  Merge[Merge authorization artifact]
+  Bundle[Release bundle manifest]
+  Rollback[Rollback rehearsal evidence]
+  Post[Post-release validation]
+  Deploy[Canary -> limited -> full rollout]
+
+  Spec --> Schema --> Model --> Trace --> Surface --> Invariants --> Metrics --> Gov --> Merge
+  Merge --> Bundle --> Rollback --> Deploy --> Post

@@ -1,0 +1,27 @@
+%% artifact_id: ART-SPS-DIAG-002
+%% authoritative_or_informative: authoritative
+%% authored_or_generated: authored
+%% consumer_list: builders,reviewers,release_managers,auditors
+%% owner: Architecture Lead
+%% freshness_expectation: update when corresponding model or flow changes
+%% failure_if_missing: operator_execution_degraded
+%% title: SPS authority map
+%% purpose: Show who may compute, who may review, and where authoritative mutation is allowed.
+flowchart TD
+  Planner[Planner]
+  Specialists[Specialist Workers]
+  Reviewer[Human Reviewer]
+  Guard[State Transition Guard]
+  CaseState[(PermitCase.case_state)]
+  Policy[(Policy Versions)]
+  Evidence[(Evidence Registry)]
+  Obs[Observability]
+
+  Planner -->|schedules work only| Specialists
+  Specialists -->|typed outputs + evidence| Reviewer
+  Reviewer -->|ReviewDecision| Guard
+  Guard -->|guarded mutation only| CaseState
+  Guard -->|policy applicability checks| Policy
+  Specialists -->|artifact metadata| Evidence
+  Obs -. read only .-> CaseState
+  Obs -. read only .-> Evidence

@@ -1,0 +1,19 @@
+artifact_metadata:
+  artifact_id: ART-SPS-REL-POSTVAL-TEMPLATE-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored_template
+  consumer_list:
+  - release_manager
+  - audit
+  owner: Release Manager / Ops
+  freshness_expectation: required for each production rollout stage before next stage
+  failure_if_missing: release_block
+release_id: REL-2026-0001
+validation_window:
+  start: '2026-03-15T00:00:00Z'
+  end: '2026-03-15T04:00:00Z'
+checks_executed: []
+check_results: []
+incidents: []
+unresolved_findings: []
+signed_at: '2026-03-15T04:00:00Z'

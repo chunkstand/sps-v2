@@ -1,0 +1,68 @@
+artifact_metadata:
+  artifact_id: ART-SPS-OBLIGATIONS-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored
+  consumer_list:
+  - builders
+  - reviewers
+  - release_managers
+  - auditors
+  owner: Architecture Lead
+  freshness_expectation: update when package artifact applicability changes
+  failure_if_missing: review_invalid
+spec_id: SPS-001-BUILD
+spec_version: 2.0.1
+baseline_required_artifacts:
+- /specs/sps/build-approved/spec.md
+- /specs/sps/build-approved/runtime-implementation-profile.md
+- /specs/sps/build-approved/plan.md
+- /specs/sps/build-approved/tasks.md
+- /specs/sps/build-approved/clarifications.md
+- /specs/sps/build-approved/intent.md
+- /specs/sps/build-approved/lineage.yaml
+- /specs/sps/build-approved/surface-map.yaml
+- /specs/sps/build-approved/surface-policy.yaml
+- /specs/sps/build-approved/review-metrics.yaml
+- /specs/sps/build-approved/artifact-obligations.yaml
+- /model/sps/model.yaml
+- /model/sps/contracts/*.json
+- /invariants/sps/index.yaml
+- /invariants/sps/guard-assertions.yaml
+- /invariants/sps/INV-*/invariant.yaml
+- /traceability/sps/traceability.yaml
+- /observability/sps/dashboards.yaml
+- /observability/sps/alerts.yaml
+- /ci/sps/merge-authorization.yaml
+- /diagrams/sps/*.mmd
+conditionally_required_artifacts:
+  approval_gated_surfaces:
+  - /reviews/sps/*.yaml
+  high_risk_surface_dissent:
+  - /dissent/sps/*.yaml
+  exceptions_or_emergency_use:
+  - /overrides/sps/*.yaml
+  waiver_usage:
+  - /waivers/sps/*.yaml
+  incident_or_rollback_or_emergency_event:
+  - /incidents/sps/*.yaml
+  manual_fallback_used:
+  - /evidence/sps/manual-fallback/*.yaml
+  release_candidate_or_rollout:
+  - /releases/sps/*/manifest.yaml
+  - /releases/sps/*/post-release-validation.yaml
+  rollback_executed_or_rehearsed:
+  - /releases/sps/*/rollback.yaml
+  operator_critical_paths:
+  - /runbooks/sps/*.md
+derived_or_discoverable_artifacts:
+- /model/sps/model.yaml
+- /traceability/sps/traceability.yaml
+- /invariants/sps/index.yaml
+- /invariants/sps/guard-assertions.yaml
+- /diagrams/sps/*.mmd
+- /PACKAGE-MANIFEST.json
+external_authoritative_linkages:
+- AHJ portals for submission receipt truth where available
+- utility portals for utility-submission acknowledgement truth where available
+- incident management system when authoritative external linkage is used
+- identity provider for authenticated identity assertions

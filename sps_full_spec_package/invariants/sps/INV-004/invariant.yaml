@@ -1,0 +1,29 @@
+artifact_metadata:
+  artifact_id: ART-INV-004
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  consumer_list:
+  - runtime_guards
+  - ops
+  - release_gate
+  - auditors
+  owner: compliance
+  freshness_expectation: must match current spec version
+  failure_if_missing: release_block
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: invariant registry workflow from section 20
+invariant_id: INV-004
+severity: critical
+statement: Legal hold prevents purge or destructive delete of bound evidence.
+prevention: retention service
+detection: purge audit jobs
+runtime_guard: storage guard
+owner: compliance
+linked_controls:
+- SEC-004
+linked_runbooks:
+- legal-hold.md
+linked_tests:
+- inv-004_positive
+- inv-004_negative

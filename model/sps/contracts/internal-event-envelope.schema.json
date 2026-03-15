@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/sps/contracts/InternalEventEnvelope.schema.json",
+  "title": "InternalEventEnvelope",
+  "version": "1.0.0",
+  "description": "Structured internal event envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "case_id",
+    "object_type",
+    "object_id",
+    "actor_type",
+    "actor_id",
+    "correlation_id",
+    "occurred_at",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "object_type": {
+      "type": "string"
+    },
+    "object_id": {
+      "type": "string"
+    },
+    "actor_type": {
+      "type": "string"
+    },
+    "actor_id": {
+      "type": "string"
+    },
+    "correlation_id": {
+      "type": "string"
+    },
+    "causation_id": {
+      "type": "string"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "x-artifact-metadata": {
+    "artifact_id": "ART-SPS-CONTRACT-009",
+    "authoritative_or_informative": "authoritative",
+    "authored_or_generated": "generated_from_spec",
+    "consumer_list": [
+      "services",
+      "CI",
+      "reviewers"
+    ],
+    "owner": "Architecture Lead / Platform",
+    "freshness_expectation": "must match current model export for release",
+    "failure_if_missing": "merge_block"
+  }
+}

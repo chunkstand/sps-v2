@@ -1,0 +1,52 @@
+artifact_metadata:
+  artifact_id: ART-SPS-SURFACE-MAP-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored
+  consumer_list:
+  - reviewers
+  - governance
+  - release_managers
+  owner: Governance Lead
+  freshness_expectation: update with any new high-risk surface
+  failure_if_missing: review_invalid
+surfaces:
+- surface_id: SURF-AUTH-001
+  name: PermitCase state transition handlers
+  risk: critical
+  high_risk: true
+  requires_reviewer_independence: true
+- surface_id: SURF-AUTH-002
+  name: Review decision creation
+  risk: critical
+  high_risk: true
+  requires_reviewer_independence: true
+- surface_id: SURF-AUTH-003
+  name: Status mapping files
+  risk: critical
+  high_risk: true
+  requires_reviewer_independence: true
+- surface_id: SURF-AUTH-004
+  name: Manual fallback proof validation
+  risk: critical
+  high_risk: true
+  requires_reviewer_independence: true
+- surface_id: SURF-AUTH-005
+  name: Release gating logic
+  risk: critical
+  high_risk: true
+  requires_reviewer_independence: true
+- surface_id: SURF-DATA-001
+  name: Evidence retrieval API
+  risk: high
+  high_risk: false
+  requires_reviewer_independence: false
+- surface_id: SURF-RUNTIME-001
+  name: Submission adapter integrations
+  risk: high
+  high_risk: true
+  requires_reviewer_independence: true
+- surface_id: SURF-OBS-001
+  name: Observability dashboards and alerts
+  risk: medium
+  high_risk: false
+  requires_reviewer_independence: false

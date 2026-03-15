@@ -1,0 +1,31 @@
+%% artifact_id: ART-SPS-DIAG-004
+%% authoritative_or_informative: authoritative
+%% authored_or_generated: authored
+%% consumer_list: builders,reviewers,release_managers,auditors
+%% owner: Architecture Lead
+%% freshness_expectation: update when corresponding model or flow changes
+%% failure_if_missing: operator_execution_degraded
+%% title: Submission and manual fallback sequence
+%% purpose: Show normal submission gating and the bounded fallback path when support is unavailable or ambiguous.
+sequenceDiagram
+  participant Planner
+  participant Reviewer
+  participant Guard
+  participant Submission
+  participant AHJ
+  participant Operator
+
+  Planner->>Reviewer: Present sealed package + evidence
+  Reviewer->>Guard: ReviewDecision(ACCEPT or dissent/block)
+  Guard->>Submission: Allow submit only if preconditions pass
+  Submission->>AHJ: Submit with idempotency key
+  AHJ-->>Submission: Receipt or ambiguous/unsupported response
+  alt receipt verified
+    Submission->>Guard: submission_succeeded + receipt artifact
+    Guard-->>Planner: case -> SUBMITTED
+  else unsupported or ambiguous
+    Submission->>Operator: ManualFallbackPackage required
+    Operator->>Reviewer: proof bundle for validation
+    Reviewer->>Guard: validated proof decision
+    Guard-->>Planner: case -> SUBMITTED or remains blocked
+  end

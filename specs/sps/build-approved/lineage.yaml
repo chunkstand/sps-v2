@@ -1,0 +1,39 @@
+artifact_metadata:
+  artifact_id: ART-SPS-LINEAGE-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored
+  consumer_list:
+  - reviewers
+  - release_managers
+  - auditors
+  owner: Architecture Lead
+  freshness_expectation: update on any authority-bearing change
+  failure_if_missing: review_invalid
+spec_id: SPS-001-BUILD
+spec_version: 2.0.1
+status: BUILD_APPROVED
+supersedes:
+- SPS-001 v1.0.0
+- SPS Clarifications Register
+- SPS Hardening Notes
+runtime_profile:
+  profile_id: SPS-RUNTIME-PROFILE-01
+  status: BUILD_APPROVED
+source_documents:
+- title: SPS v2.0.1 Canonical Spec Package
+  materialized_to: /specs/sps/build-approved/spec.md
+- title: Implementation SPS v2.0.1
+  materialized_to: /specs/sps/build-approved/runtime-implementation-profile.md
+generated_binding_artifacts:
+- /model/sps/model.yaml
+- /model/sps/contracts/*.json
+- /invariants/sps/index.yaml
+- /traceability/sps/traceability.yaml
+- /diagrams/sps/*.mmd
+- /invariants/sps/guard-assertions.yaml
+release_generated_must_regenerate:
+- /model/sps/model.yaml
+- /traceability/sps/traceability.yaml
+- /invariants/sps/index.yaml
+- /releases/sps/*/manifest.yaml
+- /releases/sps/*/post-release-validation.yaml

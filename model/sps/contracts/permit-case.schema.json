@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/sps/contracts/PermitCase.schema.json",
+  "title": "PermitCase",
+  "version": "1.0.0",
+  "description": "Canonical case-level authority record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id",
+    "tenant_id",
+    "project_id",
+    "case_state",
+    "review_state",
+    "submission_mode",
+    "portal_support_level",
+    "current_release_profile",
+    "legal_hold",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "case_state": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "INTAKE_PENDING",
+        "INTAKE_COMPLETE",
+        "JURISDICTION_PENDING",
+        "JURISDICTION_COMPLETE",
+        "RESEARCH_PENDING",
+        "RESEARCH_COMPLETE",
+        "COMPLIANCE_PENDING",
+        "COMPLIANCE_COMPLETE",
+        "INCENTIVES_PENDING",
+        "INCENTIVES_COMPLETE",
+        "DOCUMENT_PENDING",
+        "DOCUMENT_COMPLETE",
+        "REVIEW_PENDING",
+        "BLOCKED",
+        "APPROVED_FOR_SUBMISSION",
+        "SUBMISSION_PENDING",
+        "SUBMITTED",
+        "COMMENT_REVIEW_PENDING",
+        "CORRECTION_PENDING",
+        "RESUBMISSION_PENDING",
+        "APPROVED",
+        "CLOSED",
+        "CANCELLED",
+        "MANUAL_SUBMISSION_REQUIRED",
+        "EMERGENCY_HOLD",
+        "ROLLED_BACK"
+      ]
+    },
+    "review_state": {
+      "type": "string"
+    },
+    "submission_mode": {
+      "type": "string",
+      "enum": [
+        "AUTOMATED",
+        "MANUAL"
+      ]
+    },
+    "portal_support_level": {
+      "type": "string",
+      "enum": [
+        "FULLY_SUPPORTED",
+        "PARTIALLY_SUPPORTED_READ_ONLY",
+        "PARTIALLY_SUPPORTED_UPLOAD_ONLY",
+        "UNSUPPORTED"
+      ]
+    },
+    "current_package_id": {
+      "type": "string"
+    },
+    "current_release_profile": {
+      "type": "string"
+    },
+    "legal_hold": {
+      "type": "boolean"
+    },
+    "closure_reason": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "x-artifact-metadata": {
+    "artifact_id": "ART-SPS-CONTRACT-001",
+    "authoritative_or_informative": "authoritative",
+    "authored_or_generated": "generated_from_spec",
+    "consumer_list": [
+      "services",
+      "CI",
+      "reviewers"
+    ],
+    "owner": "Architecture Lead / Platform",
+    "freshness_expectation": "must match current model export for release",
+    "failure_if_missing": "merge_block"
+  }
+}

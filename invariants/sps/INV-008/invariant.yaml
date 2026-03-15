@@ -1,0 +1,30 @@
+artifact_metadata:
+  artifact_id: ART-INV-008
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  consumer_list:
+  - runtime_guards
+  - ops
+  - release_gate
+  - auditors
+  owner: governance
+  freshness_expectation: must match current spec version
+  failure_if_missing: release_block
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  regeneration_method: invariant registry workflow from section 20
+invariant_id: INV-008
+severity: high
+statement: Reviewer self-approval on high-risk surface is prohibited absent exception
+  artifact.
+prevention: reviewer policy
+detection: metrics and review audit
+runtime_guard: review API guard
+owner: governance
+linked_controls:
+- CTL-11A
+linked_runbooks:
+- emergency-declaration.md
+linked_tests:
+- inv-008_positive
+- inv-008_negative

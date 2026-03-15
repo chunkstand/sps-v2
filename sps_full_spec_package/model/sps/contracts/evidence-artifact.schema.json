@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/sps/contracts/EvidenceArtifact.schema.json",
+  "title": "EvidenceArtifact",
+  "version": "1.0.0",
+  "description": "Queryable evidence unit.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_id",
+    "artifact_class",
+    "producing_service",
+    "retention_class",
+    "checksum",
+    "storage_uri",
+    "authoritativeness",
+    "provenance",
+    "created_at",
+    "legal_hold_flag"
+  ],
+  "properties": {
+    "artifact_id": {
+      "type": "string"
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "REQUIREMENT_EVIDENCE",
+        "COMPLIANCE_REPORT",
+        "INCENTIVE_REPORT",
+        "DOCUMENT",
+        "MANIFEST",
+        "RECEIPT",
+        "AUDIT_EVENT",
+        "REVIEW_RECORD",
+        "INCIDENT_RECORD",
+        "OVERRIDE_RECORD"
+      ]
+    },
+    "producing_service": {
+      "type": "string"
+    },
+    "linked_case_id": {
+      "type": "string"
+    },
+    "linked_object_id": {
+      "type": "string"
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "CASE_CORE_7Y",
+        "CASE_CORE_EXTENDED",
+        "LEGAL_HOLD",
+        "TRANSIENT_CACHE",
+        "RELEASE_EVIDENCE"
+      ]
+    },
+    "checksum": {
+      "type": "string"
+    },
+    "storage_uri": {
+      "type": "string"
+    },
+    "authoritativeness": {
+      "type": "string"
+    },
+    "provenance": {
+      "type": "object"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "legal_hold_flag": {
+      "type": "boolean"
+    }
+  },
+  "x-artifact-metadata": {
+    "artifact_id": "ART-SPS-CONTRACT-005",
+    "authoritative_or_informative": "authoritative",
+    "authored_or_generated": "generated_from_spec",
+    "consumer_list": [
+      "services",
+      "CI",
+      "reviewers"
+    ],
+    "owner": "Architecture Lead / Platform",
+    "freshness_expectation": "must match current model export for release",
+    "failure_if_missing": "merge_block"
+  }
+}

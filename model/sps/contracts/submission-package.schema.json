@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/sps/contracts/SubmissionPackage.schema.json",
+  "title": "SubmissionPackage",
+  "version": "1.0.0",
+  "description": "Sealed package for review and submission.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "package_id",
+    "case_id",
+    "package_version",
+    "manifest_id",
+    "artifact_ids",
+    "hash_digest",
+    "target_portal_family",
+    "package_status"
+  ],
+  "properties": {
+    "package_id": {
+      "type": "string"
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "package_version": {
+      "type": "string"
+    },
+    "manifest_id": {
+      "type": "string"
+    },
+    "artifact_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hash_digest": {
+      "type": "string"
+    },
+    "target_portal_family": {
+      "type": "string"
+    },
+    "package_status": {
+      "type": "string"
+    },
+    "approved_for_submission_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "x-artifact-metadata": {
+    "artifact_id": "ART-SPS-CONTRACT-003",
+    "authoritative_or_informative": "authoritative",
+    "authored_or_generated": "generated_from_spec",
+    "consumer_list": [
+      "services",
+      "CI",
+      "reviewers"
+    ],
+    "owner": "Architecture Lead / Platform",
+    "freshness_expectation": "must match current model export for release",
+    "failure_if_missing": "merge_block"
+  }
+}

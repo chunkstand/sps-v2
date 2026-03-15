@@ -1,0 +1,28 @@
+artifact_metadata:
+  artifact_id: ART-SPS-CI-MERGEAUTH-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored
+  consumer_list:
+  - CI
+  - reviewers
+  - release_managers
+  owner: Platform
+  freshness_expectation: update with merge gate policy changes
+  failure_if_missing: merge_block
+pipeline_sequence:
+- spec validation
+- schema validation
+- model export freshness check
+- traceability coverage check
+- surface classification check
+- invariant compatibility check
+- reviewer independence metrics evaluation where applicable
+- governance policy evaluation
+- merge authorization artifact issuance
+blocking_conditions:
+- missing binding artifact
+- stale generated binding artifact
+- unresolved blocker contradiction
+- failed runtime guard tests
+- release-gate bypass test failure
+- missing rollback rehearsal evidence for affected critical paths

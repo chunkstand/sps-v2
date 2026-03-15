@@ -1,0 +1,20 @@
+artifact_metadata:
+  artifact_id: ART-SPS-OBS-DASH-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored
+  consumer_list:
+  - ops
+  - release_managers
+  - governance
+  owner: Operations Lead
+  freshness_expectation: update when dashboards change
+  failure_if_missing: operator_execution_degraded
+dashboards:
+- Case funnel and time-in-state
+- Review backlog and independence metrics
+- Unsupported portal case count
+- Stale-rule case backlog
+- Contradiction queue
+- Evidence retrieval latency and failure rate
+- Emergency exception dashboard
+- Release health dashboard

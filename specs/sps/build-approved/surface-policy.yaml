@@ -1,0 +1,29 @@
+artifact_metadata:
+  artifact_id: ART-SPS-SURFACE-POLICY-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored
+  consumer_list:
+  - governance
+  - reviewer_service
+  - release_gate
+  owner: Governance Lead
+  freshness_expectation: update with policy changes
+  failure_if_missing: review_invalid
+defaults:
+  protected_transitions_require_review: true
+  runtime_guard_required_for_runtime_reachable_failure: true
+  same_rank_contradiction_blocks_auto_advance: true
+high_risk_surface_rules:
+  reviewer_independence_required: true
+  dissent_tightens_release: true
+  self_approval_forbidden: true
+  small_team_exception_requires_override: true
+emergency_policy:
+  max_duration_hours: 24
+  cleanup_due_hours_after_end: 4
+  never_skippable:
+  - audit logging
+  - evidence capture
+  - explicit authorization for authority-bearing mutation
+  - incident linkage
+  - retroactive cleanup obligations

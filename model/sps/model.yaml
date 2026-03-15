@@ -1,0 +1,950 @@
+artifact_metadata:
+  artifact_id: ART-SPS-MODEL-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: generated_from_spec
+  source_inputs:
+  - /specs/sps/build-approved/spec.md
+  - /specs/sps/build-approved/runtime-implementation-profile.md
+  regeneration_method: model generation workflow from section 10A and section 8
+  consumer_list:
+  - planner
+  - state_transition_guard
+  - reviewer_ui
+  - release_gate
+  - evidence_api
+  owner: Architecture Lead
+  freshness_expectation: must match current spec version and release candidate
+  failure_if_missing: release_block
+model_id: SPS-DOMAIN-MODEL-2.0.1
+spec_id: SPS-001-BUILD
+spec_version: 2.0.1
+schema_version: 1.0.0
+generated_at: '2026-03-15T00:00:00Z'
+compatibility:
+  backward_compatible_with: []
+  breaking_change_rule: changes to authoritative object names, enum semantics, state transitions, guard-linked fields, or
+    contract-required fields require formal spec revision approval
+enum_defs:
+  CaseState:
+  - DRAFT
+  - INTAKE_PENDING
+  - INTAKE_COMPLETE
+  - JURISDICTION_PENDING
+  - JURISDICTION_COMPLETE
+  - RESEARCH_PENDING
+  - RESEARCH_COMPLETE
+  - COMPLIANCE_PENDING
+  - COMPLIANCE_COMPLETE
+  - INCENTIVES_PENDING
+  - INCENTIVES_COMPLETE
+  - DOCUMENT_PENDING
+  - DOCUMENT_COMPLETE
+  - REVIEW_PENDING
+  - BLOCKED
+  - APPROVED_FOR_SUBMISSION
+  - SUBMISSION_PENDING
+  - SUBMITTED
+  - COMMENT_REVIEW_PENDING
+  - CORRECTION_PENDING
+  - RESUBMISSION_PENDING
+  - APPROVED
+  - CLOSED
+  - CANCELLED
+  - MANUAL_SUBMISSION_REQUIRED
+  - EMERGENCY_HOLD
+  - ROLLED_BACK
+  ReviewOutcome:
+  - ACCEPT
+  - ACCEPT_WITH_DISSENT
+  - BLOCK
+  SubmissionMode:
+  - AUTOMATED
+  - MANUAL
+  PortalSupportLevel:
+  - FULLY_SUPPORTED
+  - PARTIALLY_SUPPORTED_READ_ONLY
+  - PARTIALLY_SUPPORTED_UPLOAD_ONLY
+  - UNSUPPORTED
+  FreshnessState:
+  - FRESH
+  - STALE
+  - INVALIDATED
+  ArtifactClass:
+  - REQUIREMENT_EVIDENCE
+  - COMPLIANCE_REPORT
+  - INCENTIVE_REPORT
+  - DOCUMENT
+  - MANIFEST
+  - RECEIPT
+  - AUDIT_EVENT
+  - REVIEW_RECORD
+  - INCIDENT_RECORD
+  - OVERRIDE_RECORD
+  ContradictionState:
+  - NONE
+  - SAME_RANK_BLOCKING
+  - HIGHER_RANK_OVERRIDE
+  - RESOLVED
+  RetentionClass:
+  - CASE_CORE_7Y
+  - CASE_CORE_EXTENDED
+  - LEGAL_HOLD
+  - TRANSIENT_CACHE
+  - RELEASE_EVIDENCE
+  ExternalStatusClass:
+  - RECEIVED_UNCONFIRMED
+  - RECEIVED_CONFIRMED
+  - IN_REVIEW
+  - COMMENT_ISSUED
+  - RESUBMISSION_REQUESTED
+  - APPROVAL_REPORTED
+  - APPROVAL_CONFIRMED
+  - REJECTION_REPORTED
+  - WITHDRAWN_REPORTED
+  - CLOSED_REPORTED
+  - UNKNOWN_EXTERNAL_STATUS
+  - CONTRADICTORY_EXTERNAL_STATUS
+  ReviewerIndependenceStatus:
+  - PASS
+  - WARNING
+  - ESCALATION_REQUIRED
+  - BLOCKED
+  - OVERRIDE_APPLIED
+object_defs:
+  PermitCase:
+    api_name: PermitCase
+    purpose: canonical case-level authority record
+    owner: Platform
+    primary_key: case_id
+    title_key: case_id
+    mutability_model: governed
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y or stronger by policy
+    fields:
+      case_id:
+        type: string
+        required: true
+        authoritative: true
+        mutability: immutable
+      tenant_id:
+        type: string
+        required: true
+        authoritative: true
+        mutability: immutable
+      project_id:
+        type: string
+        required: true
+        authoritative: true
+        mutability: immutable
+      case_state:
+        type: CaseState
+        required: true
+        authoritative: true
+        mutability: guarded
+      review_state:
+        type: string
+        required: true
+        authoritative: true
+        mutability: guarded
+      submission_mode:
+        type: SubmissionMode
+        required: true
+        authoritative: true
+        mutability: guarded
+      portal_support_level:
+        type: PortalSupportLevel
+        required: true
+        authoritative: true
+        mutability: guarded
+      current_package_id:
+        type: string
+        required: false
+        authoritative: true
+        mutability: guarded
+      current_release_profile:
+        type: string
+        required: true
+        authoritative: true
+        mutability: guarded
+      legal_hold:
+        type: boolean
+        required: true
+        authoritative: true
+        mutability: guarded
+      closure_reason:
+        type: string
+        required: false
+        authoritative: true
+        mutability: guarded
+      created_at:
+        type: datetime
+        required: true
+        authoritative: true
+        mutability: immutable
+      updated_at:
+        type: datetime
+        required: true
+        authoritative: true
+        mutability: guarded
+  Project:
+    api_name: Project
+    purpose: normalized project facts used by research, compliance, incentives, and documents
+    owner: Platform
+    primary_key: project_id
+    title_key: address
+    mutability_model: versioned_governed
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      project_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      address:
+        type: string
+        required: true
+      parcel_id:
+        type: string
+        required: false
+      project_type:
+        type: string
+        required: true
+      system_size_kw:
+        type: number
+        required: true
+      battery_flag:
+        type: boolean
+        required: true
+      service_upgrade_flag:
+        type: boolean
+        required: true
+      trenching_flag:
+        type: boolean
+        required: true
+      structural_modification_flag:
+        type: boolean
+        required: true
+      roof_type:
+        type: string
+        required: false
+      occupancy_classification:
+        type: string
+        required: false
+      utility_name:
+        type: string
+        required: false
+      contact_metadata:
+        type: object
+        required: false
+  JurisdictionResolution:
+    api_name: JurisdictionResolution
+    purpose: resolved authority stack and support classification
+    owner: Research/Geo
+    primary_key: jurisdiction_resolution_id
+    title_key: case_id
+    mutability_model: versioned_governed
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      jurisdiction_resolution_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      city_authority_id:
+        type: string
+        required: false
+      county_authority_id:
+        type: string
+        required: false
+      state_authority_id:
+        type: string
+        required: false
+      utility_authority_id:
+        type: string
+        required: false
+      zoning_district:
+        type: string
+        required: false
+      overlays:
+        type: array[string]
+        required: false
+      permitting_portal_family:
+        type: string
+        required: false
+      support_level:
+        type: PortalSupportLevel
+        required: true
+      manual_requirements:
+        type: array[string]
+        required: false
+      evidence_ids:
+        type: array[string]
+        required: true
+  RequirementSet:
+    api_name: RequirementSet
+    purpose: authoritative requirement bundle tied to source evidence and freshness
+    owner: Research
+    primary_key: requirement_set_id
+    title_key: case_id
+    mutability_model: versioned_governed
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      requirement_set_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      jurisdiction_ids:
+        type: array[string]
+        required: true
+      permit_types:
+        type: array[string]
+        required: true
+      forms_required:
+        type: array[string]
+        required: true
+      attachments_required:
+        type: array[string]
+        required: true
+      fee_rules:
+        type: array[object]
+        required: false
+      source_rankings:
+        type: array[object]
+        required: true
+      freshness_state:
+        type: FreshnessState
+        required: true
+      freshness_expires_at:
+        type: datetime
+        required: true
+      contradiction_state:
+        type: ContradictionState
+        required: true
+      evidence_ids:
+        type: array[string]
+        required: true
+  ComplianceEvaluation:
+    api_name: ComplianceEvaluation
+    purpose: rule-by-rule pass/fail/unknown evaluation
+    owner: Compliance
+    primary_key: evaluation_id
+    title_key: case_id
+    mutability_model: versioned_governed
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      evaluation_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      rule_results:
+        type: array[object]
+        required: true
+      overall_status:
+        type: string
+        required: true
+      blockers:
+        type: array[string]
+        required: false
+      warnings:
+        type: array[string]
+        required: false
+      stale_rule_flag:
+        type: boolean
+        required: true
+      contradiction_ids:
+        type: array[string]
+        required: false
+      reviewer_notes:
+        type: array[string]
+        required: false
+      evidence_ids:
+        type: array[string]
+        required: true
+  IncentiveAssessment:
+    api_name: IncentiveAssessment
+    purpose: incentive eligibility and evidence-backed program assessment
+    owner: Incentives
+    primary_key: assessment_id
+    title_key: case_id
+    mutability_model: versioned_governed
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      assessment_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      candidate_programs:
+        type: array[object]
+        required: true
+      eligibility_status:
+        type: string
+        required: true
+      stacking_conflicts:
+        type: array[string]
+        required: false
+      deadlines:
+        type: array[object]
+        required: false
+      source_ids:
+        type: array[string]
+        required: true
+      advisory_value_range:
+        type: string
+        required: false
+      authoritative_value_state:
+        type: string
+        required: true
+  SubmissionPackage:
+    api_name: SubmissionPackage
+    purpose: sealed package for review and submission
+    owner: Document
+    primary_key: package_id
+    title_key: package_version
+    mutability_model: versioned_then_immutable_when_sealed
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      package_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      package_version:
+        type: string
+        required: true
+      manifest_id:
+        type: string
+        required: true
+      artifact_ids:
+        type: array[string]
+        required: true
+      hash_digest:
+        type: string
+        required: true
+      target_portal_family:
+        type: string
+        required: true
+      package_status:
+        type: string
+        required: true
+      approved_for_submission_at:
+        type: datetime
+        required: false
+  SubmissionAttempt:
+    api_name: SubmissionAttempt
+    purpose: each distinct submission or resubmission transaction
+    owner: Submission
+    primary_key: submission_attempt_id
+    title_key: submission_attempt_id
+    mutability_model: append_only
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      submission_attempt_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      package_id:
+        type: string
+        required: true
+      adapter_id:
+        type: string
+        required: true
+      idempotency_key:
+        type: string
+        required: true
+      attempt_number:
+        type: integer
+        required: true
+      outcome:
+        type: string
+        required: true
+      external_tracking_id:
+        type: string
+        required: false
+      receipt_artifact_id:
+        type: string
+        required: false
+      submitted_at:
+        type: datetime
+        required: false
+  ReviewDecision:
+    api_name: ReviewDecision
+    purpose: authoritative reviewer outcome artifact
+    owner: Reviewer
+    primary_key: decision_id
+    title_key: decision_id
+    mutability_model: immutable_once_recorded
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      decision_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      object_type:
+        type: string
+        required: true
+      object_id:
+        type: string
+        required: true
+      decision_outcome:
+        type: ReviewOutcome
+        required: true
+      reviewer_id:
+        type: string
+        required: true
+      reviewer_independence_status:
+        type: ReviewerIndependenceStatus
+        required: true
+      evidence_ids:
+        type: array[string]
+        required: true
+      contradiction_resolution:
+        type: string
+        required: false
+      dissent_flag:
+        type: boolean
+        required: true
+      notes:
+        type: string
+        required: false
+      decision_at:
+        type: datetime
+        required: true
+  EvidenceArtifact:
+    api_name: EvidenceArtifact
+    purpose: queryable evidence unit
+    owner: Platform
+    primary_key: artifact_id
+    title_key: artifact_id
+    mutability_model: metadata_guarded_content_addressed
+    lifecycle_participation: true
+    retention_rule: per retention class
+    fields:
+      artifact_id:
+        type: string
+        required: true
+      artifact_class:
+        type: ArtifactClass
+        required: true
+      producing_service:
+        type: string
+        required: true
+      linked_case_id:
+        type: string
+        required: false
+      linked_object_id:
+        type: string
+        required: false
+      retention_class:
+        type: RetentionClass
+        required: true
+      checksum:
+        type: string
+        required: true
+      storage_uri:
+        type: string
+        required: true
+      authoritativeness:
+        type: string
+        required: true
+      provenance:
+        type: object
+        required: true
+      created_at:
+        type: datetime
+        required: true
+      expires_at:
+        type: datetime
+        required: false
+      legal_hold_flag:
+        type: boolean
+        required: true
+  ContradictionArtifact:
+    api_name: ContradictionArtifact
+    purpose: explicit record of conflicting normative or source inputs
+    owner: Compliance
+    primary_key: contradiction_id
+    title_key: contradiction_id
+    mutability_model: append_only_until_resolved
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      contradiction_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      scope:
+        type: string
+        required: true
+      source_a:
+        type: string
+        required: true
+      source_b:
+        type: string
+        required: true
+      ranking_relation:
+        type: string
+        required: true
+      detected_by:
+        type: string
+        required: false
+      blocking_effect:
+        type: boolean
+        required: true
+      reviewer_resolution_required:
+        type: boolean
+        required: true
+      resolution_status:
+        type: string
+        required: true
+  ExternalStatusEvent:
+    api_name: ExternalStatusEvent
+    purpose: normalized status update from external authority or portal
+    owner: Tracking
+    primary_key: event_id
+    title_key: normalized_status
+    mutability_model: append_only
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      event_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      submission_attempt_id:
+        type: string
+        required: true
+      raw_status:
+        type: string
+        required: true
+      normalized_status:
+        type: ExternalStatusClass
+        required: true
+      confidence:
+        type: string
+        required: true
+      auto_advance_eligible:
+        type: boolean
+        required: true
+      evidence_ids:
+        type: array[string]
+        required: true
+      received_at:
+        type: datetime
+        required: true
+  ReviewComment:
+    api_name: ReviewComment
+    purpose: authority or reviewer comment requiring remediation
+    owner: Tracking
+    primary_key: comment_id
+    title_key: comment_id
+    mutability_model: append_only
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      comment_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      submission_attempt_id:
+        type: string
+        required: true
+      comment_text:
+        type: string
+        required: true
+      source_artifact_id:
+        type: string
+        required: false
+      classified_severity:
+        type: string
+        required: true
+      received_at:
+        type: datetime
+        required: true
+  CorrectionTask:
+    api_name: CorrectionTask
+    purpose: materialized corrective work required before resubmission
+    owner: Comment Resolution
+    primary_key: correction_task_id
+    title_key: correction_task_id
+    mutability_model: governed
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      correction_task_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      linked_comment_id:
+        type: string
+        required: true
+      task_status:
+        type: string
+        required: true
+      required_outputs:
+        type: array[string]
+        required: true
+      created_at:
+        type: datetime
+        required: true
+  ApprovalRecord:
+    api_name: ApprovalRecord
+    purpose: final approval evidence and milestone record
+    owner: Tracking
+    primary_key: approval_record_id
+    title_key: approval_record_id
+    mutability_model: append_only
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      approval_record_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      submission_attempt_id:
+        type: string
+        required: true
+      approval_type:
+        type: string
+        required: true
+      approval_artifact_id:
+        type: string
+        required: true
+      recorded_at:
+        type: datetime
+        required: true
+  InspectionMilestone:
+    api_name: InspectionMilestone
+    purpose: inspection tracking milestone attached to approval lifecycle
+    owner: Tracking
+    primary_key: inspection_milestone_id
+    title_key: inspection_milestone_id
+    mutability_model: append_only
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      inspection_milestone_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      milestone_type:
+        type: string
+        required: true
+      scheduled_at:
+        type: datetime
+        required: false
+      completed_at:
+        type: datetime
+        required: false
+      evidence_ids:
+        type: array[string]
+        required: false
+  ManualFallbackPackage:
+    api_name: ManualFallbackPackage
+    purpose: bounded manual submission package for unsupported or ambiguous workflows
+    owner: Operator+Reviewer
+    primary_key: bundle_id
+    title_key: bundle_id
+    mutability_model: append_only_until_validated
+    lifecycle_participation: true
+    retention_rule: CASE_CORE_7Y
+    fields:
+      bundle_id:
+        type: string
+        required: true
+      case_id:
+        type: string
+        required: true
+      package_id:
+        type: string
+        required: true
+      package_version:
+        type: string
+        required: true
+      package_hash:
+        type: string
+        required: true
+      channel_type:
+        type: string
+        required: true
+      proof_artifact_ids:
+        type: array[string]
+        required: true
+      operator_id:
+        type: string
+        required: true
+      recorded_at:
+        type: datetime
+        required: true
+      reviewer_validation_id:
+        type: string
+        required: false
+  AuthorityProfile:
+    api_name: AuthorityProfile
+    purpose: authority stack and portal support semantics for a resolved submission target
+    owner: Research/Geo
+    primary_key: authority_profile_id
+    title_key: authority_profile_id
+    mutability_model: versioned_reviewed_configuration
+    lifecycle_participation: false
+    retention_rule: CASE_CORE_EXTENDED
+    fields:
+      authority_profile_id:
+        type: string
+        required: true
+      authority_id:
+        type: string
+        required: true
+      portal_family:
+        type: string
+        required: false
+      support_level:
+        type: PortalSupportLevel
+        required: true
+      manual_fallback_allowed:
+        type: boolean
+        required: true
+      status_mapping_version:
+        type: string
+        required: false
+link_defs:
+- source: PermitCase
+  target: Project
+  cardinality: '1:1'
+  ownership: case_owns
+  integrity_rule: required
+- source: PermitCase
+  target: JurisdictionResolution
+  cardinality: 1:N_versioned
+  ownership: case_owns_historical_versions
+  integrity_rule: latest_active_exactly_one
+- source: PermitCase
+  target: RequirementSet
+  cardinality: 1:N_versioned
+  ownership: case_owns
+  integrity_rule: latest_reviewed_version_exactly_one_active
+- source: PermitCase
+  target: ComplianceEvaluation
+  cardinality: 1:N_versioned
+  ownership: case_owns
+  integrity_rule: reviewed_before_advance
+- source: PermitCase
+  target: IncentiveAssessment
+  cardinality: 1:N_versioned
+  ownership: case_owns
+  integrity_rule: advisory_until_reviewed
+- source: PermitCase
+  target: SubmissionPackage
+  cardinality: 1:N_versioned
+  ownership: case_owns
+  integrity_rule: one_current_active_package
+- source: SubmissionPackage
+  target: EvidenceArtifact
+  cardinality: 1:N
+  ownership: package_references
+  integrity_rule: all_artifacts_resolvable
+- source: PermitCase
+  target: ReviewDecision
+  cardinality: 1:N
+  ownership: case_references
+  integrity_rule: immutable_once_recorded
+- source: PermitCase
+  target: SubmissionAttempt
+  cardinality: 1:N
+  ownership: case_owns
+  integrity_rule: attempt_numbers_monotonic
+- source: PermitCase
+  target: ContradictionArtifact
+  cardinality: 1:N
+  ownership: case_references
+  integrity_rule: blocking_contradictions_must_resolve_before_advance
+action_defs:
+  CreateCase:
+    initiator: authenticated_user_or_trusted_intake_api
+    preconditions:
+    - minimum intake payload present
+    - tenant valid
+    postconditions_success:
+    - PermitCase created in INTAKE_PENDING
+    - audit event emitted
+    postconditions_failure:
+    - no case created
+    - error response
+    - audit attempt event
+  ApproveOutput:
+    initiator: reviewer
+    preconditions:
+    - reviewed object exists
+    - reviewer authorized
+    - independence passes or explicit exception artifact exists
+    forbidden_conditions:
+    - same-rank blocking contradiction unresolved
+    - stale required evidence
+    - reviewer self-approval on high-risk surface without exception
+    side_effects:
+    - ReviewDecision created
+    - case may advance only through guard
+  SubmitPackage:
+    initiator: submission_service
+    preconditions:
+    - case state APPROVED_FOR_SUBMISSION
+    - active package sealed
+    - manifest and digests valid
+    - support level not UNSUPPORTED
+    side_effects:
+    - SubmissionAttempt created
+    - portal call executed
+    - receipt or failure artifact persisted
+    failure_postconditions:
+    - case remains in bounded pending or manual state
+    - no ambiguous submission state
+  DeclareEmergency:
+    initiator: escalation_owner
+    preconditions:
+    - emergency criteria met
+    - incident record created
+    - scope bounded
+    forbidden_conditions:
+    - silent skipping of logging
+    - silent skipping of evidence capture
+    - silent skipping of retroactive cleanup
+    side_effects:
+    - case or subsystem enters EMERGENCY_HOLD or emergency exception mode
+authority_rules:
+- PermitCase.case_state writable only by orchestrator runtime with valid transition preconditions
+- ReviewDecision writable only by reviewer service
+- Policy versions writable only by approved policy mutation workflow
+- EvidenceArtifact metadata writable by producing service through evidence registry API
+- Observability systems are read-only with respect to authoritative surfaces

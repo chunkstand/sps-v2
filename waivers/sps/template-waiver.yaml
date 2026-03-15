@@ -1,0 +1,18 @@
+artifact_metadata:
+  artifact_id: ART-SPS-WAIVER-TEMPLATE-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored_template
+  consumer_list:
+  - governance
+  - release_gate
+  - audit
+  owner: Governance Lead
+  freshness_expectation: must be explicitly approved and bounded
+  failure_if_missing: review_invalid
+waiver_id: WVR-001
+scope: ''
+justification: ''
+owner: ''
+approved_at: '2026-03-15T00:00:00Z'
+expires_at: '2026-03-16T00:00:00Z'
+linked_override_id: null

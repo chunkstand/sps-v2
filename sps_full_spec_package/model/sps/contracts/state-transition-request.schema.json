@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/sps/contracts/StateTransitionRequest.schema.json",
+  "title": "StateTransitionRequest",
+  "version": "1.0.0",
+  "description": "Guarded case-state transition payload for authoritative mutation.",
+  "x-artifact-metadata": {
+    "authoritative_or_informative": "authoritative",
+    "authored_or_generated": "generated_from_spec",
+    "source_inputs": [
+      "/specs/sps/build-approved/spec.md",
+      "/specs/sps/build-approved/runtime-implementation-profile.md"
+    ],
+    "regeneration_method": "approved contract generation workflow",
+    "consumer_list": [
+      "orchestrator",
+      "state_transition_guard",
+      "reviewers"
+    ],
+    "owner": "Architecture Lead / Platform",
+    "freshness_expectation": "must match current state model and guard policy",
+    "failure_if_missing": "runtime_unsafe"
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id",
+    "case_id",
+    "from_state",
+    "to_state",
+    "actor_type",
+    "actor_id",
+    "correlation_id",
+    "required_evidence_ids",
+    "requested_at"
+  ],
+  "properties": {
+    "request_id": {
+      "type": "string"
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "from_state": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "INTAKE_PENDING",
+        "INTAKE_COMPLETE",
+        "JURISDICTION_PENDING",
+        "JURISDICTION_COMPLETE",
+        "RESEARCH_PENDING",
+        "RESEARCH_COMPLETE",
+        "COMPLIANCE_PENDING",
+        "COMPLIANCE_COMPLETE",
+        "INCENTIVES_PENDING",
+        "INCENTIVES_COMPLETE",
+        "DOCUMENT_PENDING",
+        "DOCUMENT_COMPLETE",
+        "REVIEW_PENDING",
+        "BLOCKED",
+        "APPROVED_FOR_SUBMISSION",
+        "SUBMISSION_PENDING",
+        "SUBMITTED",
+        "COMMENT_REVIEW_PENDING",
+        "CORRECTION_PENDING",
+        "RESUBMISSION_PENDING",
+        "APPROVED",
+        "CLOSED",
+        "CANCELLED",
+        "MANUAL_SUBMISSION_REQUIRED",
+        "EMERGENCY_HOLD",
+        "ROLLED_BACK"
+      ]
+    },
+    "to_state": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "INTAKE_PENDING",
+        "INTAKE_COMPLETE",
+        "JURISDICTION_PENDING",
+        "JURISDICTION_COMPLETE",
+        "RESEARCH_PENDING",
+        "RESEARCH_COMPLETE",
+        "COMPLIANCE_PENDING",
+        "COMPLIANCE_COMPLETE",
+        "INCENTIVES_PENDING",
+        "INCENTIVES_COMPLETE",
+        "DOCUMENT_PENDING",
+        "DOCUMENT_COMPLETE",
+        "REVIEW_PENDING",
+        "BLOCKED",
+        "APPROVED_FOR_SUBMISSION",
+        "SUBMISSION_PENDING",
+        "SUBMITTED",
+        "COMMENT_REVIEW_PENDING",
+        "CORRECTION_PENDING",
+        "RESUBMISSION_PENDING",
+        "APPROVED",
+        "CLOSED",
+        "CANCELLED",
+        "MANUAL_SUBMISSION_REQUIRED",
+        "EMERGENCY_HOLD",
+        "ROLLED_BACK"
+      ]
+    },
+    "actor_type": {
+      "type": "string",
+      "enum": [
+        "planner",
+        "specialist_worker",
+        "reviewer",
+        "operator",
+        "release_manager",
+        "system_guard"
+      ]
+    },
+    "actor_id": {
+      "type": "string"
+    },
+    "correlation_id": {
+      "type": "string"
+    },
+    "causation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "required_review_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "required_evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "override_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

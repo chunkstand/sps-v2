@@ -1,0 +1,24 @@
+artifact_metadata:
+  artifact_id: ART-SPS-EMERG-TEMPLATE-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored_template
+  consumer_list:
+  - runtime_guards
+  - governance
+  - audit
+  owner: Escalation Owner
+  freshness_expectation: must not be expired at time of use
+  failure_if_missing: runtime_unsafe
+emergency_id: EMERG-001
+incident_id: INC-YYYYMMDD-001
+scope: EMERGENCY_BYPASS_SCOPE
+declared_by: exec-1
+started_at: '2026-03-15T00:00:00Z'
+expires_at: '2026-03-15T12:00:00Z'
+allowed_bypasses:
+- reviewer_independence_check
+forbidden_bypasses:
+- audit_logging
+- evidence_capture
+- incident_linkage
+cleanup_due_at: '2026-03-15T16:00:00Z'

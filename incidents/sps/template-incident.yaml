@@ -1,0 +1,26 @@
+artifact_metadata:
+  artifact_id: ART-SPS-INC-TEMPLATE-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored_template
+  consumer_list:
+  - ops
+  - audit
+  - emergency_workflow
+  owner: Ops / Security
+  freshness_expectation: instantiate per incident
+  failure_if_missing: audit_reconstruction_failure
+incident_id: INC-YYYYMMDD-001
+severity: SEV1
+opened_at: '2026-03-15T00:00:00Z'
+owner: on-call-manager
+status: OPEN
+notes: ''
+subsystem: submission
+summary: ''
+detection_source: alert
+linked_invariants: []
+linked_case_ids: []
+blast_radius: single_surface
+mitigation_status: OPEN
+analysis_events: []
+resolved_at: null

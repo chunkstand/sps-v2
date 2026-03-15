@@ -1,0 +1,17 @@
+artifact_metadata:
+  artifact_id: ART-SPS-REL-ROLLBACK-TEMPLATE-001
+  authoritative_or_informative: authoritative
+  authored_or_generated: authored_template
+  consumer_list:
+  - ops
+  - audit
+  owner: Release Manager / Ops
+  freshness_expectation: required for every executed rollback and critical-path rehearsal
+  failure_if_missing: release_block
+rollback_id: RB-2026-0001
+trigger: ''
+target_versions: {}
+affected_surfaces: []
+executed_steps: []
+verification_evidence: []
+completed_at: '2026-03-15T00:00:00Z'
