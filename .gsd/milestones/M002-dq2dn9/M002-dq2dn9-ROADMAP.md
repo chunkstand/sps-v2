@@ -58,7 +58,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Temporal worker + minimal PermitCaseWorkflow (signal wait) + operator CLI** `risk:high` `depends:[]`
+- [x] **S01: Temporal worker + minimal PermitCaseWorkflow (signal wait) + operator CLI** `risk:high` `depends:[]`
   > After this: you can start a local worker, start a PermitCaseWorkflow via a CLI, and see it waiting for a ReviewDecision signal in Temporal UI (with minimal Postgres-backed case bootstrap performed via an activity).
 
 - [ ] **S02: Postgres-backed guarded transitions (deny + audit) + signal-driven review unblock** `risk:high` `depends:[S01]`

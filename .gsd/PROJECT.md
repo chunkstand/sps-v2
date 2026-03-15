@@ -14,6 +14,10 @@ A governed workflow system that can produce and submit permit packages with revi
 - CI verifies repo wiring + `PACKAGE-MANIFEST.json` integrity + JSON schema metaschema validity.
 - Local dev infra scaffold exists (`docker-compose.yml`: Postgres, Temporal, Temporal UI, MinIO).
 - Python monorepo scaffold exists (`pyproject.toml`, `src/sps/`).
+- **Phase 2 Temporal substrate is in place (M002/S01):**
+  - Temporal worker entrypoint + deterministic PermitCaseWorkflow (bootstrap activity → wait for `ReviewDecision` signal)
+  - Operator CLI to start workflows and send `ReviewDecision` signals
+  - Opt-in Temporal/Postgres integration test proving the wait→signal→resume path
 - **Phase 1 authoritative data foundations are complete (M001):**
   - Postgres schema + Alembic migrations for core entities
   - Evidence registry wired to Postgres + S3-compatible object storage (MinIO) with integrity checks

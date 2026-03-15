@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlsplit, urlunsplit
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,6 +47,20 @@ class Settings(BaseSettings):
 
     log_level: Literal["debug", "info", "warning", "error"] = Field(
         default="info", validation_alias="SPS_LOG_LEVEL"
+    )
+
+    # Temporal (local dev default matches docker-compose)
+    temporal_address: str = Field(
+        default="localhost:7233",
+        validation_alias=AliasChoices("SPS_TEMPORAL_ADDRESS", "TEMPORAL_ADDRESS"),
+    )
+    temporal_namespace: str = Field(
+        default="default",
+        validation_alias=AliasChoices("SPS_TEMPORAL_NAMESPACE", "TEMPORAL_NAMESPACE"),
+    )
+    temporal_task_queue: str = Field(
+        default="sps-permit-case",
+        validation_alias=AliasChoices("SPS_TEMPORAL_TASK_QUEUE", "TEMPORAL_TASK_QUEUE"),
     )
 
     # S3-compatible object storage (MinIO in local dev)

@@ -32,6 +32,9 @@ dependencies = [
 
   # Object storage
   "boto3>=1.34.0",
+
+  # Temporal workflows
+  "temporalio>=1.6.0",
 ]
 
 [project.optional-dependencies]

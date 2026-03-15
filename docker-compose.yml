@@ -14,13 +14,15 @@ services:
     depends_on:
       - postgres
     environment:
-      DB: postgresql
+      DB: postgres12
       POSTGRES_SEEDS: postgres
-      POSTGRES_PORT: 5432
+      DB_PORT: 5432
       POSTGRES_USER: temporal
       POSTGRES_PWD: temporal
+      POSTGRES_PASSWORD: temporal
       POSTGRES_DB: temporal
       POSTGRES_VISIBILITY_DB: temporal_visibility
+      SKIP_DB_CREATE: "true"
     ports:
       - "7233:7233"
 

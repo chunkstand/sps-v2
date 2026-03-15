@@ -11,7 +11,7 @@
 - Primary owning slice: M002/S01
 - Supporting slices: M002/S02
 - Validation: mapped
-- Notes: Prove at least one representative path + replay test before expanding to full domain tasks.
+- Notes: S01 proved a representative wait→signal→resume path (Temporal + Postgres) via `tests/m002_s01_temporal_permit_case_workflow_test.py`. Replay/idempotency closure remains for S03.
 
 ### R005 — State transition guard enforces protected transitions and emits denials
 - Class: compliance/security
