@@ -14,12 +14,15 @@ A governed workflow system that can produce and submit permit packages with revi
 - CI verifies repo wiring + `PACKAGE-MANIFEST.json` integrity + JSON schema metaschema validity.
 - Local dev infra scaffold exists (`docker-compose.yml`: Postgres, Temporal, Temporal UI, MinIO).
 - Python monorepo scaffold exists (`pyproject.toml`, `src/sps/`).
-- Phase 1 Postgres schema + Alembic migrations + Postgres-backed schema tests are in place (M001/S01).
+- **Phase 1 authoritative data foundations are complete (M001):**
+  - Postgres schema + Alembic migrations for core entities
+  - Evidence registry wired to Postgres + S3-compatible object storage (MinIO) with integrity checks
+  - Legal-hold persistence + INV-004 enforcement guardrails preventing destructive delete/purge of held evidence
 
 ## Architecture / Key Patterns
 
 - Runtime binding (normative): Temporal + Python workers/activities; Postgres authoritative store; S3-compatible object storage; strong schema enforcement at trust boundaries.
-- Early implementation will prioritize:
+- Early implementation prioritizes:
   - authoritative data model + migrations
   - evidence registry with stable IDs
   - retention/legal hold enforcement surfaces
@@ -30,12 +33,12 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 ## Milestone Sequence
 
-- [ ] M001: Phase 1 — authoritative data foundations — Postgres schema + evidence registry + retention/legal-hold guardrails
+- [x] M001: Phase 1 — authoritative data foundations — Postgres schema + evidence registry + retention/legal-hold guardrails
 - [ ] M002: Phase 2 — Temporal harness + guarded state transitions
 - [ ] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance
 - [ ] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
 
 ## Milestone ID Mapping
 
-- M001 → M001-r2v2t3 (active)
+- M001 → M001-r2v2t3 (complete)
 - M002 → M002-dq2dn9 (queued)

@@ -51,7 +51,7 @@ def test_evidence_roundtrip_register_upload_fetch_download(_clean_evidence_table
 
     upload_resp = client.put(
         f"/api/v1/evidence/artifacts/{artifact_id}/content",
-        data=content,
+        content=content,
         headers={"content-type": "application/octet-stream"},
     )
     assert upload_resp.status_code == 200, upload_resp.text
@@ -95,7 +95,7 @@ def test_evidence_upload_rejects_sha_mismatch(_clean_evidence_table):
 
     upload_resp = client.put(
         f"/api/v1/evidence/artifacts/{artifact_id}/content",
-        data=bad,
+        content=bad,
         headers={"content-type": "application/octet-stream"},
     )
     assert upload_resp.status_code == 422
