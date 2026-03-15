@@ -38,7 +38,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--decision-outcome",
         required=True,
         choices=[e.value for e in ReviewDecisionOutcome],
-        help="APPROVE or DENY",
+        help="ACCEPT, ACCEPT_WITH_DISSENT, or BLOCK", 
     )
     signal.add_argument("--reviewer-id", required=True)
     signal.add_argument("--notes", default=None)

@@ -13,16 +13,6 @@
 - Validation: mapped
 - Notes: S01 proved a representative wait→signal→resume path (Temporal + Postgres) via `tests/m002_s01_temporal_permit_case_workflow_test.py`. Replay/idempotency closure remains for S03.
 
-### R005 — State transition guard enforces protected transitions and emits denials
-- Class: compliance/security
-- Status: active
-- Description: All authoritative PermitCase state mutations are mediated by a state transition guard enforcing the transition table + guard assertions + relevant invariants; denials include guard/invariant identifiers.
-- Why it matters: Prevents authority drift and direct specialist mutation; provides the core governance enforcement point.
-- Source: spec (sections 9, 13, 20A; invariants/guard-assertions; tasks C-002–C-004)
-- Primary owning slice: M002/S02
-- Supporting slices: M002/S03
-- Validation: mapped
-- Notes: Early proof should include denial of `REVIEW_PENDING -> APPROVED_FOR_SUBMISSION` without ReviewDecision.
 
 ## Validated
 
@@ -59,6 +49,17 @@
 - Validation: proved (hold bindings + INV-004 guard + denial + purge exclusion tests)
 - Notes: Phase 1 proves fail-closed denial semantics; destructive purge remains disabled.
 
+### R005 — State transition guard enforces protected transitions and emits denials
+- Class: compliance/security
+- Status: validated
+- Description: All authoritative PermitCase state mutations are mediated by a state transition guard enforcing the transition table + guard assertions + relevant invariants; denials include guard/invariant identifiers.
+- Why it matters: Prevents authority drift and direct specialist mutation; provides the core governance enforcement point.
+- Source: spec (sections 9, 13, 20A; invariants/guard-assertions; tasks C-002–C-004)
+- Primary owning slice: M002/S02
+- Supporting slices: M002/S03
+- Validation: proved (Temporal+Postgres integration tests; idempotent transition ledger)
+- Notes: Proved the canonical protected transition gate: `REVIEW_PENDING -> APPROVED_FOR_SUBMISSION` is denied without a persisted valid ReviewDecision (durable `APPROVAL_GATE_DENIED` ledger event including `guard_assertion_id=INV-SPS-STATE-002` + `normalized_business_invariants=[INV-001]`), then succeeds after signal-driven ReviewDecision persistence and re-attempt.
+
 ## Deferred
 
 (none)
@@ -84,12 +85,12 @@
 | R002 | integration | validated | M001/S02 | M001/S03 | proved (minio + e2e pytest) |
 | R003 | compliance/security | validated | M001/S03 | none | proved (deny + purge tests) |
 | R004 | core-capability | active | M002/S01 | M002/S02 | mapped |
-| R005 | compliance/security | active | M002/S02 | M002/S03 | mapped |
+| R005 | compliance/security | validated | M002/S02 | M002/S03 | proved (Temporal+Postgres integration tests) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 2
+- Active requirements: 1
 - Mapped to slices: 5
-- Validated: 3
+- Validated: 4
 - Unmapped active requirements: 0

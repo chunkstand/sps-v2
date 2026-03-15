@@ -8,7 +8,11 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from sps.config import get_settings
-from sps.workflows.permit_case.activities import ensure_permit_case_exists
+from sps.workflows.permit_case.activities import (
+    apply_state_transition,
+    ensure_permit_case_exists,
+    persist_review_decision,
+)
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import try_get_pydantic_data_converter
 
@@ -51,7 +55,7 @@ async def _run_worker() -> None:
         client,
         task_queue=settings.temporal_task_queue,
         workflows=[PermitCaseWorkflow],
-        activities=[ensure_permit_case_exists],
+        activities=[ensure_permit_case_exists, apply_state_transition, persist_review_decision],
         activity_executor=ThreadPoolExecutor(max_workers=10),
     )
 
@@ -60,7 +64,11 @@ async def _run_worker() -> None:
         settings.temporal_namespace,
         settings.temporal_task_queue,
         [PermitCaseWorkflow.__name__],
-        [ensure_permit_case_exists.__name__],
+        [
+            ensure_permit_case_exists.__name__,
+            apply_state_transition.__name__,
+            persist_review_decision.__name__,
+        ],
     )
 
     await worker.run()
