@@ -35,21 +35,21 @@
 
 ## Tasks
 
-- [ ] **T01: Implement evidence domain model + stable ID scheme** `est:1h`
+- [x] **T01: Implement evidence domain model + stable ID scheme** `est:1h`
   - Why: Stable IDs are required for audit and evidence retrieval across time.
   - Files: `src/sps/evidence/ids.py`, `src/sps/evidence/models.py`
   - Do: Choose stable ID format (ULID by default); define EvidenceArtifact typed model aligned to `evidence-artifact.schema.json` fields; define object key layout strategy and constraints.
   - Verify: `./.venv/bin/python -c "from sps.evidence.ids import new_evidence_id; print(new_evidence_id())"`
   - Done when: IDs are stable-format validated and object keys are derived without ambiguity.
 
-- [ ] **T02: Implement S3-compatible storage adapter (MinIO)** `est:1h`
+- [x] **T02: Implement S3-compatible storage adapter (MinIO)** `est:1h`
   - Why: Evidence content must live in durable object storage, not only Postgres.
   - Files: `src/sps/storage/s3.py`, `src/sps/config.py`
   - Do: Create an adapter that uploads objects, fetches metadata, and generates presigned GET URLs; enforce sha256/bytes checks.
   - Verify: `docker compose up -d minio && ./.venv/bin/pytest -q tests/s02_storage_adapter_test.py`
   - Done when: adapter can upload and retrieve objects from MinIO locally.
 
-- [ ] **T03: Add evidence registry API routes and integration test** `est:2h`
+- [x] **T03: Add evidence registry API routes and integration test** `est:2h`
   - Why: The system must retrieve evidence by stable ID via an explicit registry API.
   - Files: `src/sps/api/routes/evidence.py`, `src/sps/evidence/service.py`, `tests/s02_evidence_roundtrip_test.py`
   - Do: Implement endpoints:

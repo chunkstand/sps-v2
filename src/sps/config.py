@@ -49,6 +49,17 @@ class Settings(BaseSettings):
         default="info", validation_alias="SPS_LOG_LEVEL"
     )
 
+    # S3-compatible object storage (MinIO in local dev)
+    s3_endpoint_url: str = Field(default="http://localhost:9000", validation_alias="SPS_S3_ENDPOINT_URL")
+    s3_access_key: str = Field(default="minio", validation_alias="SPS_S3_ACCESS_KEY")
+    s3_secret_key: str = Field(default="minio123", validation_alias="SPS_S3_SECRET_KEY")
+    s3_region: str = Field(default="us-east-1", validation_alias="SPS_S3_REGION")
+
+    s3_bucket_evidence: str = Field(default="sps-evidence", validation_alias="SPS_S3_BUCKET_EVIDENCE")
+    s3_bucket_release: str = Field(default="sps-release", validation_alias="SPS_S3_BUCKET_RELEASE")
+
+    s3_presign_expires_seconds: int = Field(default=600, validation_alias="SPS_S3_PRESIGN_EXPIRES_SECONDS")
+
     def postgres_dsn(self) -> str:
         if self.db_dsn:
             return self.db_dsn

@@ -165,6 +165,9 @@ class EvidenceArtifact(Base):
     checksum: Mapped[str] = mapped_column(sa.Text, nullable=False)
     storage_uri: Mapped[str] = mapped_column(sa.Text, nullable=False)
 
+    content_bytes: Mapped[int | None] = mapped_column(sa.BigInteger, nullable=True)
+    content_type: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+
     provenance: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)

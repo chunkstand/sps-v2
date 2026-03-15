@@ -2,17 +2,6 @@
 
 ## Active
 
-### R002 — Evidence registry with stable IDs and object storage binding
-- Class: integration
-- Status: active
-- Description: Evidence artifacts can be registered, stored, and retrieved by stable ID; content lives in S3-compatible storage and is correlated to metadata in Postgres.
-- Why it matters: Review, audit, and release gates are evidence-driven; evidence must be queryable and durable.
-- Source: inferred (spec tasks B-002, F-010, INV-SPS-EVID-001)
-- Primary owning slice: M001/S02
-- Supporting slices: M001/S03
-- Validation: mapped
-- Notes: Retrieval SLA enforcement is later; Phase 1 focuses on correctness and stable identifiers.
-
 ### R003 — Legal hold prevents purge or destructive delete of bound evidence (INV-004)
 - Class: compliance/security
 - Status: active
@@ -59,6 +48,17 @@
 - Validation: proved (alembic upgrade + Postgres-backed integration tests)
 - Notes: Schema is intentionally thin in some places (string enums, JSONB payloads) in Phase 1; tighten with constraints as guarded workflows land.
 
+### R002 — Evidence registry with stable IDs and object storage binding
+- Class: integration
+- Status: validated
+- Description: Evidence artifacts can be registered, stored, and retrieved by stable ID; content lives in S3-compatible storage and is correlated to metadata in Postgres.
+- Why it matters: Review, audit, and release gates are evidence-driven; evidence must be queryable and durable.
+- Source: inferred (spec tasks B-002, F-010, INV-SPS-EVID-001)
+- Primary owning slice: M001/S02
+- Supporting slices: M001/S03
+- Validation: proved (MinIO-backed adapter tests + end-to-end roundtrip)
+- Notes: Retrieval SLA enforcement is later; Phase 1 focuses on correctness and stable identifiers.
+
 ## Deferred
 
 (none)
@@ -81,7 +81,7 @@
 | ID | Class | Status | Primary owner | Supporting | Proof |
 |---|---|---|---|---|---|
 | R001 | core-capability | validated | M001/S01 | M001/S02,M001/S03 | proved (alembic + pytest) |
-| R002 | integration | active | M001/S02 | M001/S03 | mapped |
+| R002 | integration | validated | M001/S02 | M001/S03 | proved (minio + e2e pytest) |
 | R003 | compliance/security | active | M001/S03 | none | mapped |
 | R004 | core-capability | active | M002/S01 | M002/S02 | mapped |
 | R005 | compliance/security | active | M002/S02 | M002/S03 | mapped |
@@ -89,7 +89,7 @@
 
 ## Coverage Summary
 
-- Active requirements: 4
+- Active requirements: 3
 - Mapped to slices: 5
-- Validated: 1
+- Validated: 2
 - Unmapped active requirements: 0
