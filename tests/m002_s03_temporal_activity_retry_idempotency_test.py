@@ -22,6 +22,7 @@ from sps.db.session import get_engine, get_sessionmaker
 from sps.workflows.permit_case.activities import (
     apply_state_transition,
     ensure_permit_case_exists,
+    fetch_permit_case_state,
     persist_review_decision,
 )
 from sps.workflows.permit_case.contracts import (
@@ -155,7 +156,12 @@ async def _run_integration() -> None:
         client,
         task_queue=settings.temporal_task_queue,
         workflows=[PermitCaseWorkflow],
-        activities=[ensure_permit_case_exists, apply_state_transition, persist_review_decision],
+        activities=[
+            ensure_permit_case_exists,
+            fetch_permit_case_state,
+            apply_state_transition,
+            persist_review_decision,
+        ],
         activity_executor=executor,
     )
 

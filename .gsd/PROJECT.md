@@ -28,6 +28,10 @@ A governed workflow system that can produce and submit permit packages with revi
   - `reviewer_api.dissent_artifact_created` structured log event (scope_len only — no raw reviewer text)
   - Proof surfaces: integration test (`tests/m003_s04_dissent_artifacts_test.py`) 2 passed + operator runbook (`scripts/verify_m003_s04.sh`) exits 0
   - **M003 fully complete: R006, R007, R008, R009 all validated**
+- **Phase 4 intake flow (M004/S01) complete:**
+  - `POST /api/v1/cases` accepts the spec-derived intake contract and persists PermitCase + Project in one transaction
+  - `PermitCaseWorkflow` advances INTAKE_PENDING → INTAKE_COMPLETE via guarded transition
+  - Proof surfaces: `tests/m004_s01_intake_api_workflow_test.py` (contract + integration) and `scripts/verify_m004_s01.sh`
 - **Contradiction blocking guard is complete (M003/S03):**
   - `POST /api/v1/contradictions/` creates contradiction artifacts with `blocking_effect` and `resolution_status=OPEN`; 409 on duplicate
   - `POST /api/v1/contradictions/{id}/resolve` transitions `OPEN → RESOLVED`; 409 if already resolved; 404 if unknown
@@ -71,6 +75,9 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance (**COMPLETE — all slices done**)
 - [ ] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
 - [ ] M004-lp1flz: Phase 4 — intake, jurisdiction, and requirements workers
+- [ ] M005-j3c8qk: Phase 5 — compliance and incentives workers
+- [ ] M006-h7v2qk: Phase 6 — document and submission package generation
+- [ ] M007-b2t1rz: Phase 7 — submission, tracking, and manual fallback
 
 ## Milestone ID Mapping
 

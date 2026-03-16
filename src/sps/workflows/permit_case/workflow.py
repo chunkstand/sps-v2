@@ -8,6 +8,7 @@ from temporalio import workflow
 from sps.workflows.permit_case.contracts import (
     ActorType,
     CaseState,
+    PermitCaseStateSnapshot,
     PermitCaseWorkflowInput,
     PermitCaseWorkflowResult,
     ReviewDecisionSignal,
@@ -22,6 +23,7 @@ with workflow.unsafe.imports_passed_through():
     from sps.workflows.permit_case.activities import (
         apply_state_transition,
         ensure_permit_case_exists,
+        fetch_permit_case_state,
     )
 
 
@@ -71,6 +73,96 @@ class PermitCaseWorkflow:
         )
 
         correlation_id = f"{info.workflow_id}:{info.run_id}"
+
+        raw_snapshot = await workflow.execute_activity(
+            fetch_permit_case_state,
+            self._case_id,
+            start_to_close_timeout=timedelta(seconds=30),
+        )
+        if isinstance(raw_snapshot, PermitCaseStateSnapshot):
+            snapshot = raw_snapshot
+        elif hasattr(raw_snapshot, "model_dump"):
+            snapshot = PermitCaseStateSnapshot.model_validate(raw_snapshot.model_dump())
+        else:
+            snapshot = PermitCaseStateSnapshot.model_validate(raw_snapshot)
+
+        if snapshot.case_state == CaseState.INTAKE_PENDING:
+            transition_name = "intake_pending_to_intake_complete"
+            request_id = _transition_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                transition=transition_name,
+                attempt=1,
+            )
+            requested_at = _utc(workflow.now())
+            workflow.logger.info(
+                "workflow.transition_attempt workflow_id=%s run_id=%s case_id=%s request_id=%s from_state=%s to_state=%s attempt=1",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                request_id,
+                CaseState.INTAKE_PENDING,
+                CaseState.INTAKE_COMPLETE,
+            )
+
+            raw_intake = await workflow.execute_activity(
+                apply_state_transition,
+                StateTransitionRequest(
+                    request_id=request_id,
+                    case_id=self._case_id,
+                    from_state=CaseState.INTAKE_PENDING,
+                    to_state=CaseState.INTAKE_COMPLETE,
+                    actor_type=ActorType.system_guard,
+                    actor_id="system-guard",
+                    correlation_id=correlation_id,
+                    causation_id=None,
+                    required_review_id=None,
+                    required_evidence_ids=[],
+                    override_id=None,
+                    requested_at=requested_at,
+                    notes=None,
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            intake_result = parse_state_transition_result(
+                raw_intake.model_dump() if hasattr(raw_intake, "model_dump") else raw_intake
+            )
+
+            if intake_result.result != "applied":
+                workflow.logger.info(
+                    "workflow.transition_denied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s denial_reason=%s",
+                    info.workflow_id,
+                    info.run_id,
+                    self._case_id,
+                    request_id,
+                    intake_result.event_type,
+                    getattr(intake_result, "denial_reason", None),
+                )
+                raise RuntimeError(
+                    f"intake transition did not apply (event_type={intake_result.event_type})"
+                )
+
+            workflow.logger.info(
+                "workflow.transition_applied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                request_id,
+                intake_result.event_type,
+            )
+            return PermitCaseWorkflowResult(
+                case_id=self._case_id,
+                correlation_id=correlation_id,
+                initial_request_id=request_id,
+                initial_result=intake_result,
+                review_decision_id=None,
+                review_signal=None,
+                final_request_id=request_id,
+                final_result=intake_result,
+                intake_request_id=request_id,
+                intake_result=intake_result,
+            )
+
         transition_name = "review_pending_to_approved_for_submission"
 
         request_id_1 = _transition_request_id(

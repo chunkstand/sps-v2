@@ -11,6 +11,7 @@ from sps.config import get_settings
 from sps.workflows.permit_case.activities import (
     apply_state_transition,
     ensure_permit_case_exists,
+    fetch_permit_case_state,
     persist_review_decision,
 )
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
@@ -55,7 +56,12 @@ async def _run_worker() -> None:
         client,
         task_queue=settings.temporal_task_queue,
         workflows=[PermitCaseWorkflow],
-        activities=[ensure_permit_case_exists, apply_state_transition, persist_review_decision],
+        activities=[
+            ensure_permit_case_exists,
+            fetch_permit_case_state,
+            apply_state_transition,
+            persist_review_decision,
+        ],
         activity_executor=ThreadPoolExecutor(max_workers=10),
     )
 
@@ -66,6 +72,7 @@ async def _run_worker() -> None:
         [PermitCaseWorkflow.__name__],
         [
             ensure_permit_case_exists.__name__,
+            fetch_permit_case_state.__name__,
             apply_state_transition.__name__,
             persist_review_decision.__name__,
         ],

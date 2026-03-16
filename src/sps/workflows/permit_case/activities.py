@@ -6,7 +6,7 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from temporalio import activity
 
-from sps.db.models import CaseTransitionLedger, ContradictionArtifact, PermitCase, ReviewDecision
+from sps.db.models import CaseTransitionLedger, ContradictionArtifact, PermitCase, Project, ReviewDecision
 from sps.db.session import get_sessionmaker
 from sps.failpoints import FailpointFired, fail_once
 from sps.guards.guard_assertions import get_normalized_business_invariants
@@ -14,6 +14,7 @@ from sps.workflows.permit_case.contracts import (
     AppliedStateTransitionResult,
     CaseState,
     DeniedStateTransitionResult,
+    PermitCaseStateSnapshot,
     PersistReviewDecisionRequest,
     StateTransitionRequest,
     StateTransitionResult,
@@ -88,6 +89,50 @@ def ensure_permit_case_exists(case_id: str) -> bool:
         raise
 
 
+@activity.defn
+def fetch_permit_case_state(case_id: str) -> PermitCaseStateSnapshot:
+    """Fetch the current PermitCase state for workflow branching."""
+
+    workflow_id, run_id = _safe_temporal_ids()
+    logger.info(
+        "activity.start name=fetch_permit_case_state workflow_id=%s run_id=%s case_id=%s",
+        workflow_id,
+        run_id,
+        case_id,
+    )
+
+    SessionLocal = get_sessionmaker()
+    try:
+        with SessionLocal() as session:
+            case = session.get(PermitCase, case_id)
+            if case is None:
+                raise LookupError(f"permit_cases row not found for case_id={case_id}")
+
+            snapshot = PermitCaseStateSnapshot(
+                case_id=case.case_id,
+                case_state=CaseState(case.case_state),
+                project_id=case.project_id,
+            )
+
+        logger.info(
+            "activity.ok name=fetch_permit_case_state workflow_id=%s run_id=%s case_id=%s case_state=%s",
+            workflow_id,
+            run_id,
+            case_id,
+            snapshot.case_state,
+        )
+        return snapshot
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=fetch_permit_case_state workflow_id=%s run_id=%s case_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            case_id,
+            type(exc).__name__,
+        )
+        raise
+
+
 def _safe_temporal_ids() -> tuple[str | None, str | None]:
     """Best-effort activity correlation identifiers.
 
@@ -105,6 +150,7 @@ def _safe_temporal_ids() -> tuple[str | None, str | None]:
 _EVENT_CASE_STATE_CHANGED = "CASE_STATE_CHANGED"
 _EVENT_APPROVAL_GATE_DENIED = "APPROVAL_GATE_DENIED"
 _EVENT_CONTRADICTION_ADVANCE_DENIED = "CONTRADICTION_ADVANCE_DENIED"
+_EVENT_INTAKE_PROJECT_DENIED = "INTAKE_PROJECT_REQUIRED_DENIED"
 _GUARD_ASSERTION_REVIEW_GATE = "INV-SPS-STATE-002"
 _GUARD_ASSERTION_CONTRADICTION = "INV-SPS-CONTRA-001"
 _ALLOWED_REVIEW_OUTCOMES = {"ACCEPT", "ACCEPT_WITH_DISSENT"}
@@ -240,6 +286,27 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                         applied_at=requested_at,
                                     )
                                     case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.INTAKE_PENDING
+                            and req.to_state == CaseState.INTAKE_COMPLETE
+                        ):
+                            project = (
+                                session.query(Project)
+                                .filter(Project.case_id == req.case_id)
+                                .one_or_none()
+                            )
+                            if project is None:
+                                result = _deny(
+                                    denied_at=requested_at,
+                                    event_type=_EVENT_INTAKE_PROJECT_DENIED,
+                                    denial_reason="PROJECT_REQUIRED",
+                                )
+                            else:
+                                result = AppliedStateTransitionResult(
+                                    event_type=_EVENT_CASE_STATE_CHANGED,
+                                    applied_at=requested_at,
+                                )
+                                case.case_state = req.to_state.value
                         else:
                             result = _deny(
                                 denied_at=requested_at,

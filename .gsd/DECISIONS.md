@@ -48,4 +48,16 @@
 | 39 | 2026-03-15 | Phase 4 | Workflow wiring | Wire domain activities into PermitCaseWorkflow end-to-end | Prove authoritative progression under real workflow semantics | yes |
 | 40 | 2026-03-15 | Phase 4 | Verification surface | Provide Postgres-backed integration tests + operator runbook | Match prior milestone proof standard | yes |
 | 41 | 2026-03-15 | Phase 4 | Intake contract | Use spec/model-derived intake contract (not placeholder) | Keep downstream outputs aligned with authoritative model | yes |
+| 42 | 2026-03-15 | Phase 5 | M005 scope focus | Implement compliance and incentives workers (F-004–F-005) wired into the workflow | Deliver rule-evaluation layer after requirements | yes |
+| 43 | 2026-03-15 | Phase 5 | Rule source | Use fixture-based rule sets and a simple deterministic evaluator | Avoid external dependency risk while establishing authoritative shape | yes |
+| 44 | 2026-03-15 | Phase 5 | Workflow wiring | Wire compliance/incentive activities into PermitCaseWorkflow | Prove authoritative progression under real workflow semantics | yes |
+| 45 | 2026-03-15 | Phase 5 | Verification surface | Provide Postgres-backed integration tests + operator runbook | Match prior milestone proof standard | yes |
+| 46 | 2026-03-15 | Phase 6 | M006 scope focus | Implement document and submission package generation (F-006) wired into workflow | Establish sealed package artifacts before submission adapters | yes |
+| 47 | 2026-03-15 | Phase 6 | Document generation source | Use fixture templates and deterministic generator | Avoid external dependency risk while establishing package shape | yes |
+| 48 | 2026-03-15 | Phase 6 | Workflow wiring | Wire document generation into PermitCaseWorkflow | Prove authoritative progression under real workflow semantics | yes |
+| 49 | 2026-03-15 | Phase 6 | Verification surface | Provide Postgres-backed integration tests + operator runbook | Match prior milestone proof standard | yes |
+| 50 | 2026-03-15 | Phase 7 | M007 scope focus | Implement submission, tracking, and manual fallback (G-001–G-005) wired into workflow | Establish governed submission path after sealed packages | yes |
+| 51 | 2026-03-15 | Phase 7 | Adapter scope | Single deterministic mock adapter + fixture status maps | Avoid external dependency risk while establishing contract shape | yes |
+| 52 | 2026-03-15 | Phase 7 | Workflow wiring | Wire submission/tracking/manual fallback into PermitCaseWorkflow | Prove authoritative progression under real workflow semantics | yes |
+| 53 | 2026-03-15 | Phase 7 | Verification surface | Provide Postgres-backed integration tests + operator runbook | Match prior milestone proof standard | yes |
 | 42 | 2026-03-15 | Phase 4 | Fixture dataset placement | Store Phase 4 jurisdiction/requirements fixtures under `specs/sps/build-approved/fixtures/phase4` and load them as spec-sourced authoritative data | Keeps provenance traceable to the spec package and avoids a parallel fixture source of truth | yes |

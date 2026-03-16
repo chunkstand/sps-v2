@@ -38,7 +38,7 @@ This milestone is complete only when all are true:
 - Orphan risks: none
 
 ## Slices
-- [ ] **S01: Intake contract + Project persistence + INTAKE_COMPLETE workflow step** `risk:high` `depends:[]`
+- [x] **S01: Intake contract + Project persistence + INTAKE_COMPLETE workflow step** `risk:high` `depends:[]`
   > After this: POSTing a spec-derived intake payload creates PermitCase + Project and the workflow reaches INTAKE_COMPLETE (verified via API/DB).
 - [ ] **S02: Jurisdiction + requirements fixtures, persistence, and workflow progression** `risk:medium` `depends:[S01]`
   > After this: the same case advances through JURISDICTION_COMPLETE and RESEARCH_COMPLETE with persisted JurisdictionResolution/RequirementSet artifacts and provenance inspectable via API/DB.

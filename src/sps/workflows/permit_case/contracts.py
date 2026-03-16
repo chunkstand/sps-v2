@@ -134,6 +134,16 @@ class StateTransitionRequest(BaseModel):
     notes: str | None = None
 
 
+class PermitCaseStateSnapshot(BaseModel):
+    """Activity payload for PermitCase state branching."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    case_state: CaseState
+    project_id: str = Field(min_length=1)
+
+
 class AppliedStateTransitionResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -200,13 +210,16 @@ class PersistReviewDecisionRequest(BaseModel):
 class PermitCaseWorkflowResult(BaseModel):
     """Workflow completion payload.
 
-    Includes the correlation tuple and both guarded transition attempts.
+    Includes the correlation tuple and the intake or review guarded transition attempts.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     case_id: str
     correlation_id: str
+
+    intake_request_id: str | None = None
+    intake_result: StateTransitionResult | None = None
 
     initial_request_id: str
     initial_result: StateTransitionResult

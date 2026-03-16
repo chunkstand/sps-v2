@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from sps.config import get_settings
 
+from sps.api.routes.cases import router as cases_router
 from sps.api.routes.contradictions import router as contradictions_router
 from sps.api.routes.dissents import router as dissents_router
 from sps.api.routes.evidence import router as evidence_router
@@ -15,6 +16,7 @@ app = FastAPI(
 )
 
 # Phase 1 API surface
+app.include_router(cases_router, prefix="/api/v1")
 app.include_router(evidence_router, prefix="/api/v1")
 app.include_router(reviews_router, prefix="/api/v1/reviews")
 app.include_router(contradictions_router, prefix="/api/v1/contradictions")

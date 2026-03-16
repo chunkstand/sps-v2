@@ -38,6 +38,7 @@ from sps.db.session import get_engine, get_sessionmaker
 from sps.workflows.permit_case.activities import (
     apply_state_transition,
     ensure_permit_case_exists,
+    fetch_permit_case_state,
 )
 from sps.workflows.permit_case.contracts import (
     PermitCaseWorkflowResult,
@@ -181,7 +182,11 @@ async def _run_unblock_test() -> None:
         client,
         task_queue=settings.temporal_task_queue,
         workflows=[PermitCaseWorkflow],
-        activities=[ensure_permit_case_exists, apply_state_transition],
+        activities=[
+            ensure_permit_case_exists,
+            fetch_permit_case_state,
+            apply_state_transition,
+        ],
         activity_executor=executor,
     )
 
@@ -297,7 +302,11 @@ async def _run_conflict_test() -> None:
         client,
         task_queue=settings.temporal_task_queue,
         workflows=[PermitCaseWorkflow],
-        activities=[ensure_permit_case_exists, apply_state_transition],
+        activities=[
+            ensure_permit_case_exists,
+            fetch_permit_case_state,
+            apply_state_transition,
+        ],
         activity_executor=executor,
     )
 

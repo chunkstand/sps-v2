@@ -2,17 +2,6 @@
 
 ## Active
 
-### R010 — Intake normalization into Project (F-001)
-- Class: core-capability
-- Status: active
-- Description: SPS creates a PermitCase from intake and persists a normalized Project object using the spec-derived intake contract.
-- Why it matters: All downstream research/compliance/document work depends on normalized project facts that are durable and auditable.
-- Source: spec (section 6.1 F-001)
-- Primary owning slice: M004/S01
-- Supporting slices: none
-- Validation: pending (Postgres-backed integration tests + operator runbook)
-- Notes: Spec-derived intake contract; no external intake integrations yet.
-
 ### R011 — Jurisdiction stack resolution (F-002)
 - Class: integration
 - Status: active
@@ -35,7 +24,95 @@
 - Validation: pending (integration tests + runbook)
 - Notes: Fixture-based sources only; external integrations deferred.
 
+### R013 — Compliance evaluation (F-004)
+- Class: integration
+- Status: active
+- Description: SPS evaluates zoning/building/electrical/fire/program rules against project facts and persists a ComplianceEvaluation.
+- Why it matters: Compliance results determine blockers/warnings and must be auditable before document generation.
+- Source: spec (section 6.1 F-004)
+- Primary owning slice: M005/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Fixture-based rule set and deterministic evaluator in Phase 5.
+
+### R014 — Incentive assessment (F-005)
+- Class: integration
+- Status: active
+- Description: SPS produces IncentiveAssessment outputs with evidence-backed eligibility status and rankings.
+- Why it matters: Incentive findings are advisory outputs required before review and package generation.
+- Source: spec (section 6.1 F-005)
+- Primary owning slice: M005/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Fixture-based program sources only; external integrations deferred.
+
+### R015 — Submission package generation (F-006)
+- Class: integration
+- Status: active
+- Description: SPS generates a SubmissionPackage with documents, manifest, and artifact digests.
+- Why it matters: Submission and review depend on a sealed package with auditable artifacts and digests.
+- Source: spec (section 6.1 F-006)
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Fixture templates only; external document services deferred.
+
+### R016 — Idempotent submission adapters + receipt persistence (F-006/F-007)
+- Class: integration
+- Status: active
+- Description: SPS executes idempotent submission attempts and persists receipt artifacts correlated to tracking IDs.
+- Why it matters: Submission must be auditable and non-duplicative to avoid portal-side inconsistencies.
+- Source: spec (section 6.1 F-006/F-007)
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Single mock adapter in Phase 7.
+
+### R017 — Status normalization + tracking events (F-007)
+- Class: integration
+- Status: active
+- Description: SPS normalizes external status events via mapping rules and persists them as ExternalStatusEvent records.
+- Why it matters: Unmapped statuses must fail closed; tracking drives case progression and review comment loops.
+- Source: spec (section 6.1 F-007)
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Fixture-based status maps in Phase 7.
+
+### R018 — Manual fallback package generation (F-008)
+- Class: integration
+- Status: active
+- Description: SPS produces ManualFallbackPackage for unsupported portals and enters bounded manual state.
+- Why it matters: Unsupported portals must not silently fail; manual fallback is a governed safe-stop path.
+- Source: spec (section 6.1 F-008)
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Manual fallback path only; no full operator UI yet.
+
+### R019 — Proof bundle validation and reviewer confirmation (CTL-06A)
+- Class: compliance/security
+- Status: active
+- Description: SPS validates proof bundle sufficiency before marking submission as complete.
+- Why it matters: Prevents submission without required evidence and reviewer confirmation.
+- Source: spec (section 18A; CTL-06A)
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: API-level confirmation only in Phase 7.
+
 ## Validated
+
+### R010 — Intake normalization into Project (F-001)
+- Class: core-capability
+- Status: validated
+- Description: SPS creates a PermitCase from intake and persists a normalized Project object using the spec-derived intake contract.
+- Why it matters: All downstream research/compliance/document work depends on normalized project facts that are durable and auditable.
+- Source: spec (section 6.1 F-001)
+- Primary owning slice: M004/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m004_s01_intake_api_workflow_test.py + scripts/verify_m004_s01.sh runbook)
+- Notes: Spec-derived intake contract; no external intake integrations yet.
 
 ### R009 — Dissent artifacts recorded and queryable
 - Class: governance
@@ -169,11 +246,18 @@
 | R010 | core-capability | active | M004/S01 | none | pending (integration tests + runbook) |
 | R011 | integration | active | M004/S01 | none | pending (integration tests + runbook) |
 | R012 | integration | active | M004/S01 | none | pending (integration tests + runbook) |
+| R013 | integration | active | M005/S01 | none | pending (integration tests + runbook) |
+| R014 | integration | active | M005/S01 | none | pending (integration tests + runbook) |
+| R015 | integration | active | M006/S01 | none | pending (integration tests + runbook) |
+| R016 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
+| R017 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
+| R018 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
+| R019 | compliance/security | active | M007/S01 | none | pending (integration tests + runbook) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 3
-- Mapped to slices: 12
+- Active requirements: 10
+- Mapped to slices: 19
 - Validated: 9
 - Unmapped active requirements: 0
