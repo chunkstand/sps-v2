@@ -48,3 +48,4 @@
 | 39 | 2026-03-15 | Phase 4 | Workflow wiring | Wire domain activities into PermitCaseWorkflow end-to-end | Prove authoritative progression under real workflow semantics | yes |
 | 40 | 2026-03-15 | Phase 4 | Verification surface | Provide Postgres-backed integration tests + operator runbook | Match prior milestone proof standard | yes |
 | 41 | 2026-03-15 | Phase 4 | Intake contract | Use spec/model-derived intake contract (not placeholder) | Keep downstream outputs aligned with authoritative model | yes |
+| 42 | 2026-03-15 | Phase 4 | Fixture dataset placement | Store Phase 4 jurisdiction/requirements fixtures under `specs/sps/build-approved/fixtures/phase4` and load them as spec-sourced authoritative data | Keeps provenance traceable to the spec package and avoids a parallel fixture source of truth | yes |
