@@ -70,6 +70,70 @@ class Project(Base):
     )
 
 
+class JurisdictionResolution(Base):
+    __tablename__ = "jurisdiction_resolutions"
+
+    jurisdiction_resolution_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    city_authority_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    county_authority_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    state_authority_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    utility_authority_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+
+    zoning_district: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    overlays: Mapped[list[str] | None] = mapped_column(sa.ARRAY(sa.Text), nullable=True)
+    permitting_portal_family: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+
+    support_level: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    manual_requirements: Mapped[list[str] | None] = mapped_column(sa.ARRAY(sa.Text), nullable=True)
+
+    evidence_ids: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")
+    provenance: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    evidence_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
+class RequirementSet(Base):
+    __tablename__ = "requirement_sets"
+
+    requirement_set_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    jurisdiction_ids: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")
+    permit_types: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")
+    forms_required: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")
+    attachments_required: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")
+
+    fee_rules: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
+    source_rankings: Mapped[list[dict]] = mapped_column(JSONB, nullable=False)
+
+    freshness_state: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    freshness_expires_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    contradiction_state: Mapped[str] = mapped_column(sa.Text, nullable=False)
+
+    evidence_ids: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")
+    provenance: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    evidence_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
 class ReviewDecision(Base):
     __tablename__ = "review_decisions"
 

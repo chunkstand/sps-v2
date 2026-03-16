@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-15T00:00:00Z",
+  "jurisdictions": [
+    {
+      "jurisdiction_resolution_id": "JUR-RES-001",
+      "case_id": "CASE-EXAMPLE-001",
+      "city_authority_id": "AUTH-CITY-HELENA-001",
+      "county_authority_id": "AUTH-LEWIS-CLARK-001",
+      "state_authority_id": "AUTH-MT-001",
+      "utility_authority_id": "AUTH-NWENERGY-001",
+      "zoning_district": "R2",
+      "overlays": ["Historic-District-1"],
+      "permitting_portal_family": "ACME_PORTAL",
+      "support_level": "PARTIALLY_SUPPORTED_READ_ONLY",
+      "manual_requirements": ["Load study waiver", "Stamped site plan"],
+      "evidence_ids": [
+        "ART-01KKSMAP4MH6HWGM2RR9J22K79",
+        "ART-01KKSMAP4MH6HWGM2RR9J22K80"
+      ],
+      "provenance": {
+        "resolved_by": "geo-resolver-v2",
+        "resolved_at": "2026-03-10T15:45:00Z",
+        "source_bundle": "AUTH-MT-2026-03"
+      },
+      "evidence_payload": {
+        "sources": ["city_portal", "county_code"],
+        "notes": "Manual review required for historic overlay."
+      }
+    }
+  ]
+}

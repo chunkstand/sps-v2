@@ -8,9 +8,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from sps.api.contracts.cases import (
+    JurisdictionResolutionListResponse,
+    JurisdictionResolutionResponse,
+    RequirementSetListResponse,
+    RequirementSetResponse,
+)
 from sps.api.contracts.intake import CreateCaseRequest, CreateCaseResponse, SiteAddress
 from sps.config import get_settings
-from sps.db.models import PermitCase, Project
+from sps.db.models import JurisdictionResolution, PermitCase, Project, RequirementSet
 from sps.db.session import get_db
 from sps.workflows.permit_case.contracts import CaseState, PermitCaseWorkflowInput
 from sps.workflows.permit_case.ids import permit_case_workflow_id
@@ -39,6 +45,48 @@ def _format_address(site_address: SiteAddress) -> str:
         parts.append(site_address.line2)
     parts.append(f"{site_address.city}, {site_address.state} {site_address.postal_code}")
     return ", ".join(parts)
+
+
+def _jurisdiction_row_to_response(row: JurisdictionResolution) -> JurisdictionResolutionResponse:
+    return JurisdictionResolutionResponse(
+        jurisdiction_resolution_id=row.jurisdiction_resolution_id,
+        case_id=row.case_id,
+        city_authority_id=row.city_authority_id,
+        county_authority_id=row.county_authority_id,
+        state_authority_id=row.state_authority_id,
+        utility_authority_id=row.utility_authority_id,
+        zoning_district=row.zoning_district,
+        overlays=row.overlays,
+        permitting_portal_family=row.permitting_portal_family,
+        support_level=row.support_level,
+        manual_requirements=row.manual_requirements,
+        evidence_ids=row.evidence_ids or [],
+        provenance=row.provenance,
+        evidence_payload=row.evidence_payload,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _requirement_row_to_response(row: RequirementSet) -> RequirementSetResponse:
+    return RequirementSetResponse(
+        requirement_set_id=row.requirement_set_id,
+        case_id=row.case_id,
+        jurisdiction_ids=row.jurisdiction_ids or [],
+        permit_types=row.permit_types or [],
+        forms_required=row.forms_required or [],
+        attachments_required=row.attachments_required or [],
+        fee_rules=row.fee_rules,
+        source_rankings=row.source_rankings or [],
+        freshness_state=row.freshness_state,
+        freshness_expires_at=row.freshness_expires_at,
+        contradiction_state=row.contradiction_state,
+        evidence_ids=row.evidence_ids or [],
+        provenance=row.provenance,
+        evidence_payload=row.evidence_payload,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
 
 
 async def _start_workflow(case_id: str) -> None:
@@ -139,4 +187,100 @@ async def create_case(req: CreateCaseRequest, db: Session = Depends(get_db)) -> 
         case_id=case_id,
         project_id=project_id,
         case_state=CaseState.INTAKE_PENDING,
+    )
+
+
+@router.get("/cases/{case_id}/jurisdiction", response_model=JurisdictionResolutionListResponse)
+def get_case_jurisdiction(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> JurisdictionResolutionListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.jurisdiction_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        rows = (
+            db.query(JurisdictionResolution)
+            .filter(JurisdictionResolution.case_id == case_id)
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.jurisdiction_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "jurisdiction_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    if not rows:
+        logger.warning("cases.jurisdiction_missing case_id=%s", case_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "jurisdiction_not_ready",
+                "case_id": case_id,
+                "missing": "jurisdiction_resolution",
+            },
+        )
+
+    logger.info("cases.jurisdiction_fetched case_id=%s count=%s", case_id, len(rows))
+    return JurisdictionResolutionListResponse(
+        case_id=case_id,
+        jurisdictions=[_jurisdiction_row_to_response(row) for row in rows],
+    )
+
+
+@router.get("/cases/{case_id}/requirements", response_model=RequirementSetListResponse)
+def get_case_requirements(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> RequirementSetListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.requirements_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        rows = (
+            db.query(RequirementSet)
+            .filter(RequirementSet.case_id == case_id)
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.requirements_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "requirements_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    if not rows:
+        logger.warning("cases.requirements_missing case_id=%s", case_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "requirements_not_ready",
+                "case_id": case_id,
+                "missing": "requirement_set",
+            },
+        )
+
+    logger.info("cases.requirements_fetched case_id=%s count=%s", case_id, len(rows))
+    return RequirementSetListResponse(
+        case_id=case_id,
+        requirement_sets=[_requirement_row_to_response(row) for row in rows],
     )

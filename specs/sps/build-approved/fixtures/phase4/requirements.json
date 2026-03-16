@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-15T00:00:00Z",
+  "requirement_sets": [
+    {
+      "requirement_set_id": "REQ-SET-001",
+      "case_id": "CASE-EXAMPLE-001",
+      "jurisdiction_ids": [
+        "AUTH-CITY-HELENA-001",
+        "AUTH-LEWIS-CLARK-001",
+        "AUTH-MT-001"
+      ],
+      "permit_types": ["solar_building", "electrical"],
+      "forms_required": ["Form-EB-12", "Form-BLD-8"],
+      "attachments_required": ["SitePlan-A", "SingleLineDiagram-1"],
+      "fee_rules": [
+        {
+          "fee_code": "PLAN_REVIEW",
+          "amount": 250.0,
+          "currency": "USD"
+        }
+      ],
+      "source_rankings": [
+        {
+          "source_id": "SRC-HELENA-PORTAL",
+          "rank": 1,
+          "confidence": "HIGH"
+        },
+        {
+          "source_id": "SRC-COUNTY-CODE",
+          "rank": 2,
+          "confidence": "MEDIUM"
+        }
+      ],
+      "freshness_state": "FRESH",
+      "freshness_expires_at": "2026-06-01T00:00:00Z",
+      "contradiction_state": "NONE",
+      "evidence_ids": [
+        "ART-01KKSMAP4MH6HWGM2RR9J22K81",
+        "ART-01KKSMAP4MH6HWGM2RR9J22K82"
+      ],
+      "provenance": {
+        "compiled_by": "requirements-indexer-v1",
+        "compiled_at": "2026-03-12T09:10:00Z",
+        "source_bundle": "REQ-MT-2026-03"
+      },
+      "evidence_payload": {
+        "source_urls": [
+          "https://permits.example.gov/helena",
+          "https://county.example.gov/permits"
+        ]
+      }
+    }
+  ]
+}

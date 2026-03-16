@@ -60,4 +60,17 @@
 | 51 | 2026-03-15 | Phase 7 | Adapter scope | Single deterministic mock adapter + fixture status maps | Avoid external dependency risk while establishing contract shape | yes |
 | 52 | 2026-03-15 | Phase 7 | Workflow wiring | Wire submission/tracking/manual fallback into PermitCaseWorkflow | Prove authoritative progression under real workflow semantics | yes |
 | 53 | 2026-03-15 | Phase 7 | Verification surface | Provide Postgres-backed integration tests + operator runbook | Match prior milestone proof standard | yes |
+| 54 | 2026-03-15 | Phase 8 | M008 scope focus | Implement reviewer UI and independence thresholds (E-001–E-002) | Make reviewer governance usable and enforce Tier 3 thresholds | yes |
+| 55 | 2026-03-15 | Phase 8 | UI scope | Minimal reviewer web UI (queue, evidence view, decision capture) | Deliver usable reviewer flow without scope creep | yes |
+| 56 | 2026-03-15 | Phase 8 | Threshold enforcement | Implement rolling-quarter independence thresholds per spec | Required Tier 3 compliance control | yes |
+| 57 | 2026-03-15 | Phase 8 | Verification surface | UI smoke + integration tests + runbook | Match proof standard while covering UI | yes |
+| 58 | 2026-03-15 | Phase 9 | M009 scope focus | Implement release/rollback gates and observability (H-001–H-006) | Required Tier 3 release posture | yes |
+| 59 | 2026-03-15 | Phase 9 | Observability scope | Audit sinks + minimal dashboards/alerts | Satisfy OBS-001–OBS-003 without scope creep | yes |
+| 60 | 2026-03-15 | Phase 9 | Release scope | Release manifest + rollback rehearsal + post-release validation | Meet REL-001–REL-003 requirements | yes |
+| 61 | 2026-03-15 | Phase 9 | Verification surface | Integration tests + runbook | Match proof standard for release/obs gates | yes |
+| 62 | 2026-03-15 | Phase 10 | M010 scope focus | Implement auth/RBAC/mTLS baseline + redaction/read-only observability (SEC-001–SEC-005) | Required Tier 3 security posture | yes |
+| 63 | 2026-03-15 | Phase 10 | Auth scope | Auth + RBAC + baseline mTLS support | Enforce identity and role separation on authority surfaces | yes |
+| 64 | 2026-03-15 | Phase 10 | Redaction scope | Redaction + read-only observability enforcement | Prevent data leakage and authority drift via observability | yes |
+| 65 | 2026-03-15 | Phase 10 | Verification surface | Security integration tests + runbook | Match proof standard for security controls | yes |
 | 42 | 2026-03-15 | Phase 4 | Fixture dataset placement | Store Phase 4 jurisdiction/requirements fixtures under `specs/sps/build-approved/fixtures/phase4` and load them as spec-sourced authoritative data | Keeps provenance traceable to the spec package and avoids a parallel fixture source of truth | yes |
+| 43 | 2026-03-15 | Phase 4 | Jurisdiction/requirements metadata persistence | Store fixture provenance and evidence payloads as JSONB columns on jurisdiction_resolutions and requirement_sets | Preserve structured metadata without over-normalizing while schemas stabilize | yes |

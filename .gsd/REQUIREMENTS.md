@@ -2,28 +2,6 @@
 
 ## Active
 
-### R011 — Jurisdiction stack resolution (F-002)
-- Class: integration
-- Status: active
-- Description: SPS determines the full authority stack and support level (city/county/state/utility/overlays) and persists a JurisdictionResolution.
-- Why it matters: Jurisdiction drives requirements, portal support, and safe-stop/manual handling decisions.
-- Source: spec (section 6.1 F-002)
-- Primary owning slice: M004/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Uses spec-sourced fixtures in Phase 4.
-
-### R012 — Requirements retrieval with provenance (F-003)
-- Class: integration
-- Status: active
-- Description: SPS retrieves permit requirements from ranked authoritative sources and persists provenance in a RequirementSet.
-- Why it matters: Authoritative requirements are the foundation for compliance, document generation, and review.
-- Source: spec (section 6.1 F-003)
-- Primary owning slice: M004/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Fixture-based sources only; external integrations deferred.
-
 ### R013 — Compliance evaluation (F-004)
 - Class: integration
 - Status: active
@@ -101,6 +79,127 @@
 - Validation: pending (integration tests + runbook)
 - Notes: API-level confirmation only in Phase 7.
 
+### R020 — Reviewer UI queue/evidence view/decision capture (E-001)
+- Class: governance
+- Status: active
+- Description: Reviewer-facing UI presents queue and evidence and allows decisions via reviewer API.
+- Why it matters: Reviewer approval is the core permission gate and must be usable/auditable.
+- Source: spec (section 5.2; task E-001)
+- Primary owning slice: M008/S01
+- Supporting slices: none
+- Validation: pending (UI smoke + integration tests + runbook)
+- Notes: Minimal UI only; no bulk tooling.
+
+### R021 — Reviewer independence thresholds enforced (E-002)
+- Class: compliance/security
+- Status: active
+- Description: Rolling-quarter reviewer independence thresholds are computed and enforced with escalation per spec.
+- Why it matters: Prevents systemic independence drift and is a Tier 3 compliance requirement.
+- Source: spec (section 4.1; task E-002; CTL-11A)
+- Primary owning slice: M008/S01
+- Supporting slices: none
+- Validation: pending (policy tests + integration tests)
+- Notes: Enforces warnings/escalations as specified.
+
+### R022 — Audit event schema and sinks (OBS-001)
+- Class: observability
+- Status: active
+- Description: SPS emits structured audit events for critical actions and persists them to configured sinks.
+- Why it matters: Audit reconstruction and compliance depend on queryable event trails.
+- Source: spec (section 6.4 OBS-001)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: pending (event schema tests + integration checks)
+- Notes: Minimal sinks in Phase 9.
+
+### R023 — Dashboards and alerts (OBS-002/OBS-003)
+- Class: observability
+- Status: active
+- Description: Minimal dashboards and alerts exist for queue depth, stalled review, submission failures, evidence SLA breaches, and contradiction backlog.
+- Why it matters: Operational readiness and release gating depend on observability signals.
+- Source: spec (section 6.4 OBS-002/OBS-003)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: pending (dashboard/alert checks + runbook)
+- Notes: Minimal set only.
+
+### R024 — Release bundle manifest generation (REL-001)
+- Class: release
+- Status: active
+- Description: SPS generates release bundle manifest with artifact digests and compatibility checks.
+- Why it matters: Release is blocked without a compliant manifest and artifact freshness checks.
+- Source: spec (section 6.5 REL-001)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: pending (release bundle tests + runbook)
+- Notes: Must fail closed on stale artifacts.
+
+### R025 — Rollback rehearsal evidence (REL-002)
+- Class: release
+- Status: active
+- Description: SPS records rollback rehearsal evidence and stores rollback artifacts per spec.
+- Why it matters: Tier 3 release cannot proceed without rollback rehearsal evidence.
+- Source: spec (section 6.5 REL-002)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: pending (rollback runbook + artifact checks)
+- Notes: Capture evidence in evidence registry.
+
+### R026 — Post-release validation template/workflow (REL-003)
+- Class: release
+- Status: active
+- Description: SPS defines post-release validation template and stage-gated execution rules.
+- Why it matters: Production rollout must follow staged validation unless emergency rollback applies.
+- Source: spec (section 6.5 REL-003)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: pending (template checks + runbook)
+- Notes: Stage gating enforced in release pipeline.
+
+### R027 — Authenticated identities on interactive and service APIs (SEC-001)
+- Class: security
+- Status: active
+- Description: All interactive and service APIs require authenticated identities.
+- Why it matters: Authority-bearing actions must be attributable and access-controlled.
+- Source: spec (section 6.3 SEC-001)
+- Primary owning slice: M010/S01
+- Supporting slices: none
+- Validation: pending (auth integration tests)
+- Notes: Baseline identity provider selection in Phase 10.
+
+### R028 — RBAC separation across roles (SEC-002)
+- Class: security
+- Status: active
+- Description: Role-based access control separates user/reviewer/operator/admin/release-manager/escalation-owner capabilities.
+- Why it matters: Prevents cross-role authority drift and improper mutation.
+- Source: spec (section 6.3 SEC-002)
+- Primary owning slice: M010/S01
+- Supporting slices: none
+- Validation: pending (authorization tests)
+- Notes: Focus on key role separations first.
+
+### R029 — Sensitive field redaction + read-only observability (SEC-003/OBS-004)
+- Class: security
+- Status: active
+- Description: Sensitive fields are redacted from logs and observability is enforced read-only.
+- Why it matters: Prevents data leakage and unauthorized mutation via observability paths.
+- Source: spec (sections 6.3 SEC-003 and 6.4 OBS-004)
+- Primary owning slice: M010/S01
+- Supporting slices: none
+- Validation: pending (log inspection + negative tests)
+- Notes: Ensure no secrets in structured logs.
+
+### R031 — Service-to-service mTLS and signed principals (SEC-005)
+- Class: security
+- Status: active
+- Description: Service-to-service communication enforces mTLS and signed service principals.
+- Why it matters: Prevents spoofed internal calls and unauthorized authority mutation.
+- Source: spec (section 6.3 SEC-005)
+- Primary owning slice: M010/S01
+- Supporting slices: none
+- Validation: pending (integration tests)
+- Notes: Baseline support only in Phase 10.
+
 ## Validated
 
 ### R010 — Intake normalization into Project (F-001)
@@ -113,6 +212,28 @@
 - Supporting slices: none
 - Validation: proved (pytest tests/m004_s01_intake_api_workflow_test.py + scripts/verify_m004_s01.sh runbook)
 - Notes: Spec-derived intake contract; no external intake integrations yet.
+
+### R011 — Jurisdiction stack resolution (F-002)
+- Class: integration
+- Status: validated
+- Description: SPS determines the full authority stack and support level (city/county/state/utility/overlays) and persists a JurisdictionResolution.
+- Why it matters: Jurisdiction drives requirements, portal support, and safe-stop/manual handling decisions.
+- Source: spec (section 6.1 F-002)
+- Primary owning slice: M004/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m004_s02_jurisdiction_requirements_workflow_test.py + scripts/verify_m004_s02.sh runbook)
+- Notes: Uses spec-sourced fixtures in Phase 4.
+
+### R012 — Requirements retrieval with provenance (F-003)
+- Class: integration
+- Status: validated
+- Description: SPS retrieves permit requirements from ranked authoritative sources and persists provenance in a RequirementSet.
+- Why it matters: Authoritative requirements are the foundation for compliance, document generation, and review.
+- Source: spec (section 6.1 F-003)
+- Primary owning slice: M004/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m004_s02_jurisdiction_requirements_workflow_test.py + scripts/verify_m004_s02.sh runbook)
+- Notes: Fixture-based sources only; external integrations deferred.
 
 ### R009 — Dissent artifacts recorded and queryable
 - Class: governance
@@ -243,9 +364,9 @@
 | R007 | compliance/security | validated | M003/S02 | none | proved (Postgres integration tests — self-approval → 403 + INV-SPS-REV-001 + INV-008 + no DB row; distinct reviewer → 201 + PASS) |
 | R008 | compliance/security | validated | M003/S03 | none | proved (Postgres integration tests — blocking → CONTRADICTION_ADVANCE_DENIED + INV-SPS-CONTRA-001 + INV-003; resolve → CASE_STATE_CHANGED; runbook ok) |
 | R009 | governance | validated | M003/S04 | none | proved (Postgres integration tests — ACCEPT_WITH_DISSENT → dissent_artifacts row queryable; ACCEPT → no row; runbook ok) |
-| R010 | core-capability | active | M004/S01 | none | pending (integration tests + runbook) |
-| R011 | integration | active | M004/S01 | none | pending (integration tests + runbook) |
-| R012 | integration | active | M004/S01 | none | pending (integration tests + runbook) |
+| R010 | core-capability | validated | M004/S01 | none | proved (pytest tests/m004_s01_intake_api_workflow_test.py + scripts/verify_m004_s01.sh runbook) |
+| R011 | integration | validated | M004/S01 | none | proved (pytest tests/m004_s02_jurisdiction_requirements_workflow_test.py + scripts/verify_m004_s02.sh runbook) |
+| R012 | integration | validated | M004/S01 | none | proved (pytest tests/m004_s02_jurisdiction_requirements_workflow_test.py + scripts/verify_m004_s02.sh runbook) |
 | R013 | integration | active | M005/S01 | none | pending (integration tests + runbook) |
 | R014 | integration | active | M005/S01 | none | pending (integration tests + runbook) |
 | R015 | integration | active | M006/S01 | none | pending (integration tests + runbook) |
@@ -253,11 +374,22 @@
 | R017 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
 | R018 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
 | R019 | compliance/security | active | M007/S01 | none | pending (integration tests + runbook) |
+| R020 | governance | active | M008/S01 | none | pending (UI smoke + integration tests + runbook) |
+| R021 | compliance/security | active | M008/S01 | none | pending (policy tests + integration tests) |
+| R022 | observability | active | M009/S01 | none | pending (event schema tests + integration checks) |
+| R023 | observability | active | M009/S01 | none | pending (dashboard/alert checks + runbook) |
+| R024 | release | active | M009/S01 | none | pending (release bundle tests + runbook) |
+| R025 | release | active | M009/S01 | none | pending (rollback runbook + artifact checks) |
+| R026 | release | active | M009/S01 | none | pending (template checks + runbook) |
+| R027 | security | active | M010/S01 | none | pending (auth integration tests) |
+| R028 | security | active | M010/S01 | none | pending (authorization tests) |
+| R029 | security | active | M010/S01 | none | pending (log inspection + negative tests) |
+| R031 | security | active | M010/S01 | none | pending (integration tests) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 10
-- Mapped to slices: 19
-- Validated: 9
+- Active requirements: 18
+- Mapped to slices: 30
+- Validated: 11
 - Unmapped active requirements: 0

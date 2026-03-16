@@ -32,6 +32,11 @@ A governed workflow system that can produce and submit permit packages with revi
   - `POST /api/v1/cases` accepts the spec-derived intake contract and persists PermitCase + Project in one transaction
   - `PermitCaseWorkflow` advances INTAKE_PENDING → INTAKE_COMPLETE via guarded transition
   - Proof surfaces: `tests/m004_s01_intake_api_workflow_test.py` (contract + integration) and `scripts/verify_m004_s01.sh`
+- **Phase 4 jurisdiction + requirements flow (M004/S02) complete:**
+  - Fixture-backed jurisdiction + requirement artifacts persist with provenance/evidence payloads
+  - `PermitCaseWorkflow` advances INTAKE_COMPLETE → JURISDICTION_COMPLETE → RESEARCH_COMPLETE via guarded transitions
+  - Read surfaces: `GET /api/v1/cases/{case_id}/jurisdiction` and `/requirements`
+  - Proof surfaces: `tests/m004_s02_jurisdiction_requirements_workflow_test.py` and `scripts/verify_m004_s02.sh`
 - **Contradiction blocking guard is complete (M003/S03):**
   - `POST /api/v1/contradictions/` creates contradiction artifacts with `blocking_effect` and `resolution_status=OPEN`; 409 on duplicate
   - `POST /api/v1/contradictions/{id}/resolve` transitions `OPEN → RESOLVED`; 409 if already resolved; 404 if unknown
@@ -78,6 +83,9 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [ ] M005-j3c8qk: Phase 5 — compliance and incentives workers
 - [ ] M006-h7v2qk: Phase 6 — document and submission package generation
 - [ ] M007-b2t1rz: Phase 7 — submission, tracking, and manual fallback
+- [ ] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds
+- [ ] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
+- [ ] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
 
 ## Milestone ID Mapping
 

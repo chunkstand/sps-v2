@@ -134,6 +134,24 @@ class StateTransitionRequest(BaseModel):
     notes: str | None = None
 
 
+class PersistJurisdictionResolutionRequest(BaseModel):
+    """Activity input for persisting jurisdiction resolution fixtures."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+
+
+class PersistRequirementSetRequest(BaseModel):
+    """Activity input for persisting requirement set fixtures."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+
+
 class PermitCaseStateSnapshot(BaseModel):
     """Activity payload for PermitCase state branching."""
 

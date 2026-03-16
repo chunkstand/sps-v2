@@ -6,15 +6,26 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from temporalio import activity
 
-from sps.db.models import CaseTransitionLedger, ContradictionArtifact, PermitCase, Project, ReviewDecision
+from sps.db.models import (
+    CaseTransitionLedger,
+    ContradictionArtifact,
+    JurisdictionResolution,
+    PermitCase,
+    Project,
+    RequirementSet,
+    ReviewDecision,
+)
 from sps.db.session import get_sessionmaker
 from sps.failpoints import FailpointFired, fail_once
+from sps.fixtures.phase4 import load_phase4_fixtures
 from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import (
     AppliedStateTransitionResult,
     CaseState,
     DeniedStateTransitionResult,
     PermitCaseStateSnapshot,
+    PersistJurisdictionResolutionRequest,
+    PersistRequirementSetRequest,
     PersistReviewDecisionRequest,
     StateTransitionRequest,
     StateTransitionResult,
@@ -133,6 +144,242 @@ def fetch_permit_case_state(case_id: str) -> PermitCaseStateSnapshot:
         raise
 
 
+@activity.defn
+def persist_jurisdiction_resolutions(
+    request: PersistJurisdictionResolutionRequest | dict,
+) -> list[str]:
+    """Persist jurisdiction resolution fixtures for a case idempotently."""
+
+    req = PersistJurisdictionResolutionRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "activity.start name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s request_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.request_id,
+    )
+
+    jurisdiction_dataset, _ = load_phase4_fixtures()
+    fixtures = [fixture for fixture in jurisdiction_dataset.jurisdictions if fixture.case_id == req.case_id]
+    if not fixtures:
+        raise LookupError(f"no jurisdiction fixtures found for case_id={req.case_id}")
+
+    SessionLocal = get_sessionmaker()
+    try:
+        created_ids: list[str] = []
+        created_count = 0
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    for fixture in fixtures:
+                        existing = session.get(JurisdictionResolution, fixture.jurisdiction_resolution_id)
+                        if existing is None:
+                            session.add(
+                                JurisdictionResolution(
+                                    jurisdiction_resolution_id=fixture.jurisdiction_resolution_id,
+                                    case_id=fixture.case_id,
+                                    city_authority_id=fixture.city_authority_id,
+                                    county_authority_id=fixture.county_authority_id,
+                                    state_authority_id=fixture.state_authority_id,
+                                    utility_authority_id=fixture.utility_authority_id,
+                                    zoning_district=fixture.zoning_district,
+                                    overlays=fixture.overlays,
+                                    permitting_portal_family=fixture.permitting_portal_family,
+                                    support_level=str(fixture.support_level),
+                                    manual_requirements=fixture.manual_requirements,
+                                    evidence_ids=fixture.evidence_ids,
+                                    provenance=fixture.provenance,
+                                    evidence_payload=fixture.evidence_payload,
+                                )
+                            )
+                            created_count += 1
+                        created_ids.append(fixture.jurisdiction_resolution_id)
+
+                logger.info(
+                    "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s created=%s idempotent=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    req.request_id,
+                    len(created_ids),
+                    created_count,
+                    1 if created_count == 0 else 0,
+                )
+
+                logger.info(
+                    "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    req.request_id,
+                    len(created_ids),
+                )
+                return created_ids
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing_rows = (
+                session.query(JurisdictionResolution)
+                .filter(JurisdictionResolution.case_id == req.case_id)
+                .all()
+            )
+            existing_ids = [row.jurisdiction_resolution_id for row in existing_rows]
+            if not existing_ids:
+                raise RuntimeError(
+                    f"jurisdiction_resolutions insert raced but rows not found for case_id={req.case_id}"
+                )
+
+            logger.info(
+                "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s created=0 idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                req.request_id,
+                len(existing_ids),
+            )
+            logger.info(
+                "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                req.request_id,
+                len(existing_ids),
+            )
+            return existing_ids
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s request_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.request_id,
+            type(exc).__name__,
+        )
+        raise
+
+
+@activity.defn
+def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> list[str]:
+    """Persist requirement set fixtures for a case idempotently."""
+
+    req = PersistRequirementSetRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "activity.start name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s request_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.request_id,
+    )
+
+    _, requirement_dataset = load_phase4_fixtures()
+    fixtures = [fixture for fixture in requirement_dataset.requirement_sets if fixture.case_id == req.case_id]
+    if not fixtures:
+        raise LookupError(f"no requirement fixtures found for case_id={req.case_id}")
+
+    SessionLocal = get_sessionmaker()
+    try:
+        created_ids: list[str] = []
+        created_count = 0
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    for fixture in fixtures:
+                        existing = session.get(RequirementSet, fixture.requirement_set_id)
+                        if existing is None:
+                            freshness_expires_at = fixture.freshness_expires_at
+                            if freshness_expires_at.tzinfo is None:
+                                freshness_expires_at = freshness_expires_at.replace(tzinfo=dt.UTC)
+
+                            session.add(
+                                RequirementSet(
+                                    requirement_set_id=fixture.requirement_set_id,
+                                    case_id=fixture.case_id,
+                                    jurisdiction_ids=fixture.jurisdiction_ids,
+                                    permit_types=fixture.permit_types,
+                                    forms_required=fixture.forms_required,
+                                    attachments_required=fixture.attachments_required,
+                                    fee_rules=fixture.fee_rules,
+                                    source_rankings=fixture.source_rankings,
+                                    freshness_state=str(fixture.freshness_state),
+                                    freshness_expires_at=freshness_expires_at,
+                                    contradiction_state=str(fixture.contradiction_state),
+                                    evidence_ids=fixture.evidence_ids,
+                                    provenance=fixture.provenance,
+                                    evidence_payload=fixture.evidence_payload,
+                                )
+                            )
+                            created_count += 1
+                        created_ids.append(fixture.requirement_set_id)
+
+                logger.info(
+                    "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s created=%s idempotent=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    req.request_id,
+                    len(created_ids),
+                    created_count,
+                    1 if created_count == 0 else 0,
+                )
+
+                logger.info(
+                    "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    req.request_id,
+                    len(created_ids),
+                )
+                return created_ids
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing_rows = (
+                session.query(RequirementSet)
+                .filter(RequirementSet.case_id == req.case_id)
+                .all()
+            )
+            existing_ids = [row.requirement_set_id for row in existing_rows]
+            if not existing_ids:
+                raise RuntimeError(
+                    f"requirement_sets insert raced but rows not found for case_id={req.case_id}"
+                )
+
+            logger.info(
+                "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s created=0 idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                req.request_id,
+                len(existing_ids),
+            )
+            logger.info(
+                "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                req.request_id,
+                len(existing_ids),
+            )
+            return existing_ids
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s request_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.request_id,
+            type(exc).__name__,
+        )
+        raise
+
+
 def _safe_temporal_ids() -> tuple[str | None, str | None]:
     """Best-effort activity correlation identifiers.
 
@@ -151,8 +398,12 @@ _EVENT_CASE_STATE_CHANGED = "CASE_STATE_CHANGED"
 _EVENT_APPROVAL_GATE_DENIED = "APPROVAL_GATE_DENIED"
 _EVENT_CONTRADICTION_ADVANCE_DENIED = "CONTRADICTION_ADVANCE_DENIED"
 _EVENT_INTAKE_PROJECT_DENIED = "INTAKE_PROJECT_REQUIRED_DENIED"
+_EVENT_JURISDICTION_REQUIRED_DENIED = "JURISDICTION_REQUIRED_DENIED"
+_EVENT_REQUIREMENTS_REQUIRED_DENIED = "REQUIREMENTS_REQUIRED_DENIED"
+_EVENT_REQUIREMENTS_FRESHNESS_DENIED = "REQUIREMENTS_FRESHNESS_DENIED"
 _GUARD_ASSERTION_REVIEW_GATE = "INV-SPS-STATE-002"
 _GUARD_ASSERTION_CONTRADICTION = "INV-SPS-CONTRA-001"
+_GUARD_ASSERTION_REQUIREMENTS_FRESHNESS = "INV-SPS-RULE-001"
 _ALLOWED_REVIEW_OUTCOMES = {"ACCEPT", "ACCEPT_WITH_DISSENT"}
 
 
@@ -300,6 +551,61 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                     denied_at=requested_at,
                                     event_type=_EVENT_INTAKE_PROJECT_DENIED,
                                     denial_reason="PROJECT_REQUIRED",
+                                )
+                            else:
+                                result = AppliedStateTransitionResult(
+                                    event_type=_EVENT_CASE_STATE_CHANGED,
+                                    applied_at=requested_at,
+                                )
+                                case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.INTAKE_COMPLETE
+                            and req.to_state == CaseState.JURISDICTION_COMPLETE
+                        ):
+                            resolution = (
+                                session.query(JurisdictionResolution)
+                                .filter(JurisdictionResolution.case_id == req.case_id)
+                                .first()
+                            )
+                            if resolution is None:
+                                result = _deny(
+                                    denied_at=requested_at,
+                                    event_type=_EVENT_JURISDICTION_REQUIRED_DENIED,
+                                    denial_reason="JURISDICTION_RESOLUTION_REQUIRED",
+                                )
+                            else:
+                                result = AppliedStateTransitionResult(
+                                    event_type=_EVENT_CASE_STATE_CHANGED,
+                                    applied_at=requested_at,
+                                )
+                                case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.JURISDICTION_COMPLETE
+                            and req.to_state == CaseState.RESEARCH_COMPLETE
+                        ):
+                            requirement_set = (
+                                session.query(RequirementSet)
+                                .filter(RequirementSet.case_id == req.case_id)
+                                .first()
+                            )
+                            invariants = get_normalized_business_invariants(
+                                _GUARD_ASSERTION_REQUIREMENTS_FRESHNESS
+                            )
+                            if requirement_set is None:
+                                result = _deny(
+                                    denied_at=requested_at,
+                                    event_type=_EVENT_REQUIREMENTS_REQUIRED_DENIED,
+                                    denial_reason="REQUIREMENT_SET_REQUIRED",
+                                    guard_assertion_id=_GUARD_ASSERTION_REQUIREMENTS_FRESHNESS,
+                                    normalized_business_invariants=invariants,
+                                )
+                            elif requirement_set.freshness_state != "FRESH":
+                                result = _deny(
+                                    denied_at=requested_at,
+                                    event_type=_EVENT_REQUIREMENTS_FRESHNESS_DENIED,
+                                    denial_reason="REQUIREMENT_SET_STALE",
+                                    guard_assertion_id=_GUARD_ASSERTION_REQUIREMENTS_FRESHNESS,
+                                    normalized_business_invariants=invariants,
                                 )
                             else:
                                 result = AppliedStateTransitionResult(
