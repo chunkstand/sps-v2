@@ -78,6 +78,21 @@ class Settings(BaseSettings):
     # IMPORTANT: this value must never be logged — treat it as a credential.
     reviewer_api_key: str = Field(default="dev-reviewer-key", validation_alias="SPS_REVIEWER_API_KEY")
 
+    # Release bundle defaults
+    spec_version: str = Field(default="2.0.1", validation_alias="SPS_SPEC_VERSION")
+    app_version: str = Field(default="0.0.0", validation_alias="SPS_APP_VERSION")
+    schema_version: str = Field(default="1.0.0", validation_alias="SPS_SCHEMA_VERSION")
+    model_version: str = Field(default="SPS-DOMAIN-MODEL-2.0.1", validation_alias="SPS_MODEL_VERSION")
+    policy_bundle_version: str = Field(
+        default="TIER3-V1", validation_alias="SPS_POLICY_BUNDLE_VERSION"
+    )
+    invariant_pack_version: str = Field(
+        default="2.0.1", validation_alias="SPS_INVARIANT_PACK_VERSION"
+    )
+    adapter_versions: dict[str, str] = Field(
+        default_factory=dict, validation_alias="SPS_ADAPTER_VERSIONS"
+    )
+
     def postgres_dsn(self) -> str:
         if self.db_dsn:
             return self.db_dsn

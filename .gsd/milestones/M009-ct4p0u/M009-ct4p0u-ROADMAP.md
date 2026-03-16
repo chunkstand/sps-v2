@@ -18,7 +18,7 @@ When this milestone is complete:
   - **Verification:** `pytest tests/m009_s01_audit_events_test.py` + `pytest tests/m009_s01_dashboard_test.py`
   - **Requirements:** R022 (audit events), R023 (dashboards/alerts)
 
-- [ ] **S02: Release Bundle and Blocker Gates** `risk:med-high` `depends:[S01]`
+- [x] **S02: Release Bundle and Blocker Gates** `risk:med-high` `depends:[S01]`
   - **Demo:** Operator runs `python scripts/generate_release_bundle.py` and sees release bundle creation succeed with clean artifacts. Re-running with a modified artifact (hash mismatch) causes the script to exit 1 with a fail-closed error. Creating an open blocking contradiction causes the script to exit 1 citing the blocker.
   - **Proof:** `POST /api/v1/releases/bundles` persists a ReleaseBundle with artifact references. `GET /api/v1/ops/release-blockers` returns open blocking contradictions and unresolved dissents on high-risk surfaces. CLI script verifies hashes against `PACKAGE-MANIFEST.json` and queries the blocker endpoint.
   - **Verification:** `pytest tests/m009_s02_release_bundle_test.py` + `scripts/verify_m009_s02.sh` (live CLI execution with success/failure scenarios)
@@ -54,12 +54,12 @@ When this milestone is complete:
 |-------------|--------|---------------|------------|-------|
 | R022 — Audit event schema and sinks | validated | S01 | none | pytest + Postgres integration |
 | R023 — Dashboards and alerts | validated | S01 | none | pytest + `/ops` page render |
-| R024 — Release bundle manifest | active | S02 | none | pytest + CLI script runbook |
+| R024 — Release bundle manifest | validated | S02 | none | pytest + CLI script runbook |
 | R025 — Rollback rehearsal evidence | active | S03 | none | pytest + runbook |
 | R026 — Post-release validation template | active | S03 | none | runbook + template file check |
 
 **Coverage summary:**
-- Active requirements: 3
+- Active requirements: 2
 - Mapped to slices: 5
 - Unmapped: 0
 

@@ -3,17 +3,6 @@
 ## Active
 
 
-### R024 — Release bundle manifest generation (REL-001)
-- Class: release
-- Status: active
-- Description: SPS generates release bundle manifest with artifact digests and compatibility checks.
-- Why it matters: Release is blocked without a compliant manifest and artifact freshness checks.
-- Source: spec (section 6.5 REL-001)
-- Primary owning slice: M009/S01
-- Supporting slices: none
-- Validation: pending (release bundle tests + runbook)
-- Notes: Must fail closed on stale artifacts.
-
 ### R025 — Rollback rehearsal evidence (REL-002)
 - Class: release
 - Status: active
@@ -169,6 +158,17 @@
 - Supporting slices: none
 - Validation: proved (pytest tests/m009_s01_dashboard_test.py)
 - Notes: Minimal set only.
+
+### R024 — Release bundle manifest generation (REL-001)
+- Class: release
+- Status: validated
+- Description: SPS generates release bundle manifest with artifact digests and compatibility checks.
+- Why it matters: Release is blocked without a compliant manifest and artifact freshness checks.
+- Source: spec (section 6.5 REL-001)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m009_s02_release_bundle_test.py + scripts/verify_m009_s02.sh)
+- Notes: Fail-closed on stale/mismatched artifacts and open blockers.
 
 ### R016 — Idempotent submission adapters + receipt persistence (F-006/F-007)
 - Class: integration

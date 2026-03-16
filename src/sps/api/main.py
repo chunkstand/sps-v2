@@ -13,6 +13,7 @@ from sps.api.routes.dissents import router as dissents_router
 from sps.api.routes.evidence import router as evidence_router
 from sps.api.routes.reviews import router as reviews_router
 from sps.api.routes.reviewer_console import router as reviewer_console_router
+from sps.api.routes.releases import router as releases_router
 from sps.api.routes.ops import page_router as ops_page_router
 from sps.api.routes.ops import router as ops_router
 
@@ -32,6 +33,7 @@ app.include_router(reviews_router, prefix="/api/v1/reviews")
 app.include_router(reviewer_console_router)
 app.include_router(contradictions_router, prefix="/api/v1/contradictions")
 app.include_router(dissents_router, prefix="/api/v1/dissents")
+app.include_router(releases_router, prefix="/api/v1/releases")
 app.include_router(ops_router, prefix="/api/v1/ops")
 app.include_router(ops_page_router)
 

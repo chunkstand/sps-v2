@@ -93,6 +93,11 @@ A governed workflow system that can produce and submit permit packages with revi
   - Ops metrics endpoint (`/api/v1/ops/dashboard/metrics`) returns queue depth, contradiction backlog, and stalled review counts
   - `/ops` Jinja dashboard renders queue health cards and fetches metrics via static JS
   - Proof surfaces: `tests/m009_s01_audit_events_test.py` + `tests/m009_s01_dashboard_test.py`
+- **Phase 9 release bundle + blocker gates (M009/S02) complete:**
+  - `GET /api/v1/ops/release-blockers` reports open blocking contradictions and high-risk dissents (reviewer-key gated)
+  - `POST /api/v1/releases/bundles` persists release bundles + artifact digests with validation
+  - `scripts/generate_release_bundle.py` verifies `PACKAGE-MANIFEST.json`, checks blockers, and fails closed before posting
+  - Proof surfaces: `tests/m009_s02_release_bundle_test.py` + `scripts/verify_m009_s02.sh`
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.

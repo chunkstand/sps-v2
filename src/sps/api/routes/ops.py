@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sps.api.routes.reviews import require_reviewer_api_key
 from sps.db.session import get_db
 from sps.services.ops_metrics import OpsMetricsResponse, build_ops_metrics_response
+from sps.services.release_blockers import ReleaseBlockersResponse, build_release_blockers_response
 
 logger = logging.getLogger(__name__)
 
@@ -40,5 +41,18 @@ def get_ops_dashboard_metrics(db: Session = Depends(get_db)) -> OpsMetricsRespon
         response.queue_depth,
         response.contradiction_backlog,
         response.stalled_review_count,
+    )
+    return response
+
+
+@router.get("/release-blockers", response_model=ReleaseBlockersResponse)
+def get_release_blockers(db: Session = Depends(get_db)) -> ReleaseBlockersResponse:
+    """Return open blockers that should gate release bundle generation."""
+    response = build_release_blockers_response(db)
+    logger.info(
+        "release_blockers.snapshot contradictions=%d dissents=%d blocker_count=%d",
+        len(response.contradictions),
+        len(response.dissents),
+        response.blocker_count,
     )
     return response
