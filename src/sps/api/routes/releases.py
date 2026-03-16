@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import json
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from sps.api.routes.reviews import require_reviewer_api_key
+from sps.config import get_settings
+from sps.db.models import EvidenceArtifact as EvidenceArtifactRow
 from sps.db.models import ReleaseArtifact, ReleaseBundle
 from sps.db.session import get_db
+from sps.documents.registry import EvidenceRegistry
+from sps.evidence.models import ArtifactClass, EvidenceArtifact, RetentionClass
+from sps.storage.s3 import IntegrityError as StorageIntegrityError
+from sps.storage.s3 import S3Storage, StorageError
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +57,31 @@ class ReleaseBundleResponse(BaseModel):
     created_at: dt.datetime
     artifact_count: int = Field(ge=0)
     artifact_ids: list[str] = Field(default_factory=list)
+
+
+class RollbackRehearsalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    release_id: str = Field(min_length=1)
+    rehearsal_id: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    authoritativeness: str = Field(min_length=1)
+    artifact_class: ArtifactClass = Field(default=ArtifactClass.ROLLBACK_REHEARSAL)
+    checksum: str = Field(..., description="Expected checksum in format 'sha256:<hex>'")
+    evidence_payload: dict[str, Any] = Field(default_factory=dict)
+    notes: str | None = None
+
+    @field_validator("checksum")
+    @classmethod
+    def _validate_checksum(cls, value: str) -> str:
+        if not value.startswith("sha256:"):
+            raise ValueError("checksum must be formatted as sha256:<hex>")
+        hex_part = value.removeprefix("sha256:")
+        if len(hex_part) != 64:
+            raise ValueError("sha256 hex must be 64 chars")
+        int(hex_part, 16)
+        return value
 
 
 def _validate_artifact_references(req: ReleaseBundleRequest) -> None:
@@ -163,4 +196,150 @@ def create_release_bundle(
         created_at=created_at,
         artifact_count=len(artifact_rows),
         artifact_ids=[artifact.artifact_id for artifact in req.artifacts],
+    )
+
+
+@router.post("/rollbacks/rehearsals", status_code=201, response_model=EvidenceArtifact)
+def create_rollback_rehearsal(
+    req: RollbackRehearsalRequest,
+    db: Session = Depends(get_db),
+) -> EvidenceArtifact:
+    """Persist rollback rehearsal evidence in the registry."""
+    if req.artifact_class != ArtifactClass.ROLLBACK_REHEARSAL:
+        logger.warning(
+            "rollback_rehearsal.invalid_class release_id=%s rehearsal_id=%s class=%s",
+            req.release_id,
+            req.rehearsal_id,
+            req.artifact_class.value,
+        )
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "invalid_artifact_class",
+                "artifact_class": req.artifact_class.value,
+                "expected": ArtifactClass.ROLLBACK_REHEARSAL.value,
+            },
+        )
+
+    payload_json = json.dumps(req.evidence_payload, sort_keys=True, separators=(",", ":"))
+    payload_bytes = payload_json.encode("utf-8")
+    actual_sha = hashlib.sha256(payload_bytes).hexdigest()
+    expected_sha = req.checksum.removeprefix("sha256:")
+    if actual_sha.lower() != expected_sha.lower():
+        logger.warning(
+            "rollback_rehearsal.checksum_mismatch release_id=%s rehearsal_id=%s",
+            req.release_id,
+            req.rehearsal_id,
+        )
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "checksum_mismatch",
+                "expected": req.checksum,
+                "actual": f"sha256:{actual_sha}",
+            },
+        )
+
+    settings = get_settings()
+    storage = S3Storage(settings=settings)
+    try:
+        storage.ensure_bucket(settings.s3_bucket_evidence)
+    except StorageError as exc:
+        logger.warning(
+            "rollback_rehearsal.storage_error release_id=%s rehearsal_id=%s error=%s",
+            req.release_id,
+            req.rehearsal_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(status_code=502, detail={"error": "s3_error", "msg": str(exc)})
+
+    registry = EvidenceRegistry(storage=storage, settings=settings)
+    try:
+        registered = registry.register_manifest(
+            content=payload_bytes,
+            case_id=req.release_id,
+            provenance={"release_id": req.release_id, "rehearsal_id": req.rehearsal_id},
+        )
+    except StorageIntegrityError as exc:
+        logger.warning(
+            "rollback_rehearsal.storage_integrity_error release_id=%s rehearsal_id=%s error=%s",
+            req.release_id,
+            req.rehearsal_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(status_code=422, detail={"error": "integrity_error", "msg": str(exc)})
+    except StorageError as exc:
+        logger.warning(
+            "rollback_rehearsal.storage_error release_id=%s rehearsal_id=%s error=%s",
+            req.release_id,
+            req.rehearsal_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(status_code=502, detail={"error": "s3_error", "msg": str(exc)})
+
+    created_at = dt.datetime.now(tz=dt.UTC)
+    provenance = {
+        "release_id": req.release_id,
+        "rehearsal_id": req.rehearsal_id,
+        "environment": req.environment,
+        "operator_id": req.operator_id,
+        "notes": req.notes,
+    }
+    provenance = {key: value for key, value in provenance.items() if value is not None}
+
+    row = EvidenceArtifactRow(
+        artifact_id=registered.artifact_id,
+        artifact_class=ArtifactClass.ROLLBACK_REHEARSAL.value,
+        producing_service="release_api",
+        linked_case_id=None,
+        linked_object_id=req.release_id,
+        authoritativeness=req.authoritativeness,
+        retention_class=RetentionClass.RELEASE_EVIDENCE.value,
+        checksum=req.checksum,
+        storage_uri=registered.storage_uri,
+        content_bytes=registered.content_bytes,
+        content_type="application/json",
+        provenance=provenance,
+        created_at=created_at,
+        expires_at=None,
+        legal_hold_flag=False,
+    )
+
+    db.add(row)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        logger.warning(
+            "rollback_rehearsal.persistence_failed release_id=%s rehearsal_id=%s error=%s",
+            req.release_id,
+            req.rehearsal_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "ROLLBACK_REHEARSAL_ALREADY_EXISTS", "release_id": req.release_id},
+        )
+
+    logger.info(
+        "rollback_rehearsal.created release_id=%s rehearsal_id=%s artifact_id=%s",
+        req.release_id,
+        req.rehearsal_id,
+        row.artifact_id,
+    )
+
+    return EvidenceArtifact(
+        artifact_id=row.artifact_id,
+        artifact_class=ArtifactClass.ROLLBACK_REHEARSAL,
+        producing_service=row.producing_service or "",
+        linked_case_id=row.linked_case_id,
+        linked_object_id=row.linked_object_id,
+        retention_class=RetentionClass.RELEASE_EVIDENCE,
+        checksum=row.checksum,
+        storage_uri=row.storage_uri,
+        authoritativeness=row.authoritativeness,
+        provenance=row.provenance or {},
+        created_at=row.created_at,
+        expires_at=row.expires_at,
+        legal_hold_flag=row.legal_hold_flag,
     )

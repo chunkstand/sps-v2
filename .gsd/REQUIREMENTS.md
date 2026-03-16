@@ -3,28 +3,6 @@
 ## Active
 
 
-### R025 — Rollback rehearsal evidence (REL-002)
-- Class: release
-- Status: active
-- Description: SPS records rollback rehearsal evidence and stores rollback artifacts per spec.
-- Why it matters: Tier 3 release cannot proceed without rollback rehearsal evidence.
-- Source: spec (section 6.5 REL-002)
-- Primary owning slice: M009/S01
-- Supporting slices: none
-- Validation: pending (rollback runbook + artifact checks)
-- Notes: Capture evidence in evidence registry.
-
-### R026 — Post-release validation template/workflow (REL-003)
-- Class: release
-- Status: active
-- Description: SPS defines post-release validation template and stage-gated execution rules.
-- Why it matters: Production rollout must follow staged validation unless emergency rollback applies.
-- Source: spec (section 6.5 REL-003)
-- Primary owning slice: M009/S01
-- Supporting slices: none
-- Validation: pending (template checks + runbook)
-- Notes: Stage gating enforced in release pipeline.
-
 ### R027 — Authenticated identities on interactive and service APIs (SEC-001)
 - Class: security
 - Status: active
@@ -169,6 +147,28 @@
 - Supporting slices: none
 - Validation: proved (pytest tests/m009_s02_release_bundle_test.py + scripts/verify_m009_s02.sh)
 - Notes: Fail-closed on stale/mismatched artifacts and open blockers.
+
+### R025 — Rollback rehearsal evidence (REL-002)
+- Class: release
+- Status: validated
+- Description: SPS records rollback rehearsal evidence and stores rollback artifacts per spec.
+- Why it matters: Tier 3 release cannot proceed without rollback rehearsal evidence.
+- Source: spec (section 6.5 REL-002)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m009_s03_rollback_rehearsal_test.py + scripts/verify_m009_s03.sh)
+- Notes: Captured via evidence registry.
+
+### R026 — Post-release validation template/workflow (REL-003)
+- Class: release
+- Status: validated
+- Description: SPS defines post-release validation template and stage-gated execution rules.
+- Why it matters: Production rollout must follow staged validation unless emergency rollback applies.
+- Source: spec (section 6.5 REL-003)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: proved (runbooks/sps/post-release-validation.md + scripts/verify_m009_s03.sh)
+- Notes: Stage gating enforced in release pipeline.
 
 ### R016 — Idempotent submission adapters + receipt persistence (F-006/F-007)
 - Class: integration
@@ -425,8 +425,8 @@
 | R022 | observability | active | M009/S01 | none | pending (event schema tests + integration checks) |
 | R023 | observability | active | M009/S01 | none | pending (dashboard/alert checks + runbook) |
 | R024 | release | active | M009/S01 | none | pending (release bundle tests + runbook) |
-| R025 | release | active | M009/S01 | none | pending (rollback runbook + artifact checks) |
-| R026 | release | active | M009/S01 | none | pending (template checks + runbook) |
+| R025 | release | validated | M009/S01 | none | proved (pytest tests/m009_s03_rollback_rehearsal_test.py + scripts/verify_m009_s03.sh) |
+| R026 | release | validated | M009/S01 | none | proved (runbooks/sps/post-release-validation.md + scripts/verify_m009_s03.sh) |
 | R027 | security | active | M010/S01 | none | pending (auth integration tests) |
 | R028 | security | active | M010/S01 | none | pending (authorization tests) |
 | R029 | security | active | M010/S01 | none | pending (log inspection + negative tests) |

@@ -98,6 +98,11 @@ A governed workflow system that can produce and submit permit packages with revi
   - `POST /api/v1/releases/bundles` persists release bundles + artifact digests with validation
   - `scripts/generate_release_bundle.py` verifies `PACKAGE-MANIFEST.json`, checks blockers, and fails closed before posting
   - Proof surfaces: `tests/m009_s02_release_bundle_test.py` + `scripts/verify_m009_s02.sh`
+- **Phase 9 rollback rehearsal + post-release validation (M009/S03) complete:**
+  - `POST /api/v1/releases/rollbacks/rehearsals` persists `ROLLBACK_REHEARSAL` evidence with checksum validation
+  - Runbook template at `runbooks/sps/post-release-validation.md` defines stage-gated validation steps
+  - Proof surfaces: `tests/m009_s03_rollback_rehearsal_test.py` + `scripts/verify_m009_s03.sh`
+- **Phase 9 milestone M009-ct4p0u complete:** release, rollback rehearsal, and observability gates are validated end-to-end.
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
@@ -148,7 +153,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M006-h7v2qk: Phase 6 — document and submission package generation
 - [x] M007-b2t1rz: Phase 7 — submission, tracking, and manual fallback
 - [x] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds
-- [ ] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
+- [x] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
 - [ ] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
 - [ ] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking
 - [ ] M012-v8s3qn: Phase 12 — emergency and override governance

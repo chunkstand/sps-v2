@@ -24,7 +24,7 @@ When this milestone is complete:
   - **Verification:** `pytest tests/m009_s02_release_bundle_test.py` + `scripts/verify_m009_s02.sh` (live CLI execution with success/failure scenarios)
   - **Requirements:** R024 (release bundle manifest)
 
-- [ ] **S03: Rollback Rehearsal and Post-Release Validation** `risk:low` `depends:[S02]`
+- [x] **S03: Rollback Rehearsal and Post-Release Validation** `risk:low` `depends:[S02]`
   - **Demo:** Operator runs `scripts/verify_m009_s03.sh` which records a rollback rehearsal artifact, retrieves it via the evidence API, and validates the post-release checklist template exists.
   - **Proof:** `POST /api/v1/releases/rollbacks/rehearsals` creates a `ROLLBACK_REHEARSAL` artifact in the evidence registry. `runbooks/sps/post-release-validation.md` template exists and references stage-gated validation steps.
   - **Verification:** `pytest tests/m009_s03_rollback_rehearsal_test.py` + `scripts/verify_m009_s03.sh` (end-to-end rollback rehearsal + validation template check)
@@ -55,15 +55,15 @@ When this milestone is complete:
 | R022 — Audit event schema and sinks | validated | S01 | none | pytest + Postgres integration |
 | R023 — Dashboards and alerts | validated | S01 | none | pytest + `/ops` page render |
 | R024 — Release bundle manifest | validated | S02 | none | pytest + CLI script runbook |
-| R025 — Rollback rehearsal evidence | active | S03 | none | pytest + runbook |
-| R026 — Post-release validation template | active | S03 | none | runbook + template file check |
+| R025 — Rollback rehearsal evidence | validated | S03 | none | pytest + runbook |
+| R026 — Post-release validation template | validated | S03 | none | runbook + template file check |
 
 **Coverage summary:**
-- Active requirements: 2
+- Active requirements: 0
 - Mapped to slices: 5
 - Unmapped: 0
 
-All Active requirements for this milestone have a clear path to validation.
+All requirements for this milestone are validated.
 
 ## Verification Classes
 
