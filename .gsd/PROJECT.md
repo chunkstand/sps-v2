@@ -49,6 +49,9 @@ A governed workflow system that can produce and submit permit packages with revi
   - `PermitCaseWorkflow` advances COMPLIANCE_COMPLETE → INCENTIVES_COMPLETE with 3-day freshness guard (`INV-SPS-INC-001`)
   - Read surface: `GET /api/v1/cases/{case_id}/incentives`
   - Proof surface: `tests/m005_s02_incentives_workflow_test.py` (Temporal/Postgres integration)
+- **Phase 5 end-to-end docker-compose proof (M005/S03) complete:**
+  - `scripts/verify_m005_s03.sh` drives the live API + worker to INCENTIVES_COMPLETE with fixture overrides
+  - Runbook asserts ComplianceEvaluation + IncentiveAssessment persistence and ledger transitions via Postgres + API readbacks
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
 - **Contradiction blocking guard is complete (M003/S03):**
@@ -94,7 +97,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance (**COMPLETE — all slices done**)
 - [ ] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
 - [x] M004-lp1flz: Phase 4 — intake, jurisdiction, and requirements workers
-- [ ] M005-j3c8qk: Phase 5 — compliance and incentives workers
+- [x] M005-j3c8qk: Phase 5 — compliance and incentives workers
 - [ ] M006-h7v2qk: Phase 6 — document and submission package generation
 - [ ] M007-b2t1rz: Phase 7 — submission, tracking, and manual fallback
 - [ ] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds

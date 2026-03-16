@@ -233,7 +233,7 @@
 - Source: spec (section 6.1 F-004)
 - Primary owning slice: M005/S01
 - Supporting slices: none
-- Validation: proved (SPS_RUN_TEMPORAL_INTEGRATION=1 pytest tests/m005_s01_compliance_workflow_test.py -v -s)
+- Validation: proved (SPS_RUN_TEMPORAL_INTEGRATION=1 pytest tests/m005_s01_compliance_workflow_test.py -v -s + scripts/verify_m005_s03.sh)
 - Notes: Fixture-based rule set and deterministic evaluator in Phase 5.
 
 ### R014 — Incentive assessment (F-005)
@@ -244,7 +244,7 @@
 - Source: spec (section 6.1 F-005)
 - Primary owning slice: M005/S01
 - Supporting slices: none
-- Validation: proved (SPS_RUN_TEMPORAL_INTEGRATION=1 pytest tests/m005_s02_incentives_workflow_test.py -v -s)
+- Validation: proved (SPS_RUN_TEMPORAL_INTEGRATION=1 pytest tests/m005_s02_incentives_workflow_test.py -v -s + scripts/verify_m005_s03.sh)
 - Notes: Fixture-based program sources only; external integrations deferred.
 
 ### R010 — Intake normalization into Project (F-001)
@@ -412,8 +412,8 @@
 | R010 | core-capability | validated | M004/S01 | none | proved (pytest tests/m004_s01_intake_api_workflow_test.py + scripts/verify_m004_s01.sh runbook) |
 | R011 | integration | validated | M004/S01 | none | proved (pytest tests/m004_s02_jurisdiction_requirements_workflow_test.py + scripts/verify_m004_s02.sh runbook) |
 | R012 | integration | validated | M004/S01 | none | proved (pytest tests/m004_s02_jurisdiction_requirements_workflow_test.py + scripts/verify_m004_s02.sh runbook) |
-| R013 | integration | validated | M005/S01 | none | proved (pytest tests/m005_s01_compliance_workflow_test.py) |
-| R014 | integration | active | M005/S01 | none | pending (integration tests + runbook) |
+| R013 | integration | validated | M005/S01 | none | proved (pytest tests/m005_s01_compliance_workflow_test.py + scripts/verify_m005_s03.sh) |
+| R014 | integration | validated | M005/S01 | none | proved (pytest tests/m005_s02_incentives_workflow_test.py + scripts/verify_m005_s03.sh) |
 | R015 | integration | active | M006/S01 | none | pending (integration tests + runbook) |
 | R016 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
 | R017 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
@@ -438,7 +438,7 @@
 
 ## Coverage Summary
 
-- Active requirements: 21
+- Active requirements: 20
 - Mapped to slices: 34
-- Validated: 12
+- Validated: 14
 - Unmapped active requirements: 0
