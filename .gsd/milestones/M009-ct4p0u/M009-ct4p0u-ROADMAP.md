@@ -10,9 +10,9 @@ When this milestone is complete:
 - Rollback rehearsal evidence is captured and queryable from the evidence registry
 - A post-release validation runbook template exists and is proven operational
 
-## Roadmap Slices
+## Slices
 
-- [ ] **S01: Audit Events and Minimal Dashboards** `risk:med` `depends:[]`
+- [x] **S01: Audit Events and Minimal Dashboards** `risk:med` `depends:[]`
   - **Demo:** Operator visits `/ops` in a browser and sees live queue depth, contradiction backlog, and stalled review counts. Audit events for review decisions and state transitions are queryable from Postgres.
   - **Proof:** Integration tests prove `AuditEvent` persistence with correlation fields. `GET /api/v1/ops/dashboard/metrics` returns structured metrics. `/ops` Jinja page renders without errors.
   - **Verification:** `pytest tests/m009_s01_audit_events_test.py` + `pytest tests/m009_s01_dashboard_test.py`
@@ -52,14 +52,14 @@ When this milestone is complete:
 
 | Requirement | Status | Primary Owner | Supporting | Proof |
 |-------------|--------|---------------|------------|-------|
-| R022 — Audit event schema and sinks | active | S01 | none | pytest + Postgres integration |
-| R023 — Dashboards and alerts | active | S01 | none | pytest + `/ops` page render |
+| R022 — Audit event schema and sinks | validated | S01 | none | pytest + Postgres integration |
+| R023 — Dashboards and alerts | validated | S01 | none | pytest + `/ops` page render |
 | R024 — Release bundle manifest | active | S02 | none | pytest + CLI script runbook |
 | R025 — Rollback rehearsal evidence | active | S03 | none | pytest + runbook |
 | R026 — Post-release validation template | active | S03 | none | runbook + template file check |
 
 **Coverage summary:**
-- Active requirements: 5
+- Active requirements: 3
 - Mapped to slices: 5
 - Unmapped: 0
 

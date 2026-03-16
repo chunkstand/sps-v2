@@ -3,28 +3,6 @@
 ## Active
 
 
-### R022 — Audit event schema and sinks (OBS-001)
-- Class: observability
-- Status: active
-- Description: SPS emits structured audit events for critical actions and persists them to configured sinks.
-- Why it matters: Audit reconstruction and compliance depend on queryable event trails.
-- Source: spec (section 6.4 OBS-001)
-- Primary owning slice: M009/S01
-- Supporting slices: none
-- Validation: pending (event schema tests + integration checks)
-- Notes: Minimal sinks in Phase 9.
-
-### R023 — Dashboards and alerts (OBS-002/OBS-003)
-- Class: observability
-- Status: active
-- Description: Minimal dashboards and alerts exist for queue depth, stalled review, submission failures, evidence SLA breaches, and contradiction backlog.
-- Why it matters: Operational readiness and release gating depend on observability signals.
-- Source: spec (section 6.4 OBS-002/OBS-003)
-- Primary owning slice: M009/S01
-- Supporting slices: none
-- Validation: pending (dashboard/alert checks + runbook)
-- Notes: Minimal set only.
-
 ### R024 — Release bundle manifest generation (REL-001)
 - Class: release
 - Status: active
@@ -169,6 +147,28 @@
 - Supporting slices: M008/S02
 - Validation: proved (pytest tests/m008_s02_reviewer_independence_thresholds_test.py + scripts/verify_m008_s02.sh runbook)
 - Notes: Enforces warnings/escalations as specified.
+
+### R022 — Audit event schema and sinks (OBS-001)
+- Class: observability
+- Status: validated
+- Description: SPS emits structured audit events for critical actions and persists them to configured sinks.
+- Why it matters: Audit reconstruction and compliance depend on queryable event trails.
+- Source: spec (section 6.4 OBS-001)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m009_s01_audit_events_test.py)
+- Notes: Minimal sinks in Phase 9.
+
+### R023 — Dashboards and alerts (OBS-002/OBS-003)
+- Class: observability
+- Status: validated
+- Description: Minimal dashboards and alerts exist for queue depth, stalled review, submission failures, evidence SLA breaches, and contradiction backlog.
+- Why it matters: Operational readiness and release gating depend on observability signals.
+- Source: spec (section 6.4 OBS-002/OBS-003)
+- Primary owning slice: M009/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m009_s01_dashboard_test.py)
+- Notes: Minimal set only.
 
 ### R016 — Idempotent submission adapters + receipt persistence (F-006/F-007)
 - Class: integration

@@ -18,6 +18,7 @@ from sps.api.contracts.reviews import (
     ReviewerQueueItemResponse,
     ReviewerQueueResponse,
 )
+from sps.audit.events import emit_audit_event
 from sps.config import get_settings
 from sps.db.models import (
     DissentArtifact,
@@ -569,6 +570,24 @@ async def create_review_decision(
             row.case_id,
             len(req.dissent_scope or ""),
         )
+
+    emit_audit_event(
+        db,
+        action="review_decision.created",
+        actor_type="reviewer",
+        actor_id=req.reviewer_id,
+        correlation_id=req.case_id,
+        request_id=req.decision_id,
+        payload={
+            "decision_id": req.decision_id,
+            "case_id": req.case_id,
+            "decision_outcome": req.outcome.value,
+            "idempotency_key": req.idempotency_key,
+            "dissent_flag": row.dissent_flag,
+            "reviewer_independence_status": independence_status.value,
+        },
+        occurred_at=now,
+    )
 
     db.commit()
 

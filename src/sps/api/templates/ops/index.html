@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ops Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Recursive:wght@300;400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f8f2ea;
+      --muted: #9a9086;
+      --panel: #171311;
+      --panel-bright: #201a17;
+      --accent: #e0b86a;
+      --accent-strong: #f2d58f;
+      --border: #3e312a;
+      --grid: rgba(248, 242, 234, 0.08);
+      --danger: #f26b6b;
+      --success: #76d6a8;
+      --shadow: rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Recursive", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(224, 184, 106, 0.15), transparent 55%),
+        radial-gradient(circle at 80% 0%, rgba(242, 213, 143, 0.12), transparent 45%),
+        #0d0b0a;
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 36px clamp(20px, 4vw, 56px) 64px;
+    }
+
+    .grid-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 140px 140px;
+      opacity: 0.25;
+      mix-blend-mode: screen;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .title-block {
+      display: grid;
+      gap: 6px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(32px, 4vw, 44px);
+      letter-spacing: 0.04em;
+      font-weight: 600;
+    }
+
+    .title-block span {
+      text-transform: uppercase;
+      letter-spacing: 0.35em;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      border-radius: 999px;
+      box-shadow: 0 18px 32px var(--shadow);
+    }
+
+    .controls label {
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+    }
+
+    .controls input {
+      border: none;
+      background: transparent;
+      color: var(--ink);
+      font-size: 14px;
+      min-width: 200px;
+      outline: none;
+    }
+
+    .controls button {
+      border: none;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #1a140f;
+      padding: 8px 16px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .controls button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 18px rgba(224, 184, 106, 0.4);
+    }
+
+    main {
+      display: grid;
+      gap: 20px;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .metric-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      display: grid;
+      gap: 10px;
+      box-shadow: 0 18px 30px var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(224, 184, 106, 0.12), transparent 60%);
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    .metric-label {
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .metric-value {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 36px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .metric-meta {
+      font-size: 13px;
+      color: var(--muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .status-panel {
+      background: var(--panel-bright);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .status-panel h2 {
+      margin: 0;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 20px;
+      letter-spacing: 0.04em;
+    }
+
+    .status-text {
+      font-size: 13px;
+      white-space: pre-wrap;
+      color: var(--muted);
+    }
+
+    .status-text.error {
+      color: var(--danger);
+    }
+
+    .status-text.success {
+      color: var(--success);
+    }
+
+    footer {
+      margin-top: 20px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    @media (max-width: 900px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .controls {
+        width: 100%;
+      }
+
+      .controls input {
+        flex: 1;
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-overlay" aria-hidden="true"></div>
+  <header>
+    <div class="title-block">
+      <span>Operations</span>
+      <h1>Queue Health</h1>
+    </div>
+    <div class="controls">
+      <label for="ops-api-key">API Key</label>
+      <input id="ops-api-key" type="password" placeholder="X-Reviewer-Api-Key" autocomplete="off" />
+      <button id="ops-refresh" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <main id="ops-dashboard" data-metrics-endpoint="{{ metrics_endpoint }}">
+    <section class="metrics-grid">
+      <article class="metric-card">
+        <div class="metric-label">Queue Depth</div>
+        <div class="metric-value" id="metric-queue-depth">—</div>
+        <div class="metric-meta" id="metric-queue-depth-meta">Awaiting snapshot.</div>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label">Contradiction Backlog</div>
+        <div class="metric-value" id="metric-contradiction-backlog">—</div>
+        <div class="metric-meta" id="metric-contradiction-backlog-meta">Awaiting snapshot.</div>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label">Stalled Reviews</div>
+        <div class="metric-value" id="metric-stalled-review-count">—</div>
+        <div class="metric-meta" id="metric-stalled-review-meta">Awaiting snapshot.</div>
+      </article>
+    </section>
+
+    <section class="status-panel">
+      <h2>System Pulse</h2>
+      <div class="status-text" id="ops-status">Waiting for metrics fetch.</div>
+    </section>
+  </main>
+
+  <footer>Ops Dashboard • SPS</footer>
+
+  <script src="/static/ops.js" defer></script>
+</body>
+</html>

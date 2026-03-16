@@ -11,6 +11,23 @@ class Base(DeclarativeBase):
     pass
 
 
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+
+    event_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    correlation_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True, index=True)
+    request_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True, index=True)
+
+    actor_type: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    actor_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    action: Mapped[str] = mapped_column(sa.Text, nullable=False)
+
+    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    occurred_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
 class PermitCase(Base):
     __tablename__ = "permit_cases"
 

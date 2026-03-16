@@ -88,6 +88,11 @@ A governed workflow system that can produce and submit permit packages with revi
   - `subject_author_id` + `reviewer_independence_status` persisted on `review_decisions`
   - 403 response with `INV-SPS-REV-001` on block; structured logs emitted (`reviewer_api.independence_warning/escalation/blocked`)
   - Full end-to-end operational proof via `scripts/verify_m008_s02.sh` simulating all threshold conditions against live API + Postgres
+- **Phase 9 observability slice (M009/S01) complete:**
+  - Audit events persisted for review decisions and state transition outcomes with correlation/request metadata
+  - Ops metrics endpoint (`/api/v1/ops/dashboard/metrics`) returns queue depth, contradiction backlog, and stalled review counts
+  - `/ops` Jinja dashboard renders queue health cards and fetches metrics via static JS
+  - Proof surfaces: `tests/m009_s01_audit_events_test.py` + `tests/m009_s01_dashboard_test.py`
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.

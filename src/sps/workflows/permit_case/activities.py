@@ -6,6 +6,7 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from temporalio import activity
 
+from sps.audit.events import emit_audit_event
 from sps.db.models import (
     CaseTransitionLedger,
     ComplianceEvaluation,
@@ -1256,6 +1257,29 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                 event_type="STATE_TRANSITION_DENIED",
                                 denial_reason="UNKNOWN_TRANSITION",
                             )
+
+                        emit_audit_event(
+                            session,
+                            action=(
+                                "state_transition.applied"
+                                if result.result == "applied"
+                                else "state_transition.denied"
+                            ),
+                            actor_type=req.actor_type.value,
+                            actor_id=req.actor_id,
+                            correlation_id=req.correlation_id,
+                            request_id=req.request_id,
+                            payload={
+                                "case_id": req.case_id,
+                                "from_state": req.from_state.value,
+                                "to_state": req.to_state.value,
+                                "result": result.result,
+                                "event_type": result.event_type,
+                                "denial_reason": getattr(result, "denial_reason", None),
+                                "guard_assertion_id": getattr(result, "guard_assertion_id", None),
+                            },
+                            occurred_at=requested_at,
+                        )
 
                         session.add(
                             CaseTransitionLedger(

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from sps.config import get_settings
 
@@ -10,11 +13,17 @@ from sps.api.routes.dissents import router as dissents_router
 from sps.api.routes.evidence import router as evidence_router
 from sps.api.routes.reviews import router as reviews_router
 from sps.api.routes.reviewer_console import router as reviewer_console_router
+from sps.api.routes.ops import page_router as ops_page_router
+from sps.api.routes.ops import router as ops_router
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(
     title="SPS API",
     version="0.0.0",
 )
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Phase 1 API surface
 app.include_router(cases_router, prefix="/api/v1")
@@ -23,6 +32,8 @@ app.include_router(reviews_router, prefix="/api/v1/reviews")
 app.include_router(reviewer_console_router)
 app.include_router(contradictions_router, prefix="/api/v1/contradictions")
 app.include_router(dissents_router, prefix="/api/v1/dissents")
+app.include_router(ops_router, prefix="/api/v1/ops")
+app.include_router(ops_page_router)
 
 
 @app.get("/healthz")
