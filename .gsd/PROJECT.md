@@ -83,6 +83,11 @@ A governed workflow system that can produce and submit permit packages with revi
   - Reviewer queue/evidence endpoints (`/api/v1/reviews/queue`, `/api/v1/reviews/cases/{case_id}/evidence-summary`) with aggregation + structured logs
   - FastAPI-served reviewer console at `/reviewer` with queue/evidence/decision wiring and inline error reporting
   - Proof surfaces: `tests/m008_s01_reviewer_queue_evidence_test.py` + `tests/m008_s01_reviewer_console_page_test.py`
+- **Phase 8 reviewer independence thresholds (M008/S02) complete:**
+  - 90-day rolling-window independence calculation on decision submission with WARNING, ESCALATION_REQUIRED, and BLOCKED thresholds
+  - `subject_author_id` + `reviewer_independence_status` persisted on `review_decisions`
+  - 403 response with `INV-SPS-REV-001` on block; structured logs emitted (`reviewer_api.independence_warning/escalation/blocked`)
+  - Full end-to-end operational proof via `scripts/verify_m008_s02.sh` simulating all threshold conditions against live API + Postgres
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
@@ -132,7 +137,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M005-j3c8qk: Phase 5 — compliance and incentives workers
 - [x] M006-h7v2qk: Phase 6 — document and submission package generation
 - [x] M007-b2t1rz: Phase 7 — submission, tracking, and manual fallback
-- [ ] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds
+- [x] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds
 - [ ] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
 - [ ] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
 - [ ] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking

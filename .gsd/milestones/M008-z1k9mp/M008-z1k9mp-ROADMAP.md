@@ -40,7 +40,7 @@ This milestone is complete only when all are true:
 ## Slices
 - [x] **S01: Reviewer console MVP (queue + evidence + decision capture)** `risk:high` `depends:[]`
   > After this: a reviewer can open the console, view REVIEW_PENDING cases, inspect aggregated evidence summaries, and submit decisions through the real API (threshold enforcement still minimal).
-- [ ] **S02: Independence thresholds + end-to-end runbook** `risk:medium` `depends:[S01]`
+- [x] **S02: Independence thresholds + end-to-end runbook** `risk:medium` `depends:[S01]`
   > After this: decision submission computes rolling-quarter independence status with warning/escalation signals, and the full reviewer flow is proven via a live docker-compose runbook.
 
 ## Boundary Map

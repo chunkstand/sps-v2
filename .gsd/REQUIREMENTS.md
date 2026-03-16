@@ -5,24 +5,24 @@
 
 ### R020 — Reviewer UI queue/evidence view/decision capture (E-001)
 - Class: governance
-- Status: active
+- Status: validated
 - Description: Reviewer-facing UI presents queue and evidence and allows decisions via reviewer API.
 - Why it matters: Reviewer approval is the core permission gate and must be usable/auditable.
 - Source: spec (section 5.2; task E-001)
 - Primary owning slice: M008/S01
-- Supporting slices: none
-- Validation: pending (integration tests passed; UAT + runbook pending)
+- Supporting slices: M008/S02
+- Validation: proved (integration tests passed + S02 docker-compose runbook exercising end-to-end API flows)
 - Notes: Minimal UI only; no bulk tooling.
 
 ### R021 — Reviewer independence thresholds enforced (E-002)
 - Class: compliance/security
-- Status: active
+- Status: validated
 - Description: Rolling-quarter reviewer independence thresholds are computed and enforced with escalation per spec.
 - Why it matters: Prevents systemic independence drift and is a Tier 3 compliance requirement.
 - Source: spec (section 4.1; task E-002; CTL-11A)
 - Primary owning slice: M008/S01
-- Supporting slices: none
-- Validation: pending (policy tests + integration tests)
+- Supporting slices: M008/S02
+- Validation: proved (pytest tests/m008_s02_reviewer_independence_thresholds_test.py + scripts/verify_m008_s02.sh runbook)
 - Notes: Enforces warnings/escalations as specified.
 
 ### R022 — Audit event schema and sinks (OBS-001)
@@ -420,8 +420,8 @@
 | R017 | integration | validated | M007/S01 | none | proved (pytest tests/m007_s02_external_status_events_test.py -v -s) |
 | R018 | integration | validated | M007/S01 | none | proved (pytest tests/m007_s01_manual_fallback_test.py -v -s) |
 | R019 | compliance/security | validated | M007/S01 | none | proved (pytest tests/m007_s01_proof_bundle_gate_test.py -v -s) |
-| R020 | governance | active | M008/S01 | none | pending (UI smoke + integration tests + runbook) |
-| R021 | compliance/security | active | M008/S01 | none | pending (policy tests + integration tests) |
+| R020 | governance | validated | M008/S01 | M008/S02 | proved (integration tests passed + S02 docker-compose runbook exercising end-to-end API flows) |
+| R021 | compliance/security | validated | M008/S01 | M008/S02 | proved (pytest tests/m008_s02_reviewer_independence_thresholds_test.py + scripts/verify_m008_s02.sh runbook) |
 | R022 | observability | active | M009/S01 | none | pending (event schema tests + integration checks) |
 | R023 | observability | active | M009/S01 | none | pending (dashboard/alert checks + runbook) |
 | R024 | release | active | M009/S01 | none | pending (release bundle tests + runbook) |
@@ -439,7 +439,7 @@
 
 ## Coverage Summary
 
-- Active requirements: 19
+- Active requirements: 17
 - Mapped to slices: 34
-- Validated: 15
+- Validated: 17
 - Unmapped active requirements: 0
