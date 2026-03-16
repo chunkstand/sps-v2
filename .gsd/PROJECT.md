@@ -152,3 +152,5 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - M004 → M004-lp1flz (complete)
 - M005 → M005-j3c8qk (complete)
 - M006 → M006-h7v2qk (complete)
+- M007 → M007-b2t1rz (complete)
+- M008 → M008-z1k9mp (complete)

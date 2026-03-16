@@ -3,28 +3,6 @@
 ## Active
 
 
-### R020 — Reviewer UI queue/evidence view/decision capture (E-001)
-- Class: governance
-- Status: validated
-- Description: Reviewer-facing UI presents queue and evidence and allows decisions via reviewer API.
-- Why it matters: Reviewer approval is the core permission gate and must be usable/auditable.
-- Source: spec (section 5.2; task E-001)
-- Primary owning slice: M008/S01
-- Supporting slices: M008/S02
-- Validation: proved (integration tests passed + S02 docker-compose runbook exercising end-to-end API flows)
-- Notes: Minimal UI only; no bulk tooling.
-
-### R021 — Reviewer independence thresholds enforced (E-002)
-- Class: compliance/security
-- Status: validated
-- Description: Rolling-quarter reviewer independence thresholds are computed and enforced with escalation per spec.
-- Why it matters: Prevents systemic independence drift and is a Tier 3 compliance requirement.
-- Source: spec (section 4.1; task E-002; CTL-11A)
-- Primary owning slice: M008/S01
-- Supporting slices: M008/S02
-- Validation: proved (pytest tests/m008_s02_reviewer_independence_thresholds_test.py + scripts/verify_m008_s02.sh runbook)
-- Notes: Enforces warnings/escalations as specified.
-
 ### R022 — Audit event schema and sinks (OBS-001)
 - Class: observability
 - Status: active
@@ -169,6 +147,28 @@
 - Notes: Governed mutation paths only.
 
 ## Validated
+
+### R020 — Reviewer UI queue/evidence view/decision capture (E-001)
+- Class: governance
+- Status: validated
+- Description: Reviewer-facing UI presents queue and evidence and allows decisions via reviewer API.
+- Why it matters: Reviewer approval is the core permission gate and must be usable/auditable.
+- Source: spec (section 5.2; task E-001)
+- Primary owning slice: M008/S01
+- Supporting slices: M008/S02
+- Validation: proved (integration tests passed + S02 docker-compose runbook exercising end-to-end API flows)
+- Notes: Minimal UI only; no bulk tooling.
+
+### R021 — Reviewer independence thresholds enforced (E-002)
+- Class: compliance/security
+- Status: validated
+- Description: Rolling-quarter reviewer independence thresholds are computed and enforced with escalation per spec.
+- Why it matters: Prevents systemic independence drift and is a Tier 3 compliance requirement.
+- Source: spec (section 4.1; task E-002; CTL-11A)
+- Primary owning slice: M008/S01
+- Supporting slices: M008/S02
+- Validation: proved (pytest tests/m008_s02_reviewer_independence_thresholds_test.py + scripts/verify_m008_s02.sh runbook)
+- Notes: Enforces warnings/escalations as specified.
 
 ### R016 — Idempotent submission adapters + receipt persistence (F-006/F-007)
 - Class: integration
@@ -439,7 +439,7 @@
 
 ## Coverage Summary
 
-- Active requirements: 17
+- Active requirements: 15
 - Mapped to slices: 34
-- Validated: 17
+- Validated: 19
 - Unmapped active requirements: 0
