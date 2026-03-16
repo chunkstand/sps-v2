@@ -8,6 +8,7 @@ from temporalio import activity
 
 from sps.db.models import CaseTransitionLedger, PermitCase, ReviewDecision
 from sps.db.session import get_sessionmaker
+from sps.failpoints import FailpointFired, fail_once
 from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import (
     AppliedStateTransitionResult,
@@ -156,9 +157,14 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
     try:
         with SessionLocal() as session:
             try:
+                idempotent = False
+                persisted_event_type: str | None = None
+
                 with session.begin():
                     existing = session.get(CaseTransitionLedger, req.request_id)
                     if existing is not None:
+                        idempotent = True
+                        persisted_event_type = existing.event_type
                         if existing.payload is None:
                             result = _deny(
                                 denied_at=requested_at,
@@ -167,96 +173,113 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                             )
                         else:
                             result = parse_state_transition_result(existing.payload)
+                    else:
+                        case = session.get(PermitCase, req.case_id, with_for_update=True)
+                        if case is None:
+                            # With the current schema, we cannot write an audit row without
+                            # an existing PermitCase due to FK constraints.
+                            raise LookupError(f"permit_cases row not found for case_id={req.case_id}")
 
-                        logger.info(
-                            "activity.ok name=apply_state_transition workflow_id=%s run_id=%s request_id=%s case_id=%s event_type=%s result=%s idempotent=1",
-                            workflow_id,
-                            run_id,
-                            req.request_id,
-                            req.case_id,
-                            existing.event_type,
-                            result.result,
-                        )
-                        return result
-
-                    case = session.get(PermitCase, req.case_id, with_for_update=True)
-                    if case is None:
-                        # With the current schema, we cannot write an audit row without
-                        # an existing PermitCase due to FK constraints.
-                        raise LookupError(f"permit_cases row not found for case_id={req.case_id}")
-
-                    if case.case_state != req.from_state.value:
-                        result = _deny(
-                            denied_at=requested_at,
-                            event_type="STATE_TRANSITION_DENIED",
-                            denial_reason="FROM_STATE_MISMATCH",
-                        )
-                    elif (
-                        req.from_state == CaseState.REVIEW_PENDING
-                        and req.to_state == CaseState.APPROVED_FOR_SUBMISSION
-                    ):
-                        # Canonical protected transition: requires a valid ReviewDecision.
-                        invariants = get_normalized_business_invariants(_GUARD_ASSERTION_REVIEW_GATE)
-
-                        review_id = req.required_review_id
-                        review: ReviewDecision | None = (
-                            session.get(ReviewDecision, review_id) if review_id else None
-                        )
-
-                        if (
-                            review_id is None
-                            or review is None
-                            or review.case_id != req.case_id
-                            or review.decision_outcome not in _ALLOWED_REVIEW_OUTCOMES
-                        ):
+                        if case.case_state != req.from_state.value:
                             result = _deny(
                                 denied_at=requested_at,
-                                event_type=_EVENT_APPROVAL_GATE_DENIED,
-                                denial_reason="REVIEW_DECISION_REQUIRED",
-                                guard_assertion_id=_GUARD_ASSERTION_REVIEW_GATE,
-                                normalized_business_invariants=invariants,
+                                event_type="STATE_TRANSITION_DENIED",
+                                denial_reason="FROM_STATE_MISMATCH",
                             )
-                        else:
-                            result = AppliedStateTransitionResult(
-                                event_type=_EVENT_CASE_STATE_CHANGED,
-                                applied_at=requested_at,
-                            )
-                            case.case_state = req.to_state.value
-                    else:
-                        result = _deny(
-                            denied_at=requested_at,
-                            event_type="STATE_TRANSITION_DENIED",
-                            denial_reason="UNKNOWN_TRANSITION",
-                        )
+                        elif (
+                            req.from_state == CaseState.REVIEW_PENDING
+                            and req.to_state == CaseState.APPROVED_FOR_SUBMISSION
+                        ):
+                            # Canonical protected transition: requires a valid ReviewDecision.
+                            invariants = get_normalized_business_invariants(_GUARD_ASSERTION_REVIEW_GATE)
 
-                    session.add(
-                        CaseTransitionLedger(
-                            transition_id=req.request_id,
-                            case_id=req.case_id,
-                            event_type=result.event_type,
-                            from_state=req.from_state.value,
-                            to_state=req.to_state.value,
-                            actor_type=req.actor_type.value,
-                            actor_id=req.actor_id,
-                            correlation_id=req.correlation_id,
-                            occurred_at=requested_at,
-                            payload=result.model_dump(mode="json"),
+                            review_id = req.required_review_id
+                            review: ReviewDecision | None = (
+                                session.get(ReviewDecision, review_id) if review_id else None
+                            )
+
+                            if (
+                                review_id is None
+                                or review is None
+                                or review.case_id != req.case_id
+                                or review.decision_outcome not in _ALLOWED_REVIEW_OUTCOMES
+                            ):
+                                result = _deny(
+                                    denied_at=requested_at,
+                                    event_type=_EVENT_APPROVAL_GATE_DENIED,
+                                    denial_reason="REVIEW_DECISION_REQUIRED",
+                                    guard_assertion_id=_GUARD_ASSERTION_REVIEW_GATE,
+                                    normalized_business_invariants=invariants,
+                                )
+                            else:
+                                result = AppliedStateTransitionResult(
+                                    event_type=_EVENT_CASE_STATE_CHANGED,
+                                    applied_at=requested_at,
+                                )
+                                case.case_state = req.to_state.value
+                        else:
+                            result = _deny(
+                                denied_at=requested_at,
+                                event_type="STATE_TRANSITION_DENIED",
+                                denial_reason="UNKNOWN_TRANSITION",
+                            )
+
+                        session.add(
+                            CaseTransitionLedger(
+                                transition_id=req.request_id,
+                                case_id=req.case_id,
+                                event_type=result.event_type,
+                                from_state=req.from_state.value,
+                                to_state=req.to_state.value,
+                                actor_type=req.actor_type.value,
+                                actor_id=req.actor_id,
+                                correlation_id=req.correlation_id,
+                                occurred_at=requested_at,
+                                payload=result.model_dump(mode="json"),
+                            )
                         )
+                        persisted_event_type = result.event_type
+
+                failpoint_key = f"apply_state_transition.after_commit/{req.request_id}"
+                try:
+                    fail_once(failpoint_key)
+                except FailpointFired:
+                    logger.error(
+                        "activity.failpoint name=apply_state_transition workflow_id=%s run_id=%s request_id=%s case_id=%s correlation_id=%s failpoint_key=%s",
+                        workflow_id,
+                        run_id,
+                        req.request_id,
+                        req.case_id,
+                        req.correlation_id,
+                        failpoint_key,
+                    )
+                    raise
+
+                if idempotent:
+                    logger.info(
+                        "activity.ok name=apply_state_transition workflow_id=%s run_id=%s request_id=%s case_id=%s event_type=%s result=%s idempotent=1",
+                        workflow_id,
+                        run_id,
+                        req.request_id,
+                        req.case_id,
+                        persisted_event_type,
+                        result.result,
+                    )
+                else:
+                    log_event = "activity.ok" if result.result == "applied" else "activity.denied"
+                    logger.info(
+                        "%s name=apply_state_transition workflow_id=%s run_id=%s request_id=%s case_id=%s from_state=%s to_state=%s event_type=%s result=%s idempotent=0",
+                        log_event,
+                        workflow_id,
+                        run_id,
+                        req.request_id,
+                        req.case_id,
+                        req.from_state,
+                        req.to_state,
+                        result.event_type,
+                        result.result,
                     )
 
-                log_event = "activity.ok" if result.result == "applied" else "activity.denied"
-                logger.info(
-                    "%s name=apply_state_transition workflow_id=%s run_id=%s request_id=%s case_id=%s from_state=%s to_state=%s event_type=%s result=%s idempotent=0",
-                    log_event,
-                    workflow_id,
-                    run_id,
-                    req.request_id,
-                    req.case_id,
-                    req.from_state,
-                    req.to_state,
-                    result.event_type,
-                    result.result,
-                )
                 return result
             except IntegrityError:
                 # If we raced another attempt with the same request_id, the primary key
@@ -332,6 +355,9 @@ def persist_review_decision(request: PersistReviewDecisionRequest | dict) -> str
     try:
         with SessionLocal() as session:
             try:
+                idempotent = False
+                persisted_decision_id: str | None = None
+
                 with session.begin():
                     existing = (
                         session.query(ReviewDecision)
@@ -339,42 +365,55 @@ def persist_review_decision(request: PersistReviewDecisionRequest | dict) -> str
                         .one_or_none()
                     )
                     if existing is not None:
-                        logger.info(
-                            "activity.ok name=persist_review_decision workflow_id=%s run_id=%s case_id=%s decision_id=%s idempotent=1",
-                            workflow_id,
-                            run_id,
-                            req.case_id,
-                            existing.decision_id,
+                        idempotent = True
+                        persisted_decision_id = existing.decision_id
+                    else:
+                        session.add(
+                            ReviewDecision(
+                                decision_id=req.decision_id,
+                                schema_version=req.schema_version,
+                                case_id=req.case_id,
+                                object_type=req.object_type,
+                                object_id=req.object_id,
+                                decision_outcome=req.decision_outcome.value,
+                                reviewer_id=req.reviewer_id,
+                                reviewer_independence_status=req.reviewer_independence_status.value,
+                                evidence_ids=req.evidence_ids,
+                                contradiction_resolution=req.contradiction_resolution,
+                                dissent_flag=req.dissent_flag,
+                                notes=req.notes,
+                                decision_at=decision_at,
+                                idempotency_key=req.idempotency_key,
+                            )
                         )
-                        return existing.decision_id
+                        persisted_decision_id = req.decision_id
 
-                    session.add(
-                        ReviewDecision(
-                            decision_id=req.decision_id,
-                            schema_version=req.schema_version,
-                            case_id=req.case_id,
-                            object_type=req.object_type,
-                            object_id=req.object_id,
-                            decision_outcome=req.decision_outcome.value,
-                            reviewer_id=req.reviewer_id,
-                            reviewer_independence_status=req.reviewer_independence_status.value,
-                            evidence_ids=req.evidence_ids,
-                            contradiction_resolution=req.contradiction_resolution,
-                            dissent_flag=req.dissent_flag,
-                            notes=req.notes,
-                            decision_at=decision_at,
-                            idempotency_key=req.idempotency_key,
-                        )
+                assert persisted_decision_id is not None
+
+                failpoint_key = f"persist_review_decision.after_commit/{req.idempotency_key}"
+                try:
+                    fail_once(failpoint_key)
+                except FailpointFired:
+                    logger.error(
+                        "activity.failpoint name=persist_review_decision workflow_id=%s run_id=%s case_id=%s decision_id=%s idempotency_key=%s failpoint_key=%s",
+                        workflow_id,
+                        run_id,
+                        req.case_id,
+                        persisted_decision_id,
+                        req.idempotency_key,
+                        failpoint_key,
                     )
+                    raise
 
                 logger.info(
-                    "activity.ok name=persist_review_decision workflow_id=%s run_id=%s case_id=%s decision_id=%s idempotent=0",
+                    "activity.ok name=persist_review_decision workflow_id=%s run_id=%s case_id=%s decision_id=%s idempotent=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
-                    req.decision_id,
+                    persisted_decision_id,
+                    1 if idempotent else 0,
                 )
-                return req.decision_id
+                return persisted_decision_id
             except IntegrityError:
                 session.rollback()
                 raced = (

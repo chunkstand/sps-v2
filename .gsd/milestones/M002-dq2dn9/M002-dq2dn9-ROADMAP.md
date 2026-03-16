@@ -64,7 +64,7 @@ This milestone is complete only when all are true:
 - [x] **S02: Postgres-backed guarded transitions (deny + audit) + signal-driven review unblock** `risk:high` `depends:[S01]`
   > After this: starting the workflow attempts `REVIEW_PENDING → APPROVED_FOR_SUBMISSION`; it is denied (fail-closed) without a ReviewDecision and persists a denial ledger event, then succeeds after sending a ReviewDecision signal (decision persisted) and updates authoritative case state.
 
-- [ ] **S03: Replay/idempotency closure + final end-to-end integration proof** `risk:medium` `depends:[S02]`
+- [x] **S03: Replay/idempotency closure + final end-to-end integration proof** `risk:medium` `depends:[S02]`
   > After this: integration tests prove replays/retries do not duplicate transition ledger effects and guard denials are deterministic; a runbook-level “start stack → run canonical scenario” is exercised end-to-end against docker-compose Temporal+Postgres.
 
 ## Boundary Map

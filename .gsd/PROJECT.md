@@ -14,11 +14,11 @@ A governed workflow system that can produce and submit permit packages with revi
 - CI verifies repo wiring + `PACKAGE-MANIFEST.json` integrity + JSON schema metaschema validity.
 - Local dev infra scaffold exists (`docker-compose.yml`: Postgres, Temporal, Temporal UI, MinIO).
 - Python monorepo scaffold exists (`pyproject.toml`, `src/sps/`).
-- **Phase 2 Temporal harness + guarded transitions are in place (M002/S01–S02):**
-  - Temporal worker entrypoint + deterministic PermitCaseWorkflow (bootstrap activity → wait for `ReviewDecision` signal)
+- **Phase 2 Temporal harness + guarded transitions are complete (M002/S01–S03):**
+  - Temporal worker entrypoint + deterministic PermitCaseWorkflow (bootstrap → denial → wait for `ReviewDecision` signal → resume)
   - Operator CLI to start workflows and send `ReviewDecision` signals
-  - Postgres-authoritative guarded PermitCase state transitions with idempotent transition ledger (denied + applied)
-  - Opt-in Temporal/Postgres integration tests proving denial → wait → signal → persist review decision → apply transition
+  - Postgres-authoritative guarded PermitCase state transitions with idempotent transition ledger (denied + applied) and deterministic correlation/request IDs
+  - Proof surfaces: offline history replay determinism test (Replayer), post-commit activity retry idempotency test (failpoints), and `scripts/verify_m002_s03_runbook.sh`
 - **Phase 1 authoritative data foundations are complete (M001):**
   - Postgres schema + Alembic migrations for core entities
   - Evidence registry wired to Postgres + S3-compatible object storage (MinIO) with integrity checks
@@ -39,11 +39,11 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 ## Milestone Sequence
 
 - [x] M001: Phase 1 — authoritative data foundations — Postgres schema + evidence registry + retention/legal-hold guardrails
-- [ ] M002: Phase 2 — Temporal harness + guarded state transitions
+- [x] M002: Phase 2 — Temporal harness + guarded state transitions
 - [ ] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance
 - [ ] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
 
 ## Milestone ID Mapping
 
 - M001 → M001-r2v2t3 (complete)
-- M002 → M002-dq2dn9 (queued)
+- M002 → M002-dq2dn9 (complete)

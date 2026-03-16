@@ -2,19 +2,20 @@
 
 ## Active
 
+(none)
+
+## Validated
+
 ### R004 — Temporal harness runs PermitCaseWorkflow with replay-safe semantics
 - Class: core-capability
-- Status: active
+- Status: validated
 - Description: Temporal worker can run a PermitCaseWorkflow (minimal end-to-end flow with stubbed activities) and is replay-safe and idempotent.
 - Why it matters: Temporal is the authoritative harness; without a working workflow substrate, reviewer gates and authority controls can’t be enforced or audited.
 - Source: spec (runtime-implementation-profile.md; tasks D-001–D-004)
 - Primary owning slice: M002/S01
-- Supporting slices: M002/S02
-- Validation: mapped
-- Notes: S01 proved a representative wait→signal→resume path (Temporal + Postgres) via `tests/m002_s01_temporal_permit_case_workflow_test.py`. Replay/idempotency closure remains for S03.
-
-
-## Validated
+- Supporting slices: M002/S02, M002/S03
+- Validation: proved (Temporal+Postgres integration tests + offline history replay + post-commit activity retry failpoints + runbook)
+- Notes: S01 proved a representative wait→signal→resume path (Temporal + Postgres) via `tests/m002_s01_temporal_permit_case_workflow_test.py`. S03 proved offline determinism replay (`temporalio.worker.Replayer`) on a real captured history and exactly-once Postgres effects under real activity retries (post-commit failpoints) and the operator runbook.
 
 ### R001 — Authoritative Postgres schema for core SPS entities
 - Class: core-capability
@@ -84,13 +85,13 @@
 | R001 | core-capability | validated | M001/S01 | M001/S02,M001/S03 | proved (alembic + pytest) |
 | R002 | integration | validated | M001/S02 | M001/S03 | proved (minio + e2e pytest) |
 | R003 | compliance/security | validated | M001/S03 | none | proved (deny + purge tests) |
-| R004 | core-capability | active | M002/S01 | M002/S02 | mapped |
+| R004 | core-capability | validated | M002/S01 | M002/S02,M002/S03 | proved (Temporal+Postgres + replay + retry idempotency + runbook) |
 | R005 | compliance/security | validated | M002/S02 | M002/S03 | proved (Temporal+Postgres integration tests) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 1
+- Active requirements: 0
 - Mapped to slices: 5
-- Validated: 4
+- Validated: 5
 - Unmapped active requirements: 0
