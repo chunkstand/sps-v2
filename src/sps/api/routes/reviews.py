@@ -5,12 +5,29 @@ import datetime as dt
 import logging
 from typing import Annotated
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
+from sps.api.contracts.reviews import (
+    EvidenceArtifactMetadataResponse,
+    EvidenceSummaryResponse,
+    ReviewDecisionSummaryResponse,
+    ReviewerQueueItemResponse,
+    ReviewerQueueResponse,
+)
 from sps.config import get_settings
-from sps.db.models import DissentArtifact, ReviewDecision
+from sps.db.models import (
+    DissentArtifact,
+    EvidenceArtifact,
+    ExternalStatusEvent,
+    JurisdictionResolution,
+    PermitCase,
+    Project,
+    RequirementSet,
+    ReviewDecision,
+)
 from sps.db.session import get_db
 from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import ReviewDecisionOutcome, ReviewDecisionSignal
@@ -125,6 +142,78 @@ def _row_to_response(row: ReviewDecision) -> ReviewDecisionResponse:
         created=row.created_at,
         dissent_artifact_id=f"DISSENT-{row.decision_id}" if row.dissent_flag else None,
     )
+
+
+def _queue_row_to_response(case: PermitCase, project: Project) -> ReviewerQueueItemResponse:
+    return ReviewerQueueItemResponse(
+        case_id=case.case_id,
+        project_id=case.project_id,
+        case_state=case.case_state,
+        review_state=case.review_state,
+        submission_mode=case.submission_mode,
+        portal_support_level=case.portal_support_level,
+        current_release_profile=case.current_release_profile,
+        legal_hold=case.legal_hold,
+        created_at=case.created_at,
+        updated_at=case.updated_at,
+        address=project.address,
+        parcel_id=project.parcel_id,
+        project_type=project.project_type,
+        system_size_kw=project.system_size_kw,
+        battery_flag=project.battery_flag,
+        service_upgrade_flag=project.service_upgrade_flag,
+        trenching_flag=project.trenching_flag,
+        structural_modification_flag=project.structural_modification_flag,
+        roof_type=project.roof_type,
+        occupancy_classification=project.occupancy_classification,
+        utility_name=project.utility_name,
+    )
+
+
+def _artifact_row_to_response(row: EvidenceArtifact) -> EvidenceArtifactMetadataResponse:
+    return EvidenceArtifactMetadataResponse(
+        artifact_id=row.artifact_id,
+        artifact_class=row.artifact_class,
+        producing_service=row.producing_service,
+        linked_case_id=row.linked_case_id,
+        linked_object_id=row.linked_object_id,
+        authoritativeness=row.authoritativeness,
+        retention_class=row.retention_class,
+        checksum=row.checksum,
+        storage_uri=row.storage_uri,
+        content_bytes=row.content_bytes,
+        content_type=row.content_type,
+        provenance=row.provenance,
+        created_at=row.created_at,
+        expires_at=row.expires_at,
+    )
+
+
+def _decision_row_to_summary(row: ReviewDecision) -> ReviewDecisionSummaryResponse:
+    return ReviewDecisionSummaryResponse(
+        decision_id=row.decision_id,
+        outcome=row.decision_outcome,
+        reviewer_id=row.reviewer_id,
+        reviewer_independence_status=row.reviewer_independence_status,
+        decision_at=row.decision_at,
+    )
+
+
+def _collect_evidence_ids(db: Session, case_id: str) -> list[str]:
+    evidence_selects = [
+        sa.select(JurisdictionResolution.evidence_ids).where(JurisdictionResolution.case_id == case_id),
+        sa.select(RequirementSet.evidence_ids).where(RequirementSet.case_id == case_id),
+        sa.select(ReviewDecision.evidence_ids).where(ReviewDecision.case_id == case_id),
+        sa.select(ExternalStatusEvent.evidence_ids).where(ExternalStatusEvent.case_id == case_id),
+    ]
+    union_stmt = sa.union_all(*evidence_selects)
+    rows = db.execute(union_stmt).scalars().all()
+    aggregated: set[str] = set()
+    for entry in rows:
+        if entry:
+            aggregated.update(entry)
+    return sorted(aggregated)
+
 
 
 def _check_reviewer_independence(reviewer_id: str, subject_author_id: str) -> None:
@@ -339,3 +428,70 @@ def get_review_decision(decision_id: str, db: Session = Depends(get_db)) -> Revi
             detail={"error": "not_found", "decision_id": decision_id},
         )
     return _row_to_response(row)
+
+
+@router.get(
+    "/queue",
+    dependencies=[Depends(require_reviewer_api_key)],
+)
+def get_review_queue(db: Session = Depends(get_db)) -> ReviewerQueueResponse:
+    """Return the pending reviewer queue ordered by oldest cases first."""
+    rows = (
+        db.query(PermitCase, Project)
+        .join(Project, Project.case_id == PermitCase.case_id)
+        .filter(PermitCase.case_state == "REVIEW_PENDING")
+        .order_by(PermitCase.created_at.asc(), PermitCase.case_id.asc())
+        .all()
+    )
+    cases = [_queue_row_to_response(case, project) for case, project in rows]
+    logger.info("reviewer_api.queue_fetched count=%d", len(cases))
+    return ReviewerQueueResponse(cases=cases)
+
+
+@router.get(
+    "/cases/{case_id}/evidence-summary",
+    dependencies=[Depends(require_reviewer_api_key)],
+)
+def get_evidence_summary(case_id: str, db: Session = Depends(get_db)) -> EvidenceSummaryResponse:
+    """Aggregate evidence IDs and artifact metadata for a case."""
+    case = db.get(PermitCase, case_id)
+    if case is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "not_found", "case_id": case_id},
+        )
+
+    evidence_ids = _collect_evidence_ids(db, case_id)
+    artifacts: list[EvidenceArtifact] = []
+    if evidence_ids:
+        artifacts = (
+            db.query(EvidenceArtifact)
+            .filter(EvidenceArtifact.artifact_id.in_(evidence_ids))
+            .order_by(EvidenceArtifact.created_at.asc(), EvidenceArtifact.artifact_id.asc())
+            .all()
+        )
+
+    decisions = (
+        db.query(ReviewDecision)
+        .filter(ReviewDecision.case_id == case_id)
+        .order_by(ReviewDecision.decision_at.desc())
+        .all()
+    )
+
+    logger.info(
+        "reviewer_api.evidence_summary case_id=%s evidence_count=%d artifact_count=%d decision_count=%d",
+        case_id,
+        len(evidence_ids),
+        len(artifacts),
+        len(decisions),
+    )
+
+    return EvidenceSummaryResponse(
+        case_id=case_id,
+        evidence_ids=evidence_ids,
+        artifacts=[_artifact_row_to_response(row) for row in artifacts],
+        review_decisions=[_decision_row_to_summary(row) for row in decisions],
+        evidence_count=len(evidence_ids),
+        artifact_count=len(artifacts),
+        review_decision_count=len(decisions),
+    )

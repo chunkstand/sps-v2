@@ -9,6 +9,7 @@ from sps.api.routes.contradictions import router as contradictions_router
 from sps.api.routes.dissents import router as dissents_router
 from sps.api.routes.evidence import router as evidence_router
 from sps.api.routes.reviews import router as reviews_router
+from sps.api.routes.reviewer_console import router as reviewer_console_router
 
 app = FastAPI(
     title="SPS API",
@@ -19,6 +20,7 @@ app = FastAPI(
 app.include_router(cases_router, prefix="/api/v1")
 app.include_router(evidence_router, prefix="/api/v1")
 app.include_router(reviews_router, prefix="/api/v1/reviews")
+app.include_router(reviewer_console_router)
 app.include_router(contradictions_router, prefix="/api/v1/contradictions")
 app.include_router(dissents_router, prefix="/api/v1/dissents")
 

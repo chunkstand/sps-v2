@@ -79,6 +79,10 @@ A governed workflow system that can produce and submit permit packages with revi
   - Runbook fetches receipt evidence metadata + download URL and asserts submission/status persistence via Postgres helpers
   - Operational proof of receipt evidence + ExternalStatusEvent persistence with real API + worker entrypoints
 - **Phase 7 milestone M007-b2t1rz complete:** deterministic submission attempts, fail-closed status tracking, and manual fallback are proven via integration tests and live runbook
+- **Phase 8 reviewer console MVP (M008/S01) complete:**
+  - Reviewer queue/evidence endpoints (`/api/v1/reviews/queue`, `/api/v1/reviews/cases/{case_id}/evidence-summary`) with aggregation + structured logs
+  - FastAPI-served reviewer console at `/reviewer` with queue/evidence/decision wiring and inline error reporting
+  - Proof surfaces: `tests/m008_s01_reviewer_queue_evidence_test.py` + `tests/m008_s01_reviewer_console_page_test.py`
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.

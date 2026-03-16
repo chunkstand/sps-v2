@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reviewer Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f4f1ed;
+      --muted: #9f978f;
+      --panel: #1c1a18;
+      --panel-soft: #24201d;
+      --accent: #f4b860;
+      --accent-strong: #ffcf87;
+      --danger: #ff6a6a;
+      --success: #6adca0;
+      --border: #3b342f;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      background: radial-gradient(circle at top left, #26211d 0%, #151210 55%, #0d0b0a 100%);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 32px 32px 64px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .headline {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .headline h1 {
+      margin: 0;
+      font-family: "Fraunces", serif;
+      font-weight: 600;
+      font-size: 32px;
+      letter-spacing: 0.02em;
+    }
+
+    .headline span {
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .key-input {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 16px;
+      box-shadow: 0 16px 30px var(--shadow);
+    }
+
+    .key-input label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    .key-input input {
+      background: transparent;
+      border: none;
+      color: var(--ink);
+      font-size: 14px;
+      min-width: 220px;
+      outline: none;
+    }
+
+    .console-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 24px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 20px;
+      box-shadow: 0 18px 28px var(--shadow);
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-family: "Fraunces", serif;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .panel p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    button {
+      background: var(--accent);
+      border: none;
+      color: #1a140f;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(244, 184, 96, 0.35);
+    }
+
+    .ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--ink);
+    }
+
+    .queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 360px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+
+    .queue-item {
+      background: var(--panel-soft);
+      border-radius: 14px;
+      padding: 12px 14px;
+      border: 1px solid transparent;
+      display: grid;
+      gap: 6px;
+    }
+
+    .queue-item.active {
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(244, 184, 96, 0.4);
+    }
+
+    .queue-item header {
+      margin: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .queue-item h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .queue-item small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .queue-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .pill {
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .evidence-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .evidence-block {
+      background: #141110;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 12px;
+    }
+
+    .evidence-block h4 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .evidence-block pre {
+      margin: 0;
+      white-space: pre-wrap;
+      font-size: 12px;
+      color: var(--ink);
+    }
+
+    .decision-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    input, select, textarea {
+      background: #121010;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--ink);
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .banner {
+      display: none;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      border: 1px solid transparent;
+      white-space: pre-wrap;
+    }
+
+    .banner.error {
+      background: rgba(255, 106, 106, 0.15);
+      border-color: rgba(255, 106, 106, 0.4);
+      color: var(--danger);
+      display: block;
+    }
+
+    .banner.success {
+      background: rgba(106, 220, 160, 0.16);
+      border-color: rgba(106, 220, 160, 0.4);
+      color: var(--success);
+      display: block;
+    }
+
+    .helper {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    @media (max-width: 1100px) {
+      .console-grid {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .key-input {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="reviewer-console">
+    <header>
+      <div class="headline">
+        <span>Reviewer Operations</span>
+        <h1>Reviewer Console</h1>
+      </div>
+      <div class="key-input">
+        <label for="reviewer-api-key">API Key</label>
+        <input id="reviewer-api-key" type="password" placeholder="X-Reviewer-Api-Key" autocomplete="off" />
+      </div>
+    </header>
+
+    <div class="console-grid">
+      <section class="panel" id="queue-panel">
+        <h2>Queue</h2>
+        <p>Pull the current REVIEW_PENDING queue. Select a case to hydrate evidence and seed a decision.</p>
+        <div class="form-row" style="align-items:center;">
+          <button id="queue-load">Load Queue</button>
+          <span class="helper" id="queue-status">Waiting for fetch.</span>
+        </div>
+        <div class="queue-list" id="queue-list"></div>
+      </section>
+
+      <section class="panel" id="evidence-panel">
+        <h2>Evidence & Decisions</h2>
+        <p>Aggregated evidence, artifact metadata, and recent decision context for the selected case.</p>
+        <div class="evidence-grid">
+          <div class="evidence-block">
+            <h4>Case Snapshot</h4>
+            <pre id="case-snapshot">Select a case to load evidence.</pre>
+          </div>
+          <div class="evidence-block">
+            <h4>Evidence IDs</h4>
+            <pre id="evidence-ids">—</pre>
+          </div>
+          <div class="evidence-block">
+            <h4>Artifacts</h4>
+            <pre id="artifact-summary">—</pre>
+          </div>
+          <div class="evidence-block">
+            <h4>Decision History</h4>
+            <pre id="decision-history">—</pre>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" id="decision-panel" style="margin-top:24px;">
+      <h2>Decision Capture</h2>
+      <p>Submit a decision directly to <code>POST /api/v1/reviews/decisions</code>. Guard denials surface here.</p>
+      <div class="banner" id="banner-success"></div>
+      <div class="banner" id="banner-error"></div>
+      <form class="decision-form" id="decision-form">
+        <div class="form-row">
+          <div class="field">
+            <label for="decision-id">Decision ID</label>
+            <input id="decision-id" type="text" placeholder="DECISION-..." />
+          </div>
+          <div class="field">
+            <label for="idempotency-key">Idempotency Key</label>
+            <input id="idempotency-key" type="text" placeholder="IDEMPOTENCY-..." />
+          </div>
+          <div class="field" style="align-self:end;">
+            <button class="ghost" type="button" id="decision-generate">Generate IDs</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="case-id">Case ID</label>
+            <input id="case-id" type="text" placeholder="CASE-..." />
+          </div>
+          <div class="field">
+            <label for="reviewer-id">Reviewer ID</label>
+            <input id="reviewer-id" type="text" placeholder="reviewer-..." />
+          </div>
+          <div class="field">
+            <label for="subject-author-id">Subject Author ID</label>
+            <input id="subject-author-id" type="text" placeholder="author-..." />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="outcome">Outcome</label>
+            <select id="outcome">
+              <option value="ACCEPT">ACCEPT</option>
+              <option value="REJECT">REJECT</option>
+              <option value="NEEDS_MORE_INFO">NEEDS_MORE_INFO</option>
+              <option value="ACCEPT_WITH_DISSENT">ACCEPT_WITH_DISSENT</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="evidence-input">Evidence IDs</label>
+            <input id="evidence-input" type="text" placeholder="comma-separated evidence IDs" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="notes">Notes</label>
+          <textarea id="notes" placeholder="Optional reviewer notes"></textarea>
+        </div>
+
+        <div id="dissent-fields" style="display:none;">
+          <div class="form-row">
+            <div class="field">
+              <label for="dissent-scope">Dissent Scope</label>
+              <input id="dissent-scope" type="text" placeholder="Scope of dissent" />
+            </div>
+            <div class="field">
+              <label for="dissent-rationale">Dissent Rationale</label>
+              <input id="dissent-rationale" type="text" placeholder="Rationale" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="dissent-followup">Required Follow-up</label>
+            <input id="dissent-followup" type="text" placeholder="Follow-up required" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <button id="decision-submit" type="submit">Submit Decision</button>
+          <span class="helper">Submission sends only what you typed. No secrets are logged.</span>
+        </div>
+      </form>
+    </section>
+
+    <div class="footer">Reviewer Console • SPS</div>
+  </div>
+
+  <script>
+    const queueStatus = document.getElementById("queue-status");
+    const queueList = document.getElementById("queue-list");
+    const caseSnapshot = document.getElementById("case-snapshot");
+    const evidenceIds = document.getElementById("evidence-ids");
+    const artifactSummary = document.getElementById("artifact-summary");
+    const decisionHistory = document.getElementById("decision-history");
+
+    const decisionForm = document.getElementById("decision-form");
+    const bannerError = document.getElementById("banner-error");
+    const bannerSuccess = document.getElementById("banner-success");
+    const outcomeSelect = document.getElementById("outcome");
+    const dissentFields = document.getElementById("dissent-fields");
+
+    let queueCache = [];
+    let currentCase = null;
+
+    function apiHeaders() {
+      const key = document.getElementById("reviewer-api-key").value.trim();
+      return key ? { "X-Reviewer-Api-Key": key } : {};
+    }
+
+    function showBanner(element, message) {
+      bannerError.classList.remove("error");
+      bannerSuccess.classList.remove("success");
+      if (!message) {
+        element.textContent = "";
+        return;
+      }
+      element.textContent = message;
+      if (element === bannerError) {
+        element.classList.add("error");
+      } else {
+        element.classList.add("success");
+      }
+    }
+
+    function renderQueue() {
+      queueList.innerHTML = "";
+      if (!queueCache.length) {
+        queueList.innerHTML = "<div class='helper'>Queue empty.</div>";
+        return;
+      }
+      queueCache.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "queue-item" + (currentCase && currentCase.case_id === item.case_id ? " active" : "");
+        card.innerHTML = `
+          <header>
+            <h3>${item.case_id}</h3>
+            <button class="ghost" type="button">Load Evidence</button>
+          </header>
+          <small>${item.address || "No address"}</small>
+          <div class="queue-meta">
+            <span class="pill">${item.review_state}</span>
+            <span class="pill">${item.project_type}</span>
+            <span class="pill">${item.utility_name}</span>
+          </div>
+        `;
+        const button = card.querySelector("button");
+        button.addEventListener("click", () => selectCase(item));
+        queueList.appendChild(card);
+      });
+    }
+
+    function selectCase(item) {
+      currentCase = item;
+      document.getElementById("case-id").value = item.case_id || "";
+      caseSnapshot.textContent = JSON.stringify(
+        {
+          case_id: item.case_id,
+          review_state: item.review_state,
+          address: item.address,
+          parcel_id: item.parcel_id,
+          project_type: item.project_type,
+          system_size_kw: item.system_size_kw,
+          flags: {
+            battery: item.battery_flag,
+            service_upgrade: item.service_upgrade_flag,
+            trenching: item.trenching_flag,
+            structural_mod: item.structural_modification_flag,
+          },
+        },
+        null,
+        2
+      );
+      renderQueue();
+      fetchEvidence(item.case_id);
+    }
+
+    async function fetchQueue() {
+      showBanner(bannerError, "");
+      showBanner(bannerSuccess, "");
+      queueStatus.textContent = "Fetching queue...";
+      try {
+        const resp = await fetch("/api/v1/reviews/queue", { headers: apiHeaders() });
+        const text = await resp.text();
+        if (!resp.ok) {
+          throw { status: resp.status, body: text };
+        }
+        const data = text ? JSON.parse(text) : { cases: [] };
+        queueCache = data.cases || [];
+        queueStatus.textContent = `${queueCache.length} case(s) loaded.`;
+        renderQueue();
+      } catch (err) {
+        queueStatus.textContent = "Queue fetch failed.";
+        const message = formatError(err, "Queue request failed");
+        showBanner(bannerError, message);
+      }
+    }
+
+    async function fetchEvidence(caseId) {
+      if (!caseId) return;
+      showBanner(bannerError, "");
+      showBanner(bannerSuccess, "");
+      try {
+        const resp = await fetch(`/api/v1/reviews/cases/${caseId}/evidence-summary`, { headers: apiHeaders() });
+        const text = await resp.text();
+        if (!resp.ok) {
+          throw { status: resp.status, body: text };
+        }
+        const data = text ? JSON.parse(text) : {};
+        evidenceIds.textContent = (data.evidence_ids || []).join("\n") || "—";
+        document.getElementById("evidence-input").value = (data.evidence_ids || []).join(", ");
+        artifactSummary.textContent = JSON.stringify(
+          {
+            evidence_count: data.evidence_count,
+            artifact_count: data.artifact_count,
+            artifacts: (data.artifacts || []).map((artifact) => ({
+              artifact_id: artifact.artifact_id,
+              class: artifact.artifact_class,
+              created_at: artifact.created_at,
+            })),
+          },
+          null,
+          2
+        );
+        decisionHistory.textContent = JSON.stringify(data.review_decisions || [], null, 2) || "—";
+      } catch (err) {
+        const message = formatError(err, "Evidence fetch failed");
+        showBanner(bannerError, message);
+      }
+    }
+
+    function formatError(err, fallback) {
+      const status = err && err.status ? `HTTP ${err.status}` : "HTTP error";
+      let body = err && err.body ? err.body : "";
+      try {
+        body = body ? JSON.stringify(JSON.parse(body), null, 2) : "";
+      } catch (_) {
+        body = body || "";
+      }
+      return `${fallback}\n${status}\n${body}`.trim();
+    }
+
+    function randomId(prefix) {
+      if (crypto && crypto.randomUUID) {
+        return `${prefix}-${crypto.randomUUID()}`;
+      }
+      return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function toggleDissentFields() {
+      dissentFields.style.display = outcomeSelect.value === "ACCEPT_WITH_DISSENT" ? "block" : "none";
+    }
+
+    async function submitDecision(event) {
+      event.preventDefault();
+      showBanner(bannerError, "");
+      showBanner(bannerSuccess, "");
+
+      const payload = {
+        decision_id: document.getElementById("decision-id").value.trim(),
+        idempotency_key: document.getElementById("idempotency-key").value.trim(),
+        case_id: document.getElementById("case-id").value.trim(),
+        reviewer_id: document.getElementById("reviewer-id").value.trim(),
+        subject_author_id: document.getElementById("subject-author-id").value.trim(),
+        outcome: outcomeSelect.value,
+        notes: document.getElementById("notes").value.trim() || null,
+        evidence_ids: parseEvidenceIds(),
+      };
+
+      if (outcomeSelect.value === "ACCEPT_WITH_DISSENT") {
+        payload.dissent_scope = document.getElementById("dissent-scope").value.trim();
+        payload.dissent_rationale = document.getElementById("dissent-rationale").value.trim();
+        payload.dissent_required_followup = document.getElementById("dissent-followup").value.trim() || null;
+      }
+
+      try {
+        const resp = await fetch("/api/v1/reviews/decisions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...apiHeaders(),
+          },
+          body: JSON.stringify(payload),
+        });
+        const text = await resp.text();
+        if (!resp.ok) {
+          throw { status: resp.status, body: text };
+        }
+        const data = text ? JSON.parse(text) : {};
+        showBanner(bannerSuccess, `Decision submitted (${resp.status}).\n${JSON.stringify(data, null, 2)}`);
+      } catch (err) {
+        const message = formatError(err, "Decision submission failed");
+        showBanner(bannerError, message);
+      }
+    }
+
+    function parseEvidenceIds() {
+      const raw = document.getElementById("evidence-input").value.trim();
+      if (!raw) return [];
+      return raw.split(",").map((entry) => entry.trim()).filter(Boolean);
+    }
+
+    document.getElementById("queue-load").addEventListener("click", fetchQueue);
+    document.getElementById("decision-generate").addEventListener("click", () => {
+      document.getElementById("decision-id").value = randomId("DECISION");
+      document.getElementById("idempotency-key").value = randomId("IDEMPOTENCY");
+    });
+    outcomeSelect.addEventListener("change", toggleDissentFields);
+    decisionForm.addEventListener("submit", submitDecision);
+
+    toggleDissentFields();
+  </script>
+</body>
+</html>

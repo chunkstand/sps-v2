@@ -11,7 +11,7 @@
 - Source: spec (section 5.2; task E-001)
 - Primary owning slice: M008/S01
 - Supporting slices: none
-- Validation: pending (UI smoke + integration tests + runbook)
+- Validation: pending (integration tests passed; UAT + runbook pending)
 - Notes: Minimal UI only; no bulk tooling.
 
 ### R021 — Reviewer independence thresholds enforced (E-002)
