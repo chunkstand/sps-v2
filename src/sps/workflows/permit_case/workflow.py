@@ -143,11 +143,10 @@ class PermitCaseWorkflow:
                 adapter_request,
                 start_to_close_timeout=timedelta(seconds=60),
             )
-            adapter_result = (
-                raw_adapter
-                if isinstance(raw_adapter, SubmissionAdapterResult)
-                else SubmissionAdapterResult.model_validate(raw_adapter)
-            )
+            if hasattr(raw_adapter, "model_dump"):
+                adapter_result = SubmissionAdapterResult.model_validate(raw_adapter.model_dump())
+            else:
+                adapter_result = SubmissionAdapterResult.model_validate(raw_adapter)
 
             workflow.logger.info(
                 "workflow.submission_adapter_result workflow_id=%s run_id=%s case_id=%s attempt_id=%s outcome=%s receipt_artifact_id=%s manual_fallback_id=%s",

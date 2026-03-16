@@ -74,6 +74,10 @@ A governed workflow system that can produce and submit permit packages with revi
   - ExternalStatusEvent model + persistence activity with fail-closed unknown status handling
   - Case API ingest/list endpoints for normalized external status events
   - Integration tests for known/unknown status + API readback (`tests/m007_s02_external_status_events_test.py`)
+- **Phase 7 live submission + tracking runbook (M007/S03) complete:**
+  - `scripts/verify_m007_s03.sh` boots docker-compose, runs migrations, and executes intake → review → submission → status ingest
+  - Runbook fetches receipt evidence metadata + download URL and asserts submission/status persistence via Postgres helpers
+  - Operational proof of receipt evidence + ExternalStatusEvent persistence with real API + worker entrypoints
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.

@@ -43,7 +43,7 @@ This milestone is complete only when all are true:
   > After this: a workflow run can create a SubmissionAttempt with receipt evidence or generate a ManualFallbackPackage, and proof bundle confirmation is enforced (verified by integration tests and API reads).
 - [x] **S02: Status normalization + tracking events** `risk:medium` `depends:[S01]`
   > After this: external status inputs are normalized via fixtures and persisted as ExternalStatusEvent records, with fail-closed behavior for unknown statuses (verified by tests and API reads).
-- [ ] **S03: Live submission + tracking runbook** `risk:low` `depends:[S01,S02]`
+- [x] **S03: Live submission + tracking runbook** `risk:low` `depends:[S01,S02]`
   > After this: a docker-compose runbook exercises intake → submission → status ingest with receipts in MinIO and tracking events in Postgres using the real API + worker entrypoints.
 
 ## Boundary Map
