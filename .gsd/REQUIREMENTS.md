@@ -2,7 +2,49 @@
 
 ## Active
 
-(none)
+### R006 — Reviewer service records ReviewDecision and unblocks workflows
+- Class: core-capability
+- Status: active
+- Description: A reviewer service (HTTP API) is the sole authoritative writer of ReviewDecision records, enforces idempotency and policy denials, and signals waiting Temporal workflows to resume.
+- Why it matters: Reviewer approval is the permission gate for protected transitions; Phase 2 test-only signal injection must be replaced by a governed reviewer-owned authority boundary.
+- Source: spec (spec.md section 10.3; tasks E-001)
+- Primary owning slice: M003/S01
+- Supporting slices: none
+- Validation: tbd
+- Notes: Align error cases (409 idempotency conflict; policy denials include guard/invariant IDs).
+
+### R007 — Reviewer independence/self-approval guard on high-risk surfaces (INV-008)
+- Class: compliance/security
+- Status: active
+- Description: Reviewer decision creation is fail-closed on high-risk surfaces when independence/self-approval policy is violated, absent supported exception artifacts.
+- Why it matters: Prevents authority drift and self-approval on critical surfaces; required by CTL-11A and INV-008.
+- Source: spec (spec.md section 8.5/14.4; CTL-11A; INV-008)
+- Primary owning slice: M003/S02
+- Supporting slices: none
+- Validation: tbd
+- Notes: Threshold-metrics enforcement may be deferred, but self-approval prohibition must be enforceable.
+
+### R008 — Contradiction artifacts + advancement blocking until resolution (INV-003)
+- Class: compliance/security
+- Status: active
+- Description: Same-rank blocking contradictions are persisted and cause guarded advancement denials until reviewer resolution.
+- Why it matters: Contradictions must not allow auto-advance; this is the core governance control for contradictory sources.
+- Source: spec (section 18; CTL-14A; INV-003; guard assertion INV-SPS-CONTRA-001)
+- Primary owning slice: M003/S03
+- Supporting slices: none
+- Validation: tbd
+- Notes: Initial implementation may be manual create/resolve via API; detector can arrive later.
+
+### R009 — Dissent artifacts recorded and queryable
+- Class: governance
+- Status: active
+- Description: Accept-with-dissent decisions create a durable dissent artifact linked to the originating review decision, with resolution state.
+- Why it matters: High-risk dissent tightens release conditions and must be auditable even before release gating is implemented.
+- Source: spec (section 17.6; task E-003; dissent artifact contract matrix)
+- Primary owning slice: M003/S04
+- Supporting slices: none
+- Validation: tbd
+- Notes: Release-blocking enforcement is deferred until release gate milestone(s).
 
 ## Validated
 
@@ -87,11 +129,15 @@
 | R003 | compliance/security | validated | M001/S03 | none | proved (deny + purge tests) |
 | R004 | core-capability | validated | M002/S01 | M002/S02,M002/S03 | proved (Temporal+Postgres + replay + retry idempotency + runbook) |
 | R005 | compliance/security | validated | M002/S02 | M002/S03 | proved (Temporal+Postgres integration tests) |
+| R006 | core-capability | active | M003/S01 | none | tbd |
+| R007 | compliance/security | active | M003/S02 | none | tbd |
+| R008 | compliance/security | active | M003/S03 | none | tbd |
+| R009 | governance | active | M003/S04 | none | tbd |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 0
-- Mapped to slices: 5
+- Active requirements: 4
+- Mapped to slices: 9
 - Validated: 5
 - Unmapped active requirements: 0
