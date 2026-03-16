@@ -84,6 +84,32 @@ class ComplianceEvaluationResponse(BaseModel):
     updated_at: datetime | None = None
 
 
+class IncentiveAssessmentResponse(BaseModel):
+    """Incentive assessment payload for case read surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    incentive_assessment_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+
+    schema_version: str = Field(min_length=1)
+    assessed_at: datetime
+
+    candidate_programs: list[dict[str, Any]] = Field(default_factory=list)
+    eligibility_status: str = Field(min_length=1)
+    stacking_conflicts: list[str] = Field(default_factory=list)
+    deadlines: list[dict[str, Any]] | None = None
+    source_ids: list[str] = Field(default_factory=list)
+    advisory_value_range: str | None = None
+    authoritative_value_state: str = Field(min_length=1)
+
+    provenance: dict[str, Any] | None = None
+    evidence_payload: dict[str, Any] | None = None
+
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
 class JurisdictionResolutionListResponse(BaseModel):
     """List response for jurisdiction resolutions per case."""
 
@@ -109,3 +135,12 @@ class ComplianceEvaluationListResponse(BaseModel):
 
     case_id: str = Field(min_length=1)
     compliance_evaluations: list[ComplianceEvaluationResponse]
+
+
+class IncentiveAssessmentListResponse(BaseModel):
+    """List response for incentive assessments per case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    incentive_assessments: list[IncentiveAssessmentResponse]

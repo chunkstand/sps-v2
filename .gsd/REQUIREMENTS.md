@@ -3,17 +3,6 @@
 ## Active
 
 
-### R014 — Incentive assessment (F-005)
-- Class: integration
-- Status: active
-- Description: SPS produces IncentiveAssessment outputs with evidence-backed eligibility status and rankings.
-- Why it matters: Incentive findings are advisory outputs required before review and package generation.
-- Source: spec (section 6.1 F-005)
-- Primary owning slice: M005/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Fixture-based program sources only; external integrations deferred.
-
 ### R015 — Submission package generation (F-006)
 - Class: integration
 - Status: active
@@ -246,6 +235,17 @@
 - Supporting slices: none
 - Validation: proved (SPS_RUN_TEMPORAL_INTEGRATION=1 pytest tests/m005_s01_compliance_workflow_test.py -v -s)
 - Notes: Fixture-based rule set and deterministic evaluator in Phase 5.
+
+### R014 — Incentive assessment (F-005)
+- Class: integration
+- Status: validated
+- Description: SPS produces IncentiveAssessment outputs with evidence-backed eligibility status and rankings.
+- Why it matters: Incentive findings are advisory outputs required before review and package generation.
+- Source: spec (section 6.1 F-005)
+- Primary owning slice: M005/S01
+- Supporting slices: none
+- Validation: proved (SPS_RUN_TEMPORAL_INTEGRATION=1 pytest tests/m005_s02_incentives_workflow_test.py -v -s)
+- Notes: Fixture-based program sources only; external integrations deferred.
 
 ### R010 — Intake normalization into Project (F-001)
 - Class: core-capability

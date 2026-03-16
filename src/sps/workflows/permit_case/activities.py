@@ -10,6 +10,7 @@ from sps.db.models import (
     CaseTransitionLedger,
     ComplianceEvaluation,
     ContradictionArtifact,
+    IncentiveAssessment,
     JurisdictionResolution,
     PermitCase,
     Project,
@@ -19,7 +20,7 @@ from sps.db.models import (
 from sps.db.session import get_sessionmaker
 from sps.failpoints import FailpointFired, fail_once
 from sps.fixtures.phase4 import select_jurisdiction_fixtures, select_requirement_fixtures
-from sps.fixtures.phase5 import select_compliance_fixtures
+from sps.fixtures.phase5 import select_compliance_fixtures, select_incentive_fixtures
 from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import (
     AppliedStateTransitionResult,
@@ -27,6 +28,7 @@ from sps.workflows.permit_case.contracts import (
     DeniedStateTransitionResult,
     PermitCaseStateSnapshot,
     PersistComplianceEvaluationRequest,
+    PersistIncentiveAssessmentRequest,
     PersistJurisdictionResolutionRequest,
     PersistRequirementSetRequest,
     PersistReviewDecisionRequest,
@@ -542,6 +544,150 @@ def persist_compliance_evaluation(
         raise
 
 
+@activity.defn
+def persist_incentive_assessment(
+    request: PersistIncentiveAssessmentRequest | dict,
+) -> list[str]:
+    """Persist incentive assessment fixtures for a case idempotently."""
+
+    req = PersistIncentiveAssessmentRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "activity.start name=persist_incentive_assessment workflow_id=%s run_id=%s case_id=%s request_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.request_id,
+    )
+
+    fixtures, fixture_case_id = select_incentive_fixtures(req.case_id)
+    logger.info(
+        "activity.lookup name=persist_incentive_assessment workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s override=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        fixture_case_id,
+        1 if fixture_case_id != req.case_id else 0,
+    )
+    if not fixtures:
+        raise LookupError(
+            "no incentive fixtures found for case_id=%s fixture_case_id=%s"
+            % (req.case_id, fixture_case_id)
+        )
+
+    SessionLocal = get_sessionmaker()
+    fixture_ids = [fixture.incentive_assessment_id for fixture in fixtures]
+    try:
+        created_ids: list[str] = []
+        created_count = 0
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    for fixture in fixtures:
+                        existing = session.get(IncentiveAssessment, fixture.incentive_assessment_id)
+                        if existing is None:
+                            assessed_at = fixture.assessed_at
+                            if assessed_at.tzinfo is None:
+                                assessed_at = assessed_at.replace(tzinfo=dt.UTC)
+
+                            session.add(
+                                IncentiveAssessment(
+                                    incentive_assessment_id=fixture.incentive_assessment_id,
+                                    case_id=fixture.case_id,
+                                    schema_version=fixture.schema_version,
+                                    assessed_at=assessed_at,
+                                    candidate_programs=[
+                                        program.model_dump(mode="json")
+                                        for program in fixture.candidate_programs
+                                    ],
+                                    eligibility_status=fixture.eligibility_status,
+                                    stacking_conflicts=fixture.stacking_conflicts,
+                                    deadlines=[
+                                        deadline.model_dump(mode="json")
+                                        for deadline in fixture.deadlines
+                                    ]
+                                    if fixture.deadlines
+                                    else None,
+                                    source_ids=fixture.source_ids,
+                                    advisory_value_range=fixture.advisory_value_range,
+                                    authoritative_value_state=fixture.authoritative_value_state,
+                                    provenance=fixture.provenance,
+                                    evidence_payload=fixture.evidence_payload,
+                                )
+                            )
+                            created_count += 1
+                        created_ids.append(fixture.incentive_assessment_id)
+
+                logger.info(
+                    "incentives_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    fixture_case_id,
+                    req.request_id,
+                    len(created_ids),
+                    created_count,
+                    1 if created_count == 0 else 0,
+                )
+                logger.info(
+                    "activity.ok name=persist_incentive_assessment workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    fixture_case_id,
+                    req.request_id,
+                    len(created_ids),
+                )
+                return created_ids
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing_rows = (
+                session.query(IncentiveAssessment)
+                .filter(IncentiveAssessment.incentive_assessment_id.in_(fixture_ids))
+                .all()
+            )
+            existing_ids = [row.incentive_assessment_id for row in existing_rows]
+            if not existing_ids:
+                raise RuntimeError(
+                    "incentive_assessments insert raced but rows not found for incentive_assessment_ids=%s"
+                    % ",".join(fixture_ids)
+                )
+
+            logger.info(
+                "incentives_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=0 idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                fixture_case_id,
+                req.request_id,
+                len(existing_ids),
+            )
+            logger.info(
+                "activity.ok name=persist_incentive_assessment workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                fixture_case_id,
+                req.request_id,
+                len(existing_ids),
+            )
+            return existing_ids
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=persist_incentive_assessment workflow_id=%s run_id=%s case_id=%s request_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.request_id,
+            type(exc).__name__,
+        )
+        raise
+
+
+
 def _safe_temporal_ids() -> tuple[str | None, str | None]:
     """Best-effort activity correlation identifiers.
 
@@ -565,10 +711,13 @@ _EVENT_REQUIREMENTS_REQUIRED_DENIED = "REQUIREMENTS_REQUIRED_DENIED"
 _EVENT_REQUIREMENTS_FRESHNESS_DENIED = "REQUIREMENTS_FRESHNESS_DENIED"
 _EVENT_COMPLIANCE_REQUIRED_DENIED = "COMPLIANCE_REQUIRED_DENIED"
 _EVENT_COMPLIANCE_FRESHNESS_DENIED = "COMPLIANCE_FRESHNESS_DENIED"
+_EVENT_INCENTIVES_REQUIRED_DENIED = "INCENTIVES_REQUIRED_DENIED"
+_EVENT_INCENTIVES_FRESHNESS_DENIED = "INCENTIVES_FRESHNESS_DENIED"
 _GUARD_ASSERTION_REVIEW_GATE = "INV-SPS-STATE-002"
 _GUARD_ASSERTION_CONTRADICTION = "INV-SPS-CONTRA-001"
 _GUARD_ASSERTION_REQUIREMENTS_FRESHNESS = "INV-SPS-RULE-001"
 _GUARD_ASSERTION_COMPLIANCE_FRESHNESS = "INV-SPS-COMP-001"
+_GUARD_ASSERTION_INCENTIVES_FRESHNESS = "INV-SPS-INC-001"
 _ALLOWED_REVIEW_OUTCOMES = {"ACCEPT", "ACCEPT_WITH_DISSENT"}
 
 
@@ -810,6 +959,46 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                         event_type=_EVENT_COMPLIANCE_FRESHNESS_DENIED,
                                         denial_reason="COMPLIANCE_EVALUATION_STALE",
                                         guard_assertion_id=_GUARD_ASSERTION_COMPLIANCE_FRESHNESS,
+                                        normalized_business_invariants=invariants,
+                                    )
+                                else:
+                                    result = AppliedStateTransitionResult(
+                                        event_type=_EVENT_CASE_STATE_CHANGED,
+                                        applied_at=requested_at,
+                                    )
+                                    case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.COMPLIANCE_COMPLETE
+                            and req.to_state == CaseState.INCENTIVES_COMPLETE
+                        ):
+                            incentive_assessment = (
+                                session.query(IncentiveAssessment)
+                                .filter(IncentiveAssessment.case_id == req.case_id)
+                                .order_by(IncentiveAssessment.assessed_at.desc())
+                                .first()
+                            )
+                            invariants = get_normalized_business_invariants(
+                                _GUARD_ASSERTION_INCENTIVES_FRESHNESS
+                            )
+                            if incentive_assessment is None:
+                                result = _deny(
+                                    denied_at=requested_at,
+                                    event_type=_EVENT_INCENTIVES_REQUIRED_DENIED,
+                                    denial_reason="INCENTIVE_ASSESSMENT_REQUIRED",
+                                    guard_assertion_id=_GUARD_ASSERTION_INCENTIVES_FRESHNESS,
+                                    normalized_business_invariants=invariants,
+                                )
+                            else:
+                                assessed_at = incentive_assessment.assessed_at
+                                if assessed_at.tzinfo is None:
+                                    assessed_at = assessed_at.replace(tzinfo=dt.UTC)
+                                freshness_deadline = requested_at - dt.timedelta(days=3)
+                                if assessed_at < freshness_deadline:
+                                    result = _deny(
+                                        denied_at=requested_at,
+                                        event_type=_EVENT_INCENTIVES_FRESHNESS_DENIED,
+                                        denial_reason="INCENTIVE_ASSESSMENT_STALE",
+                                        guard_assertion_id=_GUARD_ASSERTION_INCENTIVES_FRESHNESS,
                                         normalized_business_invariants=invariants,
                                     )
                                 else:

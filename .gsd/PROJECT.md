@@ -44,6 +44,11 @@ A governed workflow system that can produce and submit permit packages with revi
   - `PermitCaseWorkflow` advances RESEARCH_COMPLETE → COMPLIANCE_COMPLETE after persisting compliance evaluation
   - Read surface: `GET /api/v1/cases/{case_id}/compliance`
   - Proof surface: `tests/m005_s01_compliance_workflow_test.py` (Temporal/Postgres integration)
+- **Phase 5 incentive assessment flow (M005/S02) complete:**
+  - IncentiveAssessment fixtures + persistence activity + migration with provenance/evidence JSONB
+  - `PermitCaseWorkflow` advances COMPLIANCE_COMPLETE → INCENTIVES_COMPLETE with 3-day freshness guard (`INV-SPS-INC-001`)
+  - Read surface: `GET /api/v1/cases/{case_id}/incentives`
+  - Proof surface: `tests/m005_s02_incentives_workflow_test.py` (Temporal/Postgres integration)
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
 - **Contradiction blocking guard is complete (M003/S03):**

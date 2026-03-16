@@ -159,6 +159,36 @@ class ComplianceEvaluation(Base):
     )
 
 
+class IncentiveAssessment(Base):
+    __tablename__ = "incentive_assessments"
+
+    incentive_assessment_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    schema_version: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    assessed_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+
+    candidate_programs: Mapped[list[dict]] = mapped_column(JSONB, nullable=False)
+    eligibility_status: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    stacking_conflicts: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")
+    deadlines: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
+    source_ids: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")
+    advisory_value_range: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    authoritative_value_state: Mapped[str] = mapped_column(sa.Text, nullable=False)
+
+    provenance: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    evidence_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
 class ReviewDecision(Base):
     __tablename__ = "review_decisions"
 

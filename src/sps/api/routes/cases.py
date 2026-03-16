@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 from sps.api.contracts.cases import (
     ComplianceEvaluationListResponse,
     ComplianceEvaluationResponse,
+    IncentiveAssessmentListResponse,
+    IncentiveAssessmentResponse,
     JurisdictionResolutionListResponse,
     JurisdictionResolutionResponse,
     RequirementSetListResponse,
@@ -18,7 +20,14 @@ from sps.api.contracts.cases import (
 )
 from sps.api.contracts.intake import CreateCaseRequest, CreateCaseResponse, SiteAddress
 from sps.config import get_settings
-from sps.db.models import ComplianceEvaluation, JurisdictionResolution, PermitCase, Project, RequirementSet
+from sps.db.models import (
+    ComplianceEvaluation,
+    IncentiveAssessment,
+    JurisdictionResolution,
+    PermitCase,
+    Project,
+    RequirementSet,
+)
 from sps.db.session import get_db
 from sps.workflows.permit_case.contracts import CaseState, PermitCaseWorkflowInput
 from sps.workflows.permit_case.ids import permit_case_workflow_id
@@ -100,6 +109,26 @@ def _compliance_row_to_response(row: ComplianceEvaluation) -> ComplianceEvaluati
         rule_results=row.rule_results or [],
         blockers=row.blockers or [],
         warnings=row.warnings or [],
+        provenance=row.provenance,
+        evidence_payload=row.evidence_payload,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _incentive_row_to_response(row: IncentiveAssessment) -> IncentiveAssessmentResponse:
+    return IncentiveAssessmentResponse(
+        incentive_assessment_id=row.incentive_assessment_id,
+        case_id=row.case_id,
+        schema_version=row.schema_version,
+        assessed_at=row.assessed_at,
+        candidate_programs=row.candidate_programs or [],
+        eligibility_status=row.eligibility_status,
+        stacking_conflicts=row.stacking_conflicts or [],
+        deadlines=row.deadlines,
+        source_ids=row.source_ids or [],
+        advisory_value_range=row.advisory_value_range,
+        authoritative_value_state=row.authoritative_value_state,
         provenance=row.provenance,
         evidence_payload=row.evidence_payload,
         created_at=row.created_at,
@@ -350,4 +379,53 @@ def get_case_compliance(
     return ComplianceEvaluationListResponse(
         case_id=case_id,
         compliance_evaluations=[_compliance_row_to_response(row) for row in rows],
+    )
+
+
+@router.get("/cases/{case_id}/incentives", response_model=IncentiveAssessmentListResponse)
+def get_case_incentives(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> IncentiveAssessmentListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.incentives_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        rows = (
+            db.query(IncentiveAssessment)
+            .filter(IncentiveAssessment.case_id == case_id)
+            .order_by(IncentiveAssessment.assessed_at.desc())
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.incentives_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "incentives_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    if not rows:
+        logger.warning("cases.incentives_missing case_id=%s", case_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "incentives_not_ready",
+                "case_id": case_id,
+                "missing": "incentive_assessment",
+            },
+        )
+
+    logger.info("cases.incentives_fetched case_id=%s count=%s", case_id, len(rows))
+    return IncentiveAssessmentListResponse(
+        case_id=case_id,
+        incentive_assessments=[_incentive_row_to_response(row) for row in rows],
     )

@@ -161,6 +161,15 @@ class PersistComplianceEvaluationRequest(BaseModel):
     case_id: str = Field(min_length=1)
 
 
+class PersistIncentiveAssessmentRequest(BaseModel):
+    """Activity input for persisting incentive assessment fixtures."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+
+
 class PermitCaseStateSnapshot(BaseModel):
     """Activity payload for PermitCase state branching."""
 

@@ -12,6 +12,7 @@ from sps.workflows.permit_case.contracts import (
     PermitCaseWorkflowInput,
     PermitCaseWorkflowResult,
     PersistComplianceEvaluationRequest,
+    PersistIncentiveAssessmentRequest,
     PersistJurisdictionResolutionRequest,
     PersistRequirementSetRequest,
     ReviewDecisionSignal,
@@ -28,6 +29,7 @@ with workflow.unsafe.imports_passed_through():
         ensure_permit_case_exists,
         fetch_permit_case_state,
         persist_compliance_evaluation,
+        persist_incentive_assessment,
         persist_jurisdiction_resolutions,
         persist_requirement_sets,
     )
@@ -415,6 +417,87 @@ class PermitCaseWorkflow:
                 compliance_result.event_type,
             )
 
+            incentives_activity_id = _activity_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                activity_name="persist_incentives",
+                attempt=1,
+            )
+            await workflow.execute_activity(
+                persist_incentive_assessment,
+                PersistIncentiveAssessmentRequest(
+                    request_id=incentives_activity_id,
+                    case_id=self._case_id,
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+            incentives_transition = "compliance_complete_to_incentives_complete"
+            incentives_request_id = _transition_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                transition=incentives_transition,
+                attempt=1,
+            )
+            incentives_requested_at = _utc(workflow.now())
+            workflow.logger.info(
+                "workflow.transition_attempt workflow_id=%s run_id=%s case_id=%s request_id=%s from_state=%s to_state=%s attempt=1",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                incentives_request_id,
+                CaseState.COMPLIANCE_COMPLETE,
+                CaseState.INCENTIVES_COMPLETE,
+            )
+
+            raw_incentives = await workflow.execute_activity(
+                apply_state_transition,
+                StateTransitionRequest(
+                    request_id=incentives_request_id,
+                    case_id=self._case_id,
+                    from_state=CaseState.COMPLIANCE_COMPLETE,
+                    to_state=CaseState.INCENTIVES_COMPLETE,
+                    actor_type=ActorType.system_guard,
+                    actor_id="system-guard",
+                    correlation_id=correlation_id,
+                    causation_id=compliance_request_id,
+                    required_review_id=None,
+                    required_evidence_ids=[],
+                    override_id=None,
+                    requested_at=incentives_requested_at,
+                    notes=None,
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            incentives_result = parse_state_transition_result(
+                raw_incentives.model_dump() if hasattr(raw_incentives, "model_dump") else raw_incentives
+            )
+
+            if incentives_result.result != "applied":
+                workflow.logger.info(
+                    "workflow.transition_denied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s denial_reason=%s guard_assertion_id=%s",
+                    info.workflow_id,
+                    info.run_id,
+                    self._case_id,
+                    incentives_request_id,
+                    incentives_result.event_type,
+                    getattr(incentives_result, "denial_reason", None),
+                    getattr(incentives_result, "guard_assertion_id", None),
+                )
+                raise RuntimeError(
+                    "incentives transition did not apply "
+                    f"(event_type={incentives_result.event_type})"
+                )
+
+            workflow.logger.info(
+                "workflow.transition_applied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                incentives_request_id,
+                incentives_result.event_type,
+            )
+
             return PermitCaseWorkflowResult(
                 case_id=self._case_id,
                 correlation_id=correlation_id,
@@ -422,8 +505,103 @@ class PermitCaseWorkflow:
                 initial_result=jurisdiction_result,
                 review_decision_id=None,
                 review_signal=None,
-                final_request_id=compliance_request_id,
-                final_result=compliance_result,
+                final_request_id=incentives_request_id,
+                final_result=incentives_result,
+                intake_request_id=None,
+                intake_result=None,
+            )
+
+        if snapshot.case_state == CaseState.COMPLIANCE_COMPLETE:
+            incentives_activity_id = _activity_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                activity_name="persist_incentives",
+                attempt=1,
+            )
+            await workflow.execute_activity(
+                persist_incentive_assessment,
+                PersistIncentiveAssessmentRequest(
+                    request_id=incentives_activity_id,
+                    case_id=self._case_id,
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+            incentives_transition = "compliance_complete_to_incentives_complete"
+            incentives_request_id = _transition_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                transition=incentives_transition,
+                attempt=1,
+            )
+            incentives_requested_at = _utc(workflow.now())
+            workflow.logger.info(
+                "workflow.transition_attempt workflow_id=%s run_id=%s case_id=%s request_id=%s from_state=%s to_state=%s attempt=1",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                incentives_request_id,
+                CaseState.COMPLIANCE_COMPLETE,
+                CaseState.INCENTIVES_COMPLETE,
+            )
+
+            raw_incentives = await workflow.execute_activity(
+                apply_state_transition,
+                StateTransitionRequest(
+                    request_id=incentives_request_id,
+                    case_id=self._case_id,
+                    from_state=CaseState.COMPLIANCE_COMPLETE,
+                    to_state=CaseState.INCENTIVES_COMPLETE,
+                    actor_type=ActorType.system_guard,
+                    actor_id="system-guard",
+                    correlation_id=correlation_id,
+                    causation_id=None,
+                    required_review_id=None,
+                    required_evidence_ids=[],
+                    override_id=None,
+                    requested_at=incentives_requested_at,
+                    notes=None,
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            incentives_result = parse_state_transition_result(
+                raw_incentives.model_dump() if hasattr(raw_incentives, "model_dump") else raw_incentives
+            )
+
+            if incentives_result.result != "applied":
+                workflow.logger.info(
+                    "workflow.transition_denied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s denial_reason=%s guard_assertion_id=%s",
+                    info.workflow_id,
+                    info.run_id,
+                    self._case_id,
+                    incentives_request_id,
+                    incentives_result.event_type,
+                    getattr(incentives_result, "denial_reason", None),
+                    getattr(incentives_result, "guard_assertion_id", None),
+                )
+                raise RuntimeError(
+                    "incentives transition did not apply "
+                    f"(event_type={incentives_result.event_type})"
+                )
+
+            workflow.logger.info(
+                "workflow.transition_applied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                incentives_request_id,
+                incentives_result.event_type,
+            )
+
+            return PermitCaseWorkflowResult(
+                case_id=self._case_id,
+                correlation_id=correlation_id,
+                initial_request_id=incentives_request_id,
+                initial_result=incentives_result,
+                review_decision_id=None,
+                review_signal=None,
+                final_request_id=incentives_request_id,
+                final_result=incentives_result,
                 intake_request_id=None,
                 intake_result=None,
             )

@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-15T01:00:00Z",
+  "assessments": [
+    {
+      "incentive_assessment_id": "INC-ASSESS-001",
+      "case_id": "CASE-EXAMPLE-001",
+      "schema_version": "1.0.0",
+      "assessed_at": "2026-03-15T01:10:00Z",
+      "candidate_programs": [
+        {
+          "program_id": "INC-PROG-001",
+          "program_name": "State Solar Rebate",
+          "program_type": "REBATE",
+          "eligibility_status": "ELIGIBLE",
+          "estimated_value_usd": 2500.0,
+          "source_id": "SRC-STATE-ENERGY-001",
+          "provenance": {
+            "evaluated_by": "incentive-engine-v1",
+            "evaluated_at": "2026-03-15T01:05:00Z"
+          },
+          "evidence_payload": {
+            "criteria_reference": "STATE-REBATE-2026",
+            "system_size_kw": 18.5
+          }
+        },
+        {
+          "program_id": "INC-PROG-002",
+          "program_name": "Utility Storage Adder",
+          "program_type": "ADDER",
+          "eligibility_status": "CONDITIONAL",
+          "estimated_value_usd": 1200.0,
+          "source_id": "SRC-UTILITY-001",
+          "provenance": {
+            "evaluated_by": "incentive-engine-v1",
+            "evaluated_at": "2026-03-15T01:06:00Z"
+          },
+          "evidence_payload": {
+            "battery_flag": true,
+            "minimum_kwh": 10
+          }
+        }
+      ],
+      "eligibility_status": "ELIGIBLE_WITH_CONDITIONS",
+      "stacking_conflicts": ["INC-PROG-002"],
+      "deadlines": [
+        {
+          "deadline_id": "INC-DEADLINE-001",
+          "due_at": "2026-06-01T00:00:00Z",
+          "summary": "Submit rebate application within 90 days of PTO.",
+          "source_id": "SRC-STATE-ENERGY-001",
+          "provenance": {
+            "captured_by": "incentive-engine-v1",
+            "captured_at": "2026-03-15T01:07:00Z"
+          }
+        }
+      ],
+      "source_ids": ["SRC-STATE-ENERGY-001", "SRC-UTILITY-001"],
+      "advisory_value_range": "$3,200 - $4,000",
+      "authoritative_value_state": "ESTIMATED",
+      "provenance": {
+        "evaluated_by": "incentive-engine-v1",
+        "run_id": "phase5-incentive-fixture-001",
+        "fixtures_version": "phase5"
+      },
+      "evidence_payload": {
+        "inputs": {
+          "jurisdiction_resolution_id": "JUR-RES-001",
+          "requirement_set_id": "REQ-SET-001",
+          "compliance_evaluation_id": "COMP-EVAL-001"
+        },
+        "notes": "Fixture-backed incentive assessment for Phase 5."
+      }
+    }
+  ]
+}
