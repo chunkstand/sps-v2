@@ -200,6 +200,50 @@
 - Validation: pending (integration tests)
 - Notes: Baseline support only in Phase 10.
 
+### R032 — Comment resolution and resubmission loops (F-008)
+- Class: integration
+- Status: active
+- Description: SPS supports reviewer-driven correction and resubmission loops after submission.
+- Why it matters: Real-world permitting requires iterative corrections; this must be governed and auditable.
+- Source: spec (section 6.1 F-008)
+- Primary owning slice: M011/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Minimal loop first.
+
+### R033 — Approval and inspection milestone tracking (F-009)
+- Class: integration
+- Status: active
+- Description: SPS records approvals, conditions, and inspection milestones after submission.
+- Why it matters: Permit lifecycle completion requires durable approval/inspection records.
+- Source: spec (section 6.1 F-009)
+- Primary owning slice: M011/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Driven by normalized status events.
+
+### R034 — Emergency and override workflows (GOV-005)
+- Class: governance
+- Status: active
+- Description: Emergency and override workflows are explicit, time-bounded, and enforced without silent normalization.
+- Why it matters: Exceptions must remain exceptional and auditable under Tier 3 compliance.
+- Source: spec (section 6.2 GOV-005)
+- Primary owning slice: M012/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Must fail closed when no valid emergency/override artifact exists.
+
+### R035 — Admin policy/config governance (spec section 5.5)
+- Class: governance
+- Status: active
+- Description: Admin changes to portal support metadata, source rules, and incentive programs require intent, review, and audit trails.
+- Why it matters: Prevents hidden authority drift from admin changes.
+- Source: spec (section 5.5)
+- Primary owning slice: M013/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Governed mutation paths only.
+
 ## Validated
 
 ### R010 — Intake normalization into Project (F-001)
@@ -385,11 +429,15 @@
 | R028 | security | active | M010/S01 | none | pending (authorization tests) |
 | R029 | security | active | M010/S01 | none | pending (log inspection + negative tests) |
 | R031 | security | active | M010/S01 | none | pending (integration tests) |
+| R032 | integration | active | M011/S01 | none | pending (integration tests + runbook) |
+| R033 | integration | active | M011/S01 | none | pending (integration tests + runbook) |
+| R034 | governance | active | M012/S01 | none | pending (integration tests + runbook) |
+| R035 | governance | active | M013/S01 | none | pending (integration tests + runbook) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 18
-- Mapped to slices: 30
+- Active requirements: 22
+- Mapped to slices: 34
 - Validated: 11
 - Unmapped active requirements: 0

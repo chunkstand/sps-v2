@@ -42,7 +42,7 @@ This milestone is complete only when all are true:
   > After this: POSTing a spec-derived intake payload creates PermitCase + Project and the workflow reaches INTAKE_COMPLETE (verified via API/DB).
 - [x] **S02: Jurisdiction + requirements fixtures, persistence, and workflow progression** `risk:medium` `depends:[S01]`
   > After this: the same case advances through JURISDICTION_COMPLETE and RESEARCH_COMPLETE with persisted JurisdictionResolution/RequirementSet artifacts and provenance inspectable via API/DB.
-- [ ] **S03: End-to-end docker-compose proof (API + worker + Postgres + Temporal)** `risk:low` `depends:[S01,S02]`
+- [x] **S03: End-to-end docker-compose proof (API + worker + Postgres + Temporal)** `risk:low` `depends:[S01,S02]`
   > After this: the runbook + integration test prove a real workflow run progresses from intake to RESEARCH_COMPLETE with persisted artifacts using live services.
 
 ## Boundary Map

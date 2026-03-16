@@ -72,5 +72,16 @@
 | 63 | 2026-03-15 | Phase 10 | Auth scope | Auth + RBAC + baseline mTLS support | Enforce identity and role separation on authority surfaces | yes |
 | 64 | 2026-03-15 | Phase 10 | Redaction scope | Redaction + read-only observability enforcement | Prevent data leakage and authority drift via observability | yes |
 | 65 | 2026-03-15 | Phase 10 | Verification surface | Security integration tests + runbook | Match proof standard for security controls | yes |
+| 66 | 2026-03-15 | Phase 11 | M011 scope focus | Implement comment resolution, resubmission, and approval tracking (F-008–F-009) | Complete post-submission lifecycle flows | yes |
+| 67 | 2026-03-15 | Phase 11 | Workflow wiring | Wire comment resolution/resubmission/approval tracking into PermitCaseWorkflow | Prove authoritative progression under real workflow semantics | yes |
+| 68 | 2026-03-15 | Phase 11 | Verification surface | Integration tests + runbook | Match proof standard for post-submission flows | yes |
+| 69 | 2026-03-15 | Phase 12 | M012 scope focus | Implement emergency and override governance (GOV-005) wired into workflow | Provide bounded exception handling without authority drift | yes |
+| 70 | 2026-03-15 | Phase 12 | Workflow wiring | Wire emergency/override enforcement into PermitCaseWorkflow and guards | Ensure deterministic enforcement and auditability | yes |
+| 71 | 2026-03-15 | Phase 12 | Verification surface | Integration tests + runbook | Match proof standard for governance exceptions | yes |
+| 72 | 2026-03-15 | Phase 13 | M013 scope focus | Implement admin policy/config governance with intent+review+audit trail | Prevent hidden authority drift from admin changes | yes |
+| 73 | 2026-03-15 | Phase 13 | Workflow wiring | Wire admin changes into governed mutation paths with reviewer approval | Ensure admin mutations are auditable and controlled | yes |
+| 74 | 2026-03-15 | Phase 13 | Verification surface | Integration tests + runbook | Match proof standard for admin governance | yes |
 | 42 | 2026-03-15 | Phase 4 | Fixture dataset placement | Store Phase 4 jurisdiction/requirements fixtures under `specs/sps/build-approved/fixtures/phase4` and load them as spec-sourced authoritative data | Keeps provenance traceable to the spec package and avoids a parallel fixture source of truth | yes |
 | 43 | 2026-03-15 | Phase 4 | Jurisdiction/requirements metadata persistence | Store fixture provenance and evidence payloads as JSONB columns on jurisdiction_resolutions and requirement_sets | Preserve structured metadata without over-normalizing while schemas stabilize | yes |
+| 69 | 2026-03-15 | Slice S03 | Phase 4 fixture override for runbook proof | Allow an env-gated fixture case_id override to select Phase 4 fixtures while persisting artifacts under the runtime case_id | Enables end-to-end intake runbook without changing the intake contract or fixture dataset | yes |
+| 70 | 2026-03-15 | M004/S03 | Runbook fixture cleanup strategy | Delete fixture artifact rows by fixture IDs (not just case_id) before reusing fixture overrides | Fixture IDs are stable across runs; clearing by ID prevents idempotent conflicts that block runtime case_id inserts. | yes |

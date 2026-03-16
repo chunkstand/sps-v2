@@ -17,7 +17,7 @@ from sps.db.models import (
 )
 from sps.db.session import get_sessionmaker
 from sps.failpoints import FailpointFired, fail_once
-from sps.fixtures.phase4 import load_phase4_fixtures
+from sps.fixtures.phase4 import select_jurisdiction_fixtures, select_requirement_fixtures
 from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import (
     AppliedStateTransitionResult,
@@ -161,10 +161,20 @@ def persist_jurisdiction_resolutions(
         req.request_id,
     )
 
-    jurisdiction_dataset, _ = load_phase4_fixtures()
-    fixtures = [fixture for fixture in jurisdiction_dataset.jurisdictions if fixture.case_id == req.case_id]
+    fixtures, fixture_case_id = select_jurisdiction_fixtures(req.case_id)
+    logger.info(
+        "activity.lookup name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s override=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        fixture_case_id,
+        1 if fixture_case_id != req.case_id else 0,
+    )
     if not fixtures:
-        raise LookupError(f"no jurisdiction fixtures found for case_id={req.case_id}")
+        raise LookupError(
+            "no jurisdiction fixtures found for case_id=%s fixture_case_id=%s"
+            % (req.case_id, fixture_case_id)
+        )
 
     SessionLocal = get_sessionmaker()
     try:
@@ -198,10 +208,11 @@ def persist_jurisdiction_resolutions(
                         created_ids.append(fixture.jurisdiction_resolution_id)
 
                 logger.info(
-                    "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s created=%s idempotent=%s",
+                    "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
+                    fixture_case_id,
                     req.request_id,
                     len(created_ids),
                     created_count,
@@ -209,10 +220,11 @@ def persist_jurisdiction_resolutions(
                 )
 
                 logger.info(
-                    "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s",
+                    "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
+                    fixture_case_id,
                     req.request_id,
                     len(created_ids),
                 )
@@ -233,18 +245,20 @@ def persist_jurisdiction_resolutions(
                 )
 
             logger.info(
-                "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s created=0 idempotent=1",
+                "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=0 idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
+                fixture_case_id,
                 req.request_id,
                 len(existing_ids),
             )
             logger.info(
-                "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s idempotent=1",
+                "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
+                fixture_case_id,
                 req.request_id,
                 len(existing_ids),
             )
@@ -276,10 +290,20 @@ def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> li
         req.request_id,
     )
 
-    _, requirement_dataset = load_phase4_fixtures()
-    fixtures = [fixture for fixture in requirement_dataset.requirement_sets if fixture.case_id == req.case_id]
+    fixtures, fixture_case_id = select_requirement_fixtures(req.case_id)
+    logger.info(
+        "activity.lookup name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s override=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        fixture_case_id,
+        1 if fixture_case_id != req.case_id else 0,
+    )
     if not fixtures:
-        raise LookupError(f"no requirement fixtures found for case_id={req.case_id}")
+        raise LookupError(
+            "no requirement fixtures found for case_id=%s fixture_case_id=%s"
+            % (req.case_id, fixture_case_id)
+        )
 
     SessionLocal = get_sessionmaker()
     try:
@@ -317,10 +341,11 @@ def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> li
                         created_ids.append(fixture.requirement_set_id)
 
                 logger.info(
-                    "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s created=%s idempotent=%s",
+                    "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
+                    fixture_case_id,
                     req.request_id,
                     len(created_ids),
                     created_count,
@@ -328,10 +353,11 @@ def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> li
                 )
 
                 logger.info(
-                    "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s",
+                    "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
+                    fixture_case_id,
                     req.request_id,
                     len(created_ids),
                 )
@@ -352,18 +378,20 @@ def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> li
                 )
 
             logger.info(
-                "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s created=0 idempotent=1",
+                "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=0 idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
+                fixture_case_id,
                 req.request_id,
                 len(existing_ids),
             )
             logger.info(
-                "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s request_id=%s count=%s idempotent=1",
+                "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
+                fixture_case_id,
                 req.request_id,
                 len(existing_ids),
             )

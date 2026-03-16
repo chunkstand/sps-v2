@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -103,6 +104,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PHASE4_FIXTURES_DIR = PROJECT_ROOT / "specs" / "sps" / "build-approved" / "fixtures" / "phase4"
 JURISDICTION_FIXTURE_PATH = PHASE4_FIXTURES_DIR / "jurisdiction.json"
 REQUIREMENTS_FIXTURE_PATH = PHASE4_FIXTURES_DIR / "requirements.json"
+PHASE4_FIXTURE_CASE_ID_OVERRIDE_ENV = "SPS_PHASE4_FIXTURE_CASE_ID_OVERRIDE"
+
+FixtureModel = TypeVar("FixtureModel", bound=BaseModel)
 
 
 def _load_fixture(path: Path) -> dict[str, Any]:
@@ -132,3 +136,32 @@ def load_requirement_fixtures(path: Path | None = None) -> RequirementFixtureDat
 
 def load_phase4_fixtures() -> tuple[JurisdictionFixtureDataset, RequirementFixtureDataset]:
     return load_jurisdiction_fixtures(), load_requirement_fixtures()
+
+
+def resolve_phase4_fixture_case_id(case_id: str) -> str:
+    override = os.getenv(PHASE4_FIXTURE_CASE_ID_OVERRIDE_ENV)
+    if override:
+        override = override.strip()
+    return override or case_id
+
+
+def _rewrite_case_id(fixtures: list[FixtureModel], runtime_case_id: str) -> list[FixtureModel]:
+    return [fixture.model_copy(update={"case_id": runtime_case_id}) for fixture in fixtures]
+
+
+def select_jurisdiction_fixtures(
+    case_id: str,
+) -> tuple[list[JurisdictionResolutionFixture], str]:
+    fixture_case_id = resolve_phase4_fixture_case_id(case_id)
+    dataset = load_jurisdiction_fixtures()
+    fixtures = [fixture for fixture in dataset.jurisdictions if fixture.case_id == fixture_case_id]
+    return _rewrite_case_id(fixtures, case_id), fixture_case_id
+
+
+def select_requirement_fixtures(
+    case_id: str,
+) -> tuple[list[RequirementSetFixture], str]:
+    fixture_case_id = resolve_phase4_fixture_case_id(case_id)
+    dataset = load_requirement_fixtures()
+    fixtures = [fixture for fixture in dataset.requirement_sets if fixture.case_id == fixture_case_id]
+    return _rewrite_case_id(fixtures, case_id), fixture_case_id

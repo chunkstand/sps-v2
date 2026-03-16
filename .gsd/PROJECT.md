@@ -37,6 +37,8 @@ A governed workflow system that can produce and submit permit packages with revi
   - `PermitCaseWorkflow` advances INTAKE_COMPLETE → JURISDICTION_COMPLETE → RESEARCH_COMPLETE via guarded transitions
   - Read surfaces: `GET /api/v1/cases/{case_id}/jurisdiction` and `/requirements`
   - Proof surfaces: `tests/m004_s02_jurisdiction_requirements_workflow_test.py` and `scripts/verify_m004_s02.sh`
+- **Phase 4 end-to-end docker-compose proof (M004/S03) complete:**
+  - `scripts/verify_m004_s03.sh` posts intake, starts the worker with a fixture override, restarts the workflow, and proves RESEARCH_COMPLETE with API/DB evidence
 - **Contradiction blocking guard is complete (M003/S03):**
   - `POST /api/v1/contradictions/` creates contradiction artifacts with `blocking_effect` and `resolution_status=OPEN`; 409 on duplicate
   - `POST /api/v1/contradictions/{id}/resolve` transitions `OPEN → RESOLVED`; 409 if already resolved; 404 if unknown
@@ -79,13 +81,16 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M002: Phase 2 — Temporal harness + guarded state transitions
 - [x] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance (**COMPLETE — all slices done**)
 - [ ] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
-- [ ] M004-lp1flz: Phase 4 — intake, jurisdiction, and requirements workers
+- [x] M004-lp1flz: Phase 4 — intake, jurisdiction, and requirements workers
 - [ ] M005-j3c8qk: Phase 5 — compliance and incentives workers
 - [ ] M006-h7v2qk: Phase 6 — document and submission package generation
 - [ ] M007-b2t1rz: Phase 7 — submission, tracking, and manual fallback
 - [ ] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds
 - [ ] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
 - [ ] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
+- [ ] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking
+- [ ] M012-v8s3qn: Phase 12 — emergency and override governance
+- [ ] M013-n6p1tg: Phase 13 — admin policy/config governance
 
 ## Milestone ID Mapping
 
