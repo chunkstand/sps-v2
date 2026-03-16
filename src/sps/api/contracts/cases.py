@@ -62,6 +62,28 @@ class RequirementSetResponse(BaseModel):
     updated_at: datetime | None = None
 
 
+class ComplianceEvaluationResponse(BaseModel):
+    """Compliance evaluation payload for case read surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    compliance_evaluation_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+
+    schema_version: str = Field(min_length=1)
+    evaluated_at: datetime
+
+    rule_results: list[dict[str, Any]] = Field(default_factory=list)
+    blockers: list[dict[str, Any]] = Field(default_factory=list)
+    warnings: list[dict[str, Any]] = Field(default_factory=list)
+
+    provenance: dict[str, Any] | None = None
+    evidence_payload: dict[str, Any] | None = None
+
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
 class JurisdictionResolutionListResponse(BaseModel):
     """List response for jurisdiction resolutions per case."""
 
@@ -78,3 +100,12 @@ class RequirementSetListResponse(BaseModel):
 
     case_id: str = Field(min_length=1)
     requirement_sets: list[RequirementSetResponse]
+
+
+class ComplianceEvaluationListResponse(BaseModel):
+    """List response for compliance evaluations per case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    compliance_evaluations: list[ComplianceEvaluationResponse]

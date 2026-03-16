@@ -38,7 +38,7 @@ This milestone is complete only when all are true:
 - Orphan risks: none
 
 ## Slices
-- [ ] **S01: Compliance evaluation artifacts + workflow advance** `risk:high` `depends:[]`
+- [x] **S01: Compliance evaluation artifacts + workflow advance** `risk:high` `depends:[]`
   > After this: A case can advance to COMPLIANCE_COMPLETE with a persisted ComplianceEvaluation (rule results + provenance) retrievable via the case API, proven by integration tests (fixture-backed).
 - [ ] **S02: Incentive assessment artifacts + workflow advance** `risk:medium` `depends:[S01]`
   > After this: The workflow advances to INCENTIVES_COMPLETE with a persisted IncentiveAssessment (eligibility + provenance) retrievable via the case API, proven by integration tests.

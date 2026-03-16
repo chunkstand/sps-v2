@@ -9,6 +9,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from sps.api.contracts.cases import (
+    ComplianceEvaluationListResponse,
+    ComplianceEvaluationResponse,
     JurisdictionResolutionListResponse,
     JurisdictionResolutionResponse,
     RequirementSetListResponse,
@@ -16,7 +18,7 @@ from sps.api.contracts.cases import (
 )
 from sps.api.contracts.intake import CreateCaseRequest, CreateCaseResponse, SiteAddress
 from sps.config import get_settings
-from sps.db.models import JurisdictionResolution, PermitCase, Project, RequirementSet
+from sps.db.models import ComplianceEvaluation, JurisdictionResolution, PermitCase, Project, RequirementSet
 from sps.db.session import get_db
 from sps.workflows.permit_case.contracts import CaseState, PermitCaseWorkflowInput
 from sps.workflows.permit_case.ids import permit_case_workflow_id
@@ -82,6 +84,22 @@ def _requirement_row_to_response(row: RequirementSet) -> RequirementSetResponse:
         freshness_expires_at=row.freshness_expires_at,
         contradiction_state=row.contradiction_state,
         evidence_ids=row.evidence_ids or [],
+        provenance=row.provenance,
+        evidence_payload=row.evidence_payload,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _compliance_row_to_response(row: ComplianceEvaluation) -> ComplianceEvaluationResponse:
+    return ComplianceEvaluationResponse(
+        compliance_evaluation_id=row.compliance_evaluation_id,
+        case_id=row.case_id,
+        schema_version=row.schema_version,
+        evaluated_at=row.evaluated_at,
+        rule_results=row.rule_results or [],
+        blockers=row.blockers or [],
+        warnings=row.warnings or [],
         provenance=row.provenance,
         evidence_payload=row.evidence_payload,
         created_at=row.created_at,
@@ -283,4 +301,53 @@ def get_case_requirements(
     return RequirementSetListResponse(
         case_id=case_id,
         requirement_sets=[_requirement_row_to_response(row) for row in rows],
+    )
+
+
+@router.get("/cases/{case_id}/compliance", response_model=ComplianceEvaluationListResponse)
+def get_case_compliance(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> ComplianceEvaluationListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.compliance_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        rows = (
+            db.query(ComplianceEvaluation)
+            .filter(ComplianceEvaluation.case_id == case_id)
+            .order_by(ComplianceEvaluation.evaluated_at.desc())
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.compliance_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "compliance_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    if not rows:
+        logger.warning("cases.compliance_missing case_id=%s", case_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "compliance_not_ready",
+                "case_id": case_id,
+                "missing": "compliance_evaluation",
+            },
+        )
+
+    logger.info("cases.compliance_fetched case_id=%s count=%s", case_id, len(rows))
+    return ComplianceEvaluationListResponse(
+        case_id=case_id,
+        compliance_evaluations=[_compliance_row_to_response(row) for row in rows],
     )

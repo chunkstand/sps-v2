@@ -134,6 +134,31 @@ class RequirementSet(Base):
     )
 
 
+class ComplianceEvaluation(Base):
+    __tablename__ = "compliance_evaluations"
+
+    compliance_evaluation_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    schema_version: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    evaluated_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+
+    rule_results: Mapped[list[dict]] = mapped_column(JSONB, nullable=False)
+    blockers: Mapped[list[dict]] = mapped_column(JSONB, nullable=False)
+    warnings: Mapped[list[dict]] = mapped_column(JSONB, nullable=False)
+    provenance: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    evidence_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
 class ReviewDecision(Base):
     __tablename__ = "review_decisions"
 

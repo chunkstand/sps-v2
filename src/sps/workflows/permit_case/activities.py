@@ -8,6 +8,7 @@ from temporalio import activity
 
 from sps.db.models import (
     CaseTransitionLedger,
+    ComplianceEvaluation,
     ContradictionArtifact,
     JurisdictionResolution,
     PermitCase,
@@ -18,12 +19,14 @@ from sps.db.models import (
 from sps.db.session import get_sessionmaker
 from sps.failpoints import FailpointFired, fail_once
 from sps.fixtures.phase4 import select_jurisdiction_fixtures, select_requirement_fixtures
+from sps.fixtures.phase5 import select_compliance_fixtures
 from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import (
     AppliedStateTransitionResult,
     CaseState,
     DeniedStateTransitionResult,
     PermitCaseStateSnapshot,
+    PersistComplianceEvaluationRequest,
     PersistJurisdictionResolutionRequest,
     PersistRequirementSetRequest,
     PersistReviewDecisionRequest,
@@ -408,6 +411,137 @@ def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> li
         raise
 
 
+@activity.defn
+def persist_compliance_evaluation(
+    request: PersistComplianceEvaluationRequest | dict,
+) -> list[str]:
+    """Persist compliance evaluation fixtures for a case idempotently."""
+
+    req = PersistComplianceEvaluationRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "activity.start name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s request_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.request_id,
+    )
+
+    fixtures, fixture_case_id = select_compliance_fixtures(req.case_id)
+    logger.info(
+        "activity.lookup name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s override=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        fixture_case_id,
+        1 if fixture_case_id != req.case_id else 0,
+    )
+    if not fixtures:
+        raise LookupError(
+            "no compliance fixtures found for case_id=%s fixture_case_id=%s"
+            % (req.case_id, fixture_case_id)
+        )
+
+    SessionLocal = get_sessionmaker()
+    fixture_ids = [fixture.compliance_evaluation_id for fixture in fixtures]
+    try:
+        created_ids: list[str] = []
+        created_count = 0
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    for fixture in fixtures:
+                        existing = session.get(ComplianceEvaluation, fixture.compliance_evaluation_id)
+                        if existing is None:
+                            evaluated_at = fixture.evaluated_at
+                            if evaluated_at.tzinfo is None:
+                                evaluated_at = evaluated_at.replace(tzinfo=dt.UTC)
+
+                            session.add(
+                                ComplianceEvaluation(
+                                    compliance_evaluation_id=fixture.compliance_evaluation_id,
+                                    case_id=fixture.case_id,
+                                    schema_version=fixture.schema_version,
+                                    evaluated_at=evaluated_at,
+                                    rule_results=[rule.model_dump() for rule in fixture.rule_results],
+                                    blockers=[issue.model_dump() for issue in fixture.blockers],
+                                    warnings=[issue.model_dump() for issue in fixture.warnings],
+                                    provenance=fixture.provenance,
+                                    evidence_payload=fixture.evidence_payload,
+                                )
+                            )
+                            created_count += 1
+                        created_ids.append(fixture.compliance_evaluation_id)
+
+                logger.info(
+                    "compliance_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    fixture_case_id,
+                    req.request_id,
+                    len(created_ids),
+                    created_count,
+                    1 if created_count == 0 else 0,
+                )
+                logger.info(
+                    "activity.ok name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    fixture_case_id,
+                    req.request_id,
+                    len(created_ids),
+                )
+                return created_ids
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing_rows = (
+                session.query(ComplianceEvaluation)
+                .filter(ComplianceEvaluation.compliance_evaluation_id.in_(fixture_ids))
+                .all()
+            )
+            existing_ids = [row.compliance_evaluation_id for row in existing_rows]
+            if not existing_ids:
+                raise RuntimeError(
+                    "compliance_evaluations insert raced but rows not found for compliance_evaluation_ids=%s"
+                    % ",".join(fixture_ids)
+                )
+
+            logger.info(
+                "compliance_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=0 idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                fixture_case_id,
+                req.request_id,
+                len(existing_ids),
+            )
+            logger.info(
+                "activity.ok name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                fixture_case_id,
+                req.request_id,
+                len(existing_ids),
+            )
+            return existing_ids
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s request_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.request_id,
+            type(exc).__name__,
+        )
+        raise
+
+
 def _safe_temporal_ids() -> tuple[str | None, str | None]:
     """Best-effort activity correlation identifiers.
 
@@ -429,9 +563,12 @@ _EVENT_INTAKE_PROJECT_DENIED = "INTAKE_PROJECT_REQUIRED_DENIED"
 _EVENT_JURISDICTION_REQUIRED_DENIED = "JURISDICTION_REQUIRED_DENIED"
 _EVENT_REQUIREMENTS_REQUIRED_DENIED = "REQUIREMENTS_REQUIRED_DENIED"
 _EVENT_REQUIREMENTS_FRESHNESS_DENIED = "REQUIREMENTS_FRESHNESS_DENIED"
+_EVENT_COMPLIANCE_REQUIRED_DENIED = "COMPLIANCE_REQUIRED_DENIED"
+_EVENT_COMPLIANCE_FRESHNESS_DENIED = "COMPLIANCE_FRESHNESS_DENIED"
 _GUARD_ASSERTION_REVIEW_GATE = "INV-SPS-STATE-002"
 _GUARD_ASSERTION_CONTRADICTION = "INV-SPS-CONTRA-001"
 _GUARD_ASSERTION_REQUIREMENTS_FRESHNESS = "INV-SPS-RULE-001"
+_GUARD_ASSERTION_COMPLIANCE_FRESHNESS = "INV-SPS-COMP-001"
 _ALLOWED_REVIEW_OUTCOMES = {"ACCEPT", "ACCEPT_WITH_DISSENT"}
 
 
@@ -641,6 +778,46 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                     applied_at=requested_at,
                                 )
                                 case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.RESEARCH_COMPLETE
+                            and req.to_state == CaseState.COMPLIANCE_COMPLETE
+                        ):
+                            compliance_eval = (
+                                session.query(ComplianceEvaluation)
+                                .filter(ComplianceEvaluation.case_id == req.case_id)
+                                .order_by(ComplianceEvaluation.evaluated_at.desc())
+                                .first()
+                            )
+                            invariants = get_normalized_business_invariants(
+                                _GUARD_ASSERTION_COMPLIANCE_FRESHNESS
+                            )
+                            if compliance_eval is None:
+                                result = _deny(
+                                    denied_at=requested_at,
+                                    event_type=_EVENT_COMPLIANCE_REQUIRED_DENIED,
+                                    denial_reason="COMPLIANCE_EVALUATION_REQUIRED",
+                                    guard_assertion_id=_GUARD_ASSERTION_COMPLIANCE_FRESHNESS,
+                                    normalized_business_invariants=invariants,
+                                )
+                            else:
+                                evaluated_at = compliance_eval.evaluated_at
+                                if evaluated_at.tzinfo is None:
+                                    evaluated_at = evaluated_at.replace(tzinfo=dt.UTC)
+                                freshness_deadline = requested_at - dt.timedelta(days=30)
+                                if evaluated_at < freshness_deadline:
+                                    result = _deny(
+                                        denied_at=requested_at,
+                                        event_type=_EVENT_COMPLIANCE_FRESHNESS_DENIED,
+                                        denial_reason="COMPLIANCE_EVALUATION_STALE",
+                                        guard_assertion_id=_GUARD_ASSERTION_COMPLIANCE_FRESHNESS,
+                                        normalized_business_invariants=invariants,
+                                    )
+                                else:
+                                    result = AppliedStateTransitionResult(
+                                        event_type=_EVENT_CASE_STATE_CHANGED,
+                                        applied_at=requested_at,
+                                    )
+                                    case.case_state = req.to_state.value
                         else:
                             result = _deny(
                                 denied_at=requested_at,

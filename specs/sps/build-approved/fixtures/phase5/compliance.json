@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-15T00:00:00Z",
+  "evaluations": [
+    {
+      "compliance_evaluation_id": "COMP-EVAL-001",
+      "case_id": "CASE-EXAMPLE-001",
+      "schema_version": "1.0.0",
+      "evaluated_at": "2026-03-15T00:10:00Z",
+      "rule_results": [
+        {
+          "rule_id": "RULE-ACCESS-001",
+          "outcome": "PASS",
+          "summary": "Project access plan meets ADA slope requirements.",
+          "provenance": {
+            "policy_reference": "ADA-2010-4.8",
+            "evaluated_by": "compliance-engine-v1",
+            "evaluated_at": "2026-03-15T00:09:30Z"
+          },
+          "evidence_payload": {
+            "source": "plan-sheet-A2",
+            "calculated_slope": 4.7
+          }
+        },
+        {
+          "rule_id": "RULE-SETBACK-002",
+          "outcome": "WARNING",
+          "summary": "Front setback is within 6 inches of minimum clearance.",
+          "provenance": {
+            "policy_reference": "CITY-CODE-12.4",
+            "evaluated_by": "compliance-engine-v1",
+            "evaluated_at": "2026-03-15T00:09:35Z"
+          },
+          "evidence_payload": {
+            "minimum_setback_ft": 5,
+            "provided_setback_ft": 5.5
+          }
+        },
+        {
+          "rule_id": "RULE-FIRE-003",
+          "outcome": "BLOCKER",
+          "summary": "Fire access lane clearance missing from plan set.",
+          "provenance": {
+            "policy_reference": "NFPA-1-18.2",
+            "evaluated_by": "compliance-engine-v1",
+            "evaluated_at": "2026-03-15T00:09:40Z"
+          },
+          "evidence_payload": {
+            "required_clearance_ft": 20,
+            "plan_reference": "plan-sheet-C1"
+          }
+        }
+      ],
+      "blockers": [
+        {
+          "issue_id": "COMP-ISSUE-001",
+          "rule_id": "RULE-FIRE-003",
+          "summary": "Fire access lane clearance not documented.",
+          "recommendation": "Provide a revised site plan with 20ft fire lane clearance.",
+          "provenance": {
+            "detected_by": "compliance-engine-v1",
+            "detected_at": "2026-03-15T00:09:45Z"
+          }
+        }
+      ],
+      "warnings": [
+        {
+          "issue_id": "COMP-ISSUE-002",
+          "rule_id": "RULE-SETBACK-002",
+          "summary": "Setback margin is below recommended buffer.",
+          "recommendation": "Confirm zoning variance requirements.",
+          "provenance": {
+            "detected_by": "compliance-engine-v1",
+            "detected_at": "2026-03-15T00:09:50Z"
+          }
+        }
+      ],
+      "provenance": {
+        "evaluated_by": "compliance-engine-v1",
+        "run_id": "phase5-fixture-001",
+        "policy_bundle": "POLICY-2026-03",
+        "fixtures_version": "phase5"
+      },
+      "evidence_payload": {
+        "inputs": {
+          "jurisdiction_resolution_id": "JUR-RES-001",
+          "requirement_set_id": "REQ-SET-001"
+        },
+        "notes": "Fixture-backed compliance evaluation for Phase 5."
+      }
+    }
+  ]
+}

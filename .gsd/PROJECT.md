@@ -39,6 +39,11 @@ A governed workflow system that can produce and submit permit packages with revi
   - Proof surfaces: `tests/m004_s02_jurisdiction_requirements_workflow_test.py` and `scripts/verify_m004_s02.sh`
 - **Phase 4 end-to-end docker-compose proof (M004/S03) complete:**
   - `scripts/verify_m004_s03.sh` posts intake, starts the worker with a fixture override, restarts the workflow, and proves RESEARCH_COMPLETE with API/DB evidence
+- **Phase 5 compliance evaluation flow (M005/S01) complete:**
+  - ComplianceEvaluation fixtures + persistence activity + migration with provenance/evidence JSONB
+  - `PermitCaseWorkflow` advances RESEARCH_COMPLETE → COMPLIANCE_COMPLETE after persisting compliance evaluation
+  - Read surface: `GET /api/v1/cases/{case_id}/compliance`
+  - Proof surface: `tests/m005_s01_compliance_workflow_test.py` (Temporal/Postgres integration)
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
 - **Contradiction blocking guard is complete (M003/S03):**
