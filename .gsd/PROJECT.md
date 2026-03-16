@@ -20,6 +20,14 @@ A governed workflow system that can produce and submit permit packages with revi
   - Post-commit Temporal signal delivery with structured log instrumentation (`reviewer_api.decision_received/persisted/signal_sent/signal_failed`)
   - `PermitCaseWorkflow` no longer calls `persist_review_decision` activity; uses API-issued `decision_id` from signal
   - Proof surfaces: integration test (`tests/m003_s01_reviewer_api_boundary_test.py`) + operator runbook (`scripts/verify_m003_s01.sh`)
+- **Contradiction blocking guard is complete (M003/S03):**
+  - `POST /api/v1/contradictions/` creates contradiction artifacts with `blocking_effect` and `resolution_status=OPEN`; 409 on duplicate
+  - `POST /api/v1/contradictions/{id}/resolve` transitions `OPEN → RESOLVED`; 409 if already resolved; 404 if unknown
+  - `GET /api/v1/contradictions/{id}` — read-only inspection surface; returns full artifact including resolution state
+  - All three endpoints gated with `require_reviewer_api_key`
+  - `apply_state_transition` contradiction guard: blocking open contradictions deny `REVIEW_PENDING → APPROVED_FOR_SUBMISSION` before the review gate check with `event_type=CONTRADICTION_ADVANCE_DENIED`, `guard_assertion_id=INV-SPS-CONTRA-001`, `normalized_business_invariants=["INV-003"]`
+  - Non-blocking contradictions (`blocking_effect=false`) are transparent to the guard
+  - Proof surfaces: 3 integration tests (`tests/m003_s03_contradiction_blocking_test.py`) + operator runbook (`scripts/verify_m003_s03.sh`) exits 0 against docker-compose Postgres
 - **Reviewer independence guard is complete (M003/S02):**
   - `subject_author_id` is a required field on `CreateReviewDecisionRequest`; guard is fail-closed with no skip path
   - Self-approval (`reviewer_id == subject_author_id`) → 403 with `guard_assertion_id=INV-SPS-REV-001` and `normalized_business_invariants=["INV-008"]`; zero DB writes on denial

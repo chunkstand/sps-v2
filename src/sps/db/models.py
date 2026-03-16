@@ -119,6 +119,8 @@ class ContradictionArtifact(Base):
     ranking_relation: Mapped[str] = mapped_column(sa.Text, nullable=False)
     blocking_effect: Mapped[bool] = mapped_column(sa.Boolean, nullable=False)
     resolution_status: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    resolved_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    resolved_by: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
 
     created_at: Mapped[dt.datetime] = mapped_column(
         sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()

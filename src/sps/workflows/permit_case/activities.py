@@ -6,7 +6,7 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from temporalio import activity
 
-from sps.db.models import CaseTransitionLedger, PermitCase, ReviewDecision
+from sps.db.models import CaseTransitionLedger, ContradictionArtifact, PermitCase, ReviewDecision
 from sps.db.session import get_sessionmaker
 from sps.failpoints import FailpointFired, fail_once
 from sps.guards.guard_assertions import get_normalized_business_invariants
@@ -104,7 +104,9 @@ def _safe_temporal_ids() -> tuple[str | None, str | None]:
 
 _EVENT_CASE_STATE_CHANGED = "CASE_STATE_CHANGED"
 _EVENT_APPROVAL_GATE_DENIED = "APPROVAL_GATE_DENIED"
+_EVENT_CONTRADICTION_ADVANCE_DENIED = "CONTRADICTION_ADVANCE_DENIED"
 _GUARD_ASSERTION_REVIEW_GATE = "INV-SPS-STATE-002"
+_GUARD_ASSERTION_CONTRADICTION = "INV-SPS-CONTRA-001"
 _ALLOWED_REVIEW_OUTCOMES = {"ACCEPT", "ACCEPT_WITH_DISSENT"}
 
 
@@ -190,33 +192,54 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                             req.from_state == CaseState.REVIEW_PENDING
                             and req.to_state == CaseState.APPROVED_FOR_SUBMISSION
                         ):
-                            # Canonical protected transition: requires a valid ReviewDecision.
-                            invariants = get_normalized_business_invariants(_GUARD_ASSERTION_REVIEW_GATE)
-
-                            review_id = req.required_review_id
-                            review: ReviewDecision | None = (
-                                session.get(ReviewDecision, review_id) if review_id else None
+                            # Guard: blocking open contradictions must be resolved before advancement (CTL-14A).
+                            blocking_contradiction = (
+                                session.query(ContradictionArtifact)
+                                .filter(
+                                    ContradictionArtifact.case_id == req.case_id,
+                                    ContradictionArtifact.blocking_effect.is_(True),
+                                    ContradictionArtifact.resolution_status == "OPEN",
+                                )
+                                .first()
                             )
-
-                            if (
-                                review_id is None
-                                or review is None
-                                or review.case_id != req.case_id
-                                or review.decision_outcome not in _ALLOWED_REVIEW_OUTCOMES
-                            ):
+                            if blocking_contradiction is not None:
                                 result = _deny(
                                     denied_at=requested_at,
-                                    event_type=_EVENT_APPROVAL_GATE_DENIED,
-                                    denial_reason="REVIEW_DECISION_REQUIRED",
-                                    guard_assertion_id=_GUARD_ASSERTION_REVIEW_GATE,
-                                    normalized_business_invariants=invariants,
+                                    event_type=_EVENT_CONTRADICTION_ADVANCE_DENIED,
+                                    denial_reason="BLOCKING_CONTRADICTION_UNRESOLVED",
+                                    guard_assertion_id=_GUARD_ASSERTION_CONTRADICTION,
+                                    normalized_business_invariants=get_normalized_business_invariants(
+                                        _GUARD_ASSERTION_CONTRADICTION
+                                    ),
                                 )
                             else:
-                                result = AppliedStateTransitionResult(
-                                    event_type=_EVENT_CASE_STATE_CHANGED,
-                                    applied_at=requested_at,
+                                # Canonical protected transition: requires a valid ReviewDecision.
+                                invariants = get_normalized_business_invariants(_GUARD_ASSERTION_REVIEW_GATE)
+
+                                review_id = req.required_review_id
+                                review: ReviewDecision | None = (
+                                    session.get(ReviewDecision, review_id) if review_id else None
                                 )
-                                case.case_state = req.to_state.value
+
+                                if (
+                                    review_id is None
+                                    or review is None
+                                    or review.case_id != req.case_id
+                                    or review.decision_outcome not in _ALLOWED_REVIEW_OUTCOMES
+                                ):
+                                    result = _deny(
+                                        denied_at=requested_at,
+                                        event_type=_EVENT_APPROVAL_GATE_DENIED,
+                                        denial_reason="REVIEW_DECISION_REQUIRED",
+                                        guard_assertion_id=_GUARD_ASSERTION_REVIEW_GATE,
+                                        normalized_business_invariants=invariants,
+                                    )
+                                else:
+                                    result = AppliedStateTransitionResult(
+                                        event_type=_EVENT_CASE_STATE_CHANGED,
+                                        applied_at=requested_at,
+                                    )
+                                    case.case_state = req.to_state.value
                         else:
                             result = _deny(
                                 denied_at=requested_at,

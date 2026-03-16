@@ -2,16 +2,7 @@
 
 ## Active
 
-### R008 — Contradiction artifacts + advancement blocking until resolution (INV-003)
-- Class: compliance/security
-- Status: active
-- Description: Same-rank blocking contradictions are persisted and cause guarded advancement denials until reviewer resolution.
-- Why it matters: Contradictions must not allow auto-advance; this is the core governance control for contradictory sources.
-- Source: spec (section 18; CTL-14A; INV-003; guard assertion INV-SPS-CONTRA-001)
-- Primary owning slice: M003/S03
-- Supporting slices: none
-- Validation: tbd
-- Notes: Initial implementation may be manual create/resolve via API; detector can arrive later.
+
 
 ### R009 — Dissent artifacts recorded and queryable
 - Class: governance
@@ -25,6 +16,17 @@
 - Notes: Release-blocking enforcement is deferred until release gate milestone(s).
 
 ## Validated
+
+### R008 — Contradiction artifacts + advancement blocking until resolution (INV-003)
+- Class: compliance/security
+- Status: validated
+- Description: Same-rank blocking contradictions are persisted and cause guarded advancement denials until reviewer resolution.
+- Why it matters: Contradictions must not allow auto-advance; this is the core governance control for contradictory sources.
+- Source: spec (section 18; CTL-14A; INV-003; guard assertion INV-SPS-CONTRA-001)
+- Primary owning slice: M003/S03
+- Supporting slices: none
+- Validation: proved (Postgres integration tests — blocking contradiction → CONTRADICTION_ADVANCE_DENIED + guard_assertion_id=INV-SPS-CONTRA-001 + INV-003; resolve via HTTP API → CASE_STATE_CHANGED; non-blocking contradiction transparent to guard; operator runbook verify_m003_s03.sh exits 0)
+- Notes: Manual create/resolve via API; contradiction detector deferred.
 
 ### R007 — Reviewer independence/self-approval guard on high-risk surfaces (INV-008)
 - Class: compliance/security
@@ -131,13 +133,13 @@
 | R005 | compliance/security | validated | M002/S02 | M002/S03 | proved (Temporal+Postgres integration tests) |
 | R006 | core-capability | validated | M003/S01 | none | proved (Temporal+Postgres integration tests + operator runbook) |
 | R007 | compliance/security | validated | M003/S02 | none | proved (Postgres integration tests — self-approval → 403 + INV-SPS-REV-001 + INV-008 + no DB row; distinct reviewer → 201 + PASS) |
-| R008 | compliance/security | active | M003/S03 | none | tbd |
+| R008 | compliance/security | validated | M003/S03 | none | proved (Postgres integration tests — blocking → CONTRADICTION_ADVANCE_DENIED + INV-SPS-CONTRA-001 + INV-003; resolve → CASE_STATE_CHANGED; runbook ok) |
 | R009 | governance | active | M003/S04 | none | tbd |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 2
+- Active requirements: 1
 - Mapped to slices: 9
-- Validated: 7
+- Validated: 8
 - Unmapped active requirements: 0

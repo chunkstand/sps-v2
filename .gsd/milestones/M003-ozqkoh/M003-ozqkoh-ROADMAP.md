@@ -21,7 +21,7 @@ All four Active requirements (R006–R009) map to slices; no orphans.
 - [x] **S02: Reviewer independence policy guard** `risk:medium` `depends:[S01]`
   > After this: Self-approval on a high-risk surface returns 403 with guard_assertion_id=INV-SPS-REV-001; valid distinct-reviewer decision succeeds — proven by integration test.
 
-- [ ] **S03: Contradiction artifacts + advancement blocking** `risk:medium` `depends:[S01]`
+- [x] **S03: Contradiction artifacts + advancement blocking** `risk:medium` `depends:[S01]`
   > After this: A blocking contradiction prevents protected transition with stable denial identifiers; resolving it allows advancement — proven by integration test against real docker-compose.
 
 - [ ] **S04: Dissent artifacts** `risk:low` `depends:[S01]`
