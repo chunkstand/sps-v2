@@ -39,7 +39,7 @@ This milestone is complete only when all are true:
 - Orphan risks: none
 
 ## Slices
-- [ ] **S01: Deterministic submission attempt + receipt + manual fallback** `risk:high` `depends:[]`
+- [x] **S01: Deterministic submission attempt + receipt + manual fallback** `risk:high` `depends:[]`
   > After this: a workflow run can create a SubmissionAttempt with receipt evidence or generate a ManualFallbackPackage, and proof bundle confirmation is enforced (verified by integration tests and API reads).
 - [ ] **S02: Status normalization + tracking events** `risk:medium` `depends:[S01]`
   > After this: external status inputs are normalized via fixtures and persisted as ExternalStatusEvent records, with fail-closed behavior for unknown statuses (verified by tests and API reads).

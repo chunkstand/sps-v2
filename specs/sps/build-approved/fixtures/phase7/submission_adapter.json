@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-16T00:00:00Z",
+  "adapter_inputs": [
+    {
+      "case_id": "CASE-EXAMPLE-001",
+      "target_portal_family": "CITY_PORTAL_FAMILY_A",
+      "portal_support_level": "FULLY_SUPPORTED",
+      "channel_type": "official_authority_email",
+      "reason": null,
+      "operator_instructions": [
+        "Verify manifest hash before submission.",
+        "Capture portal confirmation page.",
+        "Store receipt evidence artifact."
+      ],
+      "required_proof_types": [
+        "portal_receipt",
+        "submission_screenshot"
+      ],
+      "required_attachment_sources": [
+        "MANIFEST",
+        "DOCUMENTS"
+      ],
+      "escalation_owner": "OPS-ONCALL"
+    },
+    {
+      "case_id": "CASE-EXAMPLE-UNSUPPORTED",
+      "target_portal_family": "CITY_PORTAL_FAMILY_A",
+      "portal_support_level": "UNSUPPORTED",
+      "channel_type": "official_authority_email",
+      "reason": "UNSUPPORTED_PORTAL_WORKFLOW",
+      "operator_instructions": [
+        "Verify package manifest hash.",
+        "Submit via city email channel.",
+        "Upload external proof of submission."
+      ],
+      "required_proof_types": [
+        "email_receipt",
+        "portal_screenshot",
+        "signed_receipt_pdf"
+      ],
+      "required_attachment_sources": [
+        "MANIFEST",
+        "DOCUMENTS"
+      ],
+      "escalation_owner": "OPS-ONCALL"
+    }
+  ]
+}

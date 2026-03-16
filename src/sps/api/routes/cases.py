@@ -13,12 +13,17 @@ from sps.api.contracts.cases import (
     ComplianceEvaluationListResponse,
     ComplianceEvaluationResponse,
     DocumentReferenceResponse,
+    EvidenceArtifactResponse,
     IncentiveAssessmentListResponse,
     IncentiveAssessmentResponse,
     JurisdictionResolutionListResponse,
     JurisdictionResolutionResponse,
+    ManualFallbackPackageListResponse,
+    ManualFallbackPackageResponse,
     RequirementSetListResponse,
     RequirementSetResponse,
+    SubmissionAttemptListResponse,
+    SubmissionAttemptResponse,
     SubmissionManifestResponse,
     SubmissionPackageResponse,
 )
@@ -26,11 +31,14 @@ from sps.api.contracts.intake import CreateCaseRequest, CreateCaseResponse, Site
 from sps.config import get_settings
 from sps.db.models import (
     ComplianceEvaluation,
+    EvidenceArtifact,
     IncentiveAssessment,
     JurisdictionResolution,
+    ManualFallbackPackage,
     PermitCase,
     Project,
     RequirementSet,
+    SubmissionAttempt,
 )
 from sps.db.session import get_db
 from sps.workflows.permit_case.contracts import CaseState, PermitCaseWorkflowInput
@@ -137,6 +145,79 @@ def _incentive_row_to_response(row: IncentiveAssessment) -> IncentiveAssessmentR
         evidence_payload=row.evidence_payload,
         created_at=row.created_at,
         updated_at=row.updated_at,
+    )
+
+
+def _evidence_row_to_response(row: EvidenceArtifact) -> EvidenceArtifactResponse:
+    return EvidenceArtifactResponse(
+        artifact_id=row.artifact_id,
+        artifact_class=row.artifact_class,
+        producing_service=row.producing_service,
+        linked_case_id=row.linked_case_id,
+        linked_object_id=row.linked_object_id,
+        authoritativeness=row.authoritativeness,
+        retention_class=row.retention_class,
+        checksum=row.checksum,
+        storage_uri=row.storage_uri,
+        content_bytes=row.content_bytes,
+        content_type=row.content_type,
+        provenance=row.provenance,
+        created_at=row.created_at,
+        expires_at=row.expires_at,
+    )
+
+
+def _submission_attempt_row_to_response(
+    row: SubmissionAttempt,
+    receipt: EvidenceArtifact | None,
+) -> SubmissionAttemptResponse:
+    return SubmissionAttemptResponse(
+        submission_attempt_id=row.submission_attempt_id,
+        case_id=row.case_id,
+        package_id=row.package_id,
+        manifest_artifact_id=row.manifest_artifact_id,
+        target_portal_family=row.target_portal_family,
+        portal_support_level=row.portal_support_level,
+        request_id=row.request_id,
+        idempotency_key=row.idempotency_key,
+        attempt_number=row.attempt_number,
+        status=row.status,
+        outcome=row.outcome,
+        external_tracking_id=row.external_tracking_id,
+        receipt_artifact_id=row.receipt_artifact_id,
+        submitted_at=row.submitted_at,
+        failure_class=row.failure_class,
+        last_error=row.last_error,
+        last_error_context=row.last_error_context,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        receipt_evidence=_evidence_row_to_response(receipt) if receipt else None,
+    )
+
+
+def _manual_fallback_row_to_response(
+    row: ManualFallbackPackage,
+    proof_bundle: EvidenceArtifact | None,
+) -> ManualFallbackPackageResponse:
+    return ManualFallbackPackageResponse(
+        manual_fallback_package_id=row.manual_fallback_package_id,
+        case_id=row.case_id,
+        package_id=row.package_id,
+        submission_attempt_id=row.submission_attempt_id,
+        package_version=row.package_version,
+        package_hash=row.package_hash,
+        reason=row.reason,
+        portal_support_level=row.portal_support_level,
+        channel_type=row.channel_type,
+        proof_bundle_state=row.proof_bundle_state,
+        required_attachments=row.required_attachments or [],
+        operator_instructions=row.operator_instructions or [],
+        required_proof_types=row.required_proof_types or [],
+        escalation_owner=row.escalation_owner,
+        proof_bundle_artifact_id=row.proof_bundle_artifact_id,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        proof_bundle_evidence=_evidence_row_to_response(proof_bundle) if proof_bundle else None,
     )
 
 
@@ -610,5 +691,153 @@ def get_case_manifest(
         required_attachments=[],
         target_portal_family="acela",
         provenance=package.provenance,
+    )
+
+
+@router.get(
+    "/cases/{case_id}/submission-attempts",
+    response_model=SubmissionAttemptListResponse,
+)
+def get_case_submission_attempts(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> SubmissionAttemptListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.submission_attempts_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        attempts = (
+            db.query(SubmissionAttempt)
+            .filter(SubmissionAttempt.case_id == case_id)
+            .order_by(SubmissionAttempt.created_at.desc())
+            .all()
+        )
+
+        receipt_ids = [
+            attempt.receipt_artifact_id
+            for attempt in attempts
+            if attempt.receipt_artifact_id
+        ]
+        receipt_map: dict[str, EvidenceArtifact] = {}
+        if receipt_ids:
+            receipts = (
+                db.query(EvidenceArtifact)
+                .filter(EvidenceArtifact.artifact_id.in_(receipt_ids))
+                .all()
+            )
+            receipt_map = {receipt.artifact_id: receipt for receipt in receipts}
+            missing = set(receipt_ids) - set(receipt_map)
+            for missing_id in missing:
+                logger.warning(
+                    "cases.submission_attempts_receipt_missing case_id=%s receipt_id=%s",
+                    case_id,
+                    missing_id,
+                )
+
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.submission_attempts_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "submission_attempts_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    logger.info(
+        "cases.submission_attempts_fetched case_id=%s count=%s",
+        case_id,
+        len(attempts),
+    )
+    return SubmissionAttemptListResponse(
+        case_id=case_id,
+        submission_attempts=[
+            _submission_attempt_row_to_response(
+                attempt,
+                receipt_map.get(attempt.receipt_artifact_id) if attempt.receipt_artifact_id else None,
+            )
+            for attempt in attempts
+        ],
+    )
+
+
+@router.get(
+    "/cases/{case_id}/manual-fallbacks",
+    response_model=ManualFallbackPackageListResponse,
+)
+def get_case_manual_fallbacks(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> ManualFallbackPackageListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.manual_fallbacks_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        packages = (
+            db.query(ManualFallbackPackage)
+            .filter(ManualFallbackPackage.case_id == case_id)
+            .order_by(ManualFallbackPackage.created_at.desc())
+            .all()
+        )
+
+        proof_ids = [
+            package.proof_bundle_artifact_id
+            for package in packages
+            if package.proof_bundle_artifact_id
+        ]
+        proof_map: dict[str, EvidenceArtifact] = {}
+        if proof_ids:
+            proofs = (
+                db.query(EvidenceArtifact)
+                .filter(EvidenceArtifact.artifact_id.in_(proof_ids))
+                .all()
+            )
+            proof_map = {proof.artifact_id: proof for proof in proofs}
+            missing = set(proof_ids) - set(proof_map)
+            for missing_id in missing:
+                logger.warning(
+                    "cases.manual_fallbacks_proof_missing case_id=%s proof_id=%s",
+                    case_id,
+                    missing_id,
+                )
+
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.manual_fallbacks_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "manual_fallbacks_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    logger.info(
+        "cases.manual_fallbacks_fetched case_id=%s count=%s",
+        case_id,
+        len(packages),
+    )
+    return ManualFallbackPackageListResponse(
+        case_id=case_id,
+        manual_fallback_packages=[
+            _manual_fallback_row_to_response(
+                package,
+                proof_map.get(package.proof_bundle_artifact_id)
+                if package.proof_bundle_artifact_id
+                else None,
+            )
+            for package in packages
+        ],
     )
 

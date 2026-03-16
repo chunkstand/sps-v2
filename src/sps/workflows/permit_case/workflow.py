@@ -17,8 +17,13 @@ from sps.workflows.permit_case.contracts import (
     PersistRequirementSetRequest,
     PersistSubmissionPackageRequest,
     ReviewDecisionSignal,
+    SubmissionAdapterOutcome,
+    SubmissionAdapterRequest,
+    SubmissionAdapterResult,
     StateTransitionRequest,
     parse_state_transition_result,
+    submission_attempt_id_for_workflow,
+    submission_attempt_idempotency_key,
 )
 
 with workflow.unsafe.imports_passed_through():
@@ -27,6 +32,7 @@ with workflow.unsafe.imports_passed_through():
     # import-time side effects.
     from sps.workflows.permit_case.activities import (
         apply_state_transition,
+        deterministic_submission_adapter,
         ensure_permit_case_exists,
         fetch_permit_case_state,
         persist_compliance_evaluation,
@@ -99,6 +105,154 @@ class PermitCaseWorkflow:
             snapshot = PermitCaseStateSnapshot.model_validate(raw_snapshot.model_dump())
         else:
             snapshot = PermitCaseStateSnapshot.model_validate(raw_snapshot)
+
+        async def _run_submission_step(
+            *,
+            package_id: str,
+            initial_request_id: str | None,
+            initial_result,
+        ) -> PermitCaseWorkflowResult:
+            submission_attempt_id = submission_attempt_id_for_workflow(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                attempt=1,
+            )
+            submission_request_id = _activity_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                activity_name="submission_adapter",
+                attempt=1,
+            )
+            adapter_request = SubmissionAdapterRequest(
+                request_id=submission_request_id,
+                submission_attempt_id=submission_attempt_id,
+                case_id=self._case_id,
+                package_id=package_id,
+                manifest_id="MANIFEST-UNKNOWN",
+                target_portal_family="CITY_PORTAL_FAMILY_A",
+                artifact_digests={},
+                idempotency_key=submission_attempt_idempotency_key(
+                    case_id=self._case_id,
+                    attempt=1,
+                ),
+                attempt_number=1,
+                correlation_id=correlation_id,
+            )
+            raw_adapter = await workflow.execute_activity(
+                deterministic_submission_adapter,
+                adapter_request,
+                start_to_close_timeout=timedelta(seconds=60),
+            )
+            adapter_result = (
+                raw_adapter
+                if isinstance(raw_adapter, SubmissionAdapterResult)
+                else SubmissionAdapterResult.model_validate(raw_adapter)
+            )
+
+            workflow.logger.info(
+                "workflow.submission_adapter_result workflow_id=%s run_id=%s case_id=%s attempt_id=%s outcome=%s receipt_artifact_id=%s manual_fallback_id=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                adapter_result.submission_attempt_id,
+                adapter_result.outcome,
+                adapter_result.receipt_artifact_id,
+                adapter_result.manual_fallback_package_id,
+            )
+
+            if adapter_result.outcome == SubmissionAdapterOutcome.UNSUPPORTED_WORKFLOW:
+                transition_name = "document_complete_to_manual_submission_required"
+                target_state = CaseState.MANUAL_SUBMISSION_REQUIRED
+            elif adapter_result.outcome == SubmissionAdapterOutcome.SUCCESS:
+                transition_name = "document_complete_to_submitted"
+                target_state = CaseState.SUBMITTED
+            else:
+                raise RuntimeError(
+                    "submission adapter failed "
+                    f"(attempt_id={adapter_result.submission_attempt_id}, outcome={adapter_result.outcome})"
+                )
+
+            submission_transition_id = _transition_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                transition=transition_name,
+                attempt=1,
+            )
+            submission_requested_at = _utc(workflow.now())
+            workflow.logger.info(
+                "workflow.transition_attempt workflow_id=%s run_id=%s case_id=%s request_id=%s from_state=%s to_state=%s attempt=1",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                submission_transition_id,
+                CaseState.DOCUMENT_COMPLETE,
+                target_state,
+            )
+
+            raw_submission_transition = await workflow.execute_activity(
+                apply_state_transition,
+                StateTransitionRequest(
+                    request_id=submission_transition_id,
+                    case_id=self._case_id,
+                    from_state=CaseState.DOCUMENT_COMPLETE,
+                    to_state=target_state,
+                    actor_type=ActorType.system_guard,
+                    actor_id="system-guard",
+                    correlation_id=correlation_id,
+                    causation_id=initial_request_id,
+                    required_review_id=None,
+                    required_evidence_ids=[],
+                    override_id=None,
+                    requested_at=submission_requested_at,
+                    notes=None,
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            submission_result = parse_state_transition_result(
+                raw_submission_transition.model_dump()
+                if hasattr(raw_submission_transition, "model_dump")
+                else raw_submission_transition
+            )
+
+            if submission_result.result != "applied":
+                workflow.logger.info(
+                    "workflow.transition_denied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s denial_reason=%s",
+                    info.workflow_id,
+                    info.run_id,
+                    self._case_id,
+                    submission_transition_id,
+                    submission_result.event_type,
+                    getattr(submission_result, "denial_reason", None),
+                )
+                raise RuntimeError(
+                    "submission transition did not apply "
+                    f"(event_type={submission_result.event_type})"
+                )
+
+            workflow.logger.info(
+                "workflow.transition_applied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                submission_transition_id,
+                submission_result.event_type,
+            )
+
+            resolved_initial_request_id = initial_request_id or submission_transition_id
+            resolved_initial_result = initial_result or submission_result
+
+            return PermitCaseWorkflowResult(
+                case_id=self._case_id,
+                correlation_id=correlation_id,
+                initial_request_id=resolved_initial_request_id,
+                initial_result=resolved_initial_result,
+                review_decision_id=None,
+                review_signal=None,
+                final_request_id=submission_transition_id,
+                final_result=submission_result,
+                intake_request_id=None,
+                intake_result=None,
+            )
 
         if snapshot.case_state == CaseState.INTAKE_PENDING:
             transition_name = "intake_pending_to_intake_complete"
@@ -699,17 +853,38 @@ class PermitCaseWorkflow:
                 document_result.event_type,
             )
             
-            return PermitCaseWorkflowResult(
-                case_id=self._case_id,
-                correlation_id=correlation_id,
+            return await _run_submission_step(
+                package_id=package_id,
                 initial_request_id=document_request_id,
                 initial_result=document_result,
-                review_decision_id=None,
-                review_signal=None,
-                final_request_id=document_request_id,
-                final_result=document_result,
-                intake_request_id=None,
-                intake_result=None,
+            )
+
+        if snapshot.case_state == CaseState.DOCUMENT_COMPLETE:
+            package_activity_id = _activity_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                activity_name="persist_submission_package",
+                attempt=1,
+            )
+            package_id = await workflow.execute_activity(
+                persist_submission_package,
+                PersistSubmissionPackageRequest(
+                    request_id=package_activity_id,
+                    case_id=self._case_id,
+                ),
+                start_to_close_timeout=timedelta(seconds=60),
+            )
+            workflow.logger.info(
+                "workflow.package_persisted workflow_id=%s run_id=%s case_id=%s package_id=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                package_id,
+            )
+            return await _run_submission_step(
+                package_id=package_id,
+                initial_request_id=None,
+                initial_result=None,
             )
 
         transition_name = "review_pending_to_approved_for_submission"

@@ -252,6 +252,57 @@ class PersistSubmissionPackageRequest(BaseModel):
     case_id: str = Field(min_length=1)
 
 
+class SubmissionAdapterOutcome(str, Enum):
+    SUCCESS = "SUCCESS"
+    UNSUPPORTED_WORKFLOW = "UNSUPPORTED_WORKFLOW"
+    FAILED = "FAILED"
+
+
+class SubmissionAdapterRequest(BaseModel):
+    """Activity input for deterministic submission adapter execution."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    package_id: str = Field(min_length=1)
+    manifest_id: str = Field(min_length=1)
+    target_portal_family: str = Field(min_length=1)
+    artifact_digests: dict[str, str] = Field(default_factory=dict)
+    idempotency_key: str = Field(min_length=1)
+    attempt_number: int = Field(default=1, ge=1)
+    correlation_id: str = Field(min_length=1)
+
+
+class SubmissionAdapterResult(BaseModel):
+    """Outcome payload for deterministic submission adapter execution."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    submission_attempt_id: str
+    status: str
+    outcome: SubmissionAdapterOutcome
+    external_tracking_id: str | None = None
+    receipt_artifact_id: str | None = None
+    submitted_at: dt.datetime | None = None
+    manual_fallback_package_id: str | None = None
+    portal_support_level: str | None = None
+    failure_class: str | None = None
+
+
+def submission_attempt_id_for_workflow(*, workflow_id: str, run_id: str, attempt: int) -> str:
+    return f"{workflow_id}/{run_id}/submission_attempt/attempt-{attempt}"
+
+
+def submission_attempt_idempotency_key(*, case_id: str, attempt: int) -> str:
+    return f"submit/{case_id}/attempt-{attempt}"
+
+
+def manual_fallback_package_id_for_workflow(*, workflow_id: str, run_id: str, attempt: int) -> str:
+    return f"{workflow_id}/{run_id}/manual_fallback/attempt-{attempt}"
+
+
 class PermitCaseWorkflowResult(BaseModel):
     """Workflow completion payload.
 

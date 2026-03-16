@@ -10,6 +10,7 @@ from temporalio.worker import Worker
 from sps.config import get_settings
 from sps.workflows.permit_case.activities import (
     apply_state_transition,
+    deterministic_submission_adapter,
     ensure_permit_case_exists,
     fetch_permit_case_state,
     persist_compliance_evaluation,
@@ -69,6 +70,7 @@ async def _run_worker() -> None:
             persist_compliance_evaluation,
             persist_incentive_assessment,
             persist_submission_package,
+            deterministic_submission_adapter,
             apply_state_transition,
             persist_review_decision,
         ],
@@ -87,6 +89,7 @@ async def _run_worker() -> None:
             persist_requirement_sets.__name__,
             persist_compliance_evaluation.__name__,
             persist_incentive_assessment.__name__,
+            deterministic_submission_adapter.__name__,
             apply_state_transition.__name__,
             persist_review_decision.__name__,
         ],

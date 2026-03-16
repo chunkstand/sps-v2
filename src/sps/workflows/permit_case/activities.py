@@ -11,12 +11,15 @@ from sps.db.models import (
     ComplianceEvaluation,
     ContradictionArtifact,
     DocumentArtifact,
+    EvidenceArtifact,
     IncentiveAssessment,
     JurisdictionResolution,
+    ManualFallbackPackage,
     PermitCase,
     Project,
     RequirementSet,
     ReviewDecision,
+    SubmissionAttempt,
     SubmissionPackage,
 )
 from sps.db.session import get_sessionmaker
@@ -35,6 +38,9 @@ from sps.workflows.permit_case.contracts import (
     PersistRequirementSetRequest,
     PersistReviewDecisionRequest,
     PersistSubmissionPackageRequest,
+    SubmissionAdapterOutcome,
+    SubmissionAdapterRequest,
+    SubmissionAdapterResult,
     StateTransitionRequest,
     StateTransitionResult,
     parse_state_transition_result,
@@ -716,6 +722,8 @@ _EVENT_COMPLIANCE_REQUIRED_DENIED = "COMPLIANCE_REQUIRED_DENIED"
 _EVENT_COMPLIANCE_FRESHNESS_DENIED = "COMPLIANCE_FRESHNESS_DENIED"
 _EVENT_INCENTIVES_REQUIRED_DENIED = "INCENTIVES_REQUIRED_DENIED"
 _EVENT_INCENTIVES_FRESHNESS_DENIED = "INCENTIVES_FRESHNESS_DENIED"
+_EVENT_MANUAL_SUBMISSION_REQUIRED_DENIED = "MANUAL_SUBMISSION_REQUIRED_DENIED"
+_EVENT_PROOF_BUNDLE_REQUIRED_DENIED = "PROOF_BUNDLE_REQUIRED_DENIED"
 _GUARD_ASSERTION_REVIEW_GATE = "INV-SPS-STATE-002"
 _GUARD_ASSERTION_CONTRADICTION = "INV-SPS-CONTRA-001"
 _GUARD_ASSERTION_REQUIREMENTS_FRESHNESS = "INV-SPS-RULE-001"
@@ -1026,6 +1034,60 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                     event_type="DOCUMENT_PACKAGE_REQUIRED_DENIED",
                                     denial_reason="SUBMISSION_PACKAGE_REQUIRED",
                                 )
+                            else:
+                                result = AppliedStateTransitionResult(
+                                    event_type=_EVENT_CASE_STATE_CHANGED,
+                                    applied_at=requested_at,
+                                )
+                                case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.DOCUMENT_COMPLETE
+                            and req.to_state == CaseState.MANUAL_SUBMISSION_REQUIRED
+                        ):
+                            fallback = (
+                                session.query(ManualFallbackPackage)
+                                .filter(ManualFallbackPackage.case_id == req.case_id)
+                                .order_by(ManualFallbackPackage.created_at.desc())
+                                .first()
+                            )
+                            if fallback is None:
+                                result = _deny(
+                                    denied_at=requested_at,
+                                    event_type=_EVENT_MANUAL_SUBMISSION_REQUIRED_DENIED,
+                                    denial_reason="MANUAL_FALLBACK_REQUIRED",
+                                )
+                            else:
+                                result = AppliedStateTransitionResult(
+                                    event_type=_EVENT_CASE_STATE_CHANGED,
+                                    applied_at=requested_at,
+                                )
+                                case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.DOCUMENT_COMPLETE
+                            and req.to_state == CaseState.SUBMITTED
+                        ):
+                            fallback = (
+                                session.query(ManualFallbackPackage)
+                                .filter(ManualFallbackPackage.case_id == req.case_id)
+                                .order_by(ManualFallbackPackage.created_at.desc())
+                                .first()
+                            )
+                            if fallback is not None:
+                                if (
+                                    fallback.proof_bundle_state != "CONFIRMED"
+                                    or fallback.proof_bundle_artifact_id is None
+                                ):
+                                    result = _deny(
+                                        denied_at=requested_at,
+                                        event_type=_EVENT_PROOF_BUNDLE_REQUIRED_DENIED,
+                                        denial_reason="PROOF_BUNDLE_REQUIRED",
+                                    )
+                                else:
+                                    result = AppliedStateTransitionResult(
+                                        event_type=_EVENT_CASE_STATE_CHANGED,
+                                        applied_at=requested_at,
+                                    )
+                                    case.case_state = req.to_state.value
                             else:
                                 result = AppliedStateTransitionResult(
                                     event_type=_EVENT_CASE_STATE_CHANGED,
@@ -1494,4 +1556,318 @@ def persist_submission_package(request: PersistSubmissionPackageRequest | dict) 
             req.request_id,
             type(exc).__name__,
         )
+        raise
+
+
+@activity.defn
+def deterministic_submission_adapter(
+    request: SubmissionAdapterRequest | dict,
+) -> SubmissionAdapterResult:
+    """Deterministic submission adapter activity with idempotent persistence."""
+
+    import hashlib
+
+    from sps.config import get_settings
+    from sps.evidence.ids import evidence_object_key, new_evidence_id
+    from sps.evidence.models import ArtifactClass, RetentionClass
+    from sps.fixtures.phase7 import select_submission_adapter_fixtures
+    from sps.storage.s3 import S3Storage
+
+    req = SubmissionAdapterRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "submission_attempt.start workflow_id=%s run_id=%s case_id=%s request_id=%s correlation_id=%s attempt_id=%s package_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.request_id,
+        req.correlation_id,
+        req.submission_attempt_id,
+        req.package_id,
+    )
+
+    SessionLocal = get_sessionmaker()
+
+    def _load_existing_result(
+        session,
+        attempt: SubmissionAttempt,
+    ) -> SubmissionAdapterResult:
+        manual = (
+            session.query(ManualFallbackPackage)
+            .filter(ManualFallbackPackage.submission_attempt_id == attempt.submission_attempt_id)
+            .one_or_none()
+        )
+        outcome_value = attempt.outcome or SubmissionAdapterOutcome.FAILED.value
+        return SubmissionAdapterResult(
+            submission_attempt_id=attempt.submission_attempt_id,
+            status=attempt.status,
+            outcome=SubmissionAdapterOutcome(outcome_value),
+            external_tracking_id=attempt.external_tracking_id,
+            receipt_artifact_id=attempt.receipt_artifact_id,
+            submitted_at=attempt.submitted_at,
+            manual_fallback_package_id=manual.manual_fallback_package_id if manual else None,
+            portal_support_level=attempt.portal_support_level,
+            failure_class=attempt.failure_class,
+        )
+
+    def _resolve_required_attachments(
+        session,
+        *,
+        package: SubmissionPackage,
+        attachment_sources: list[str],
+    ) -> list[str]:
+        attachments: list[str] = []
+        sources = {source.upper() for source in attachment_sources}
+        if "MANIFEST" in sources:
+            attachments.append(package.manifest_artifact_id)
+        if "DOCUMENTS" in sources:
+            doc_rows = (
+                session.query(DocumentArtifact)
+                .filter(DocumentArtifact.package_id == package.package_id)
+                .all()
+            )
+            attachments.extend([row.evidence_artifact_id for row in doc_rows])
+        return sorted({item for item in attachments if item})
+
+    try:
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    existing = session.get(SubmissionAttempt, req.submission_attempt_id)
+                    if existing is not None:
+                        result = _load_existing_result(session, existing)
+                        logger.info(
+                            "submission_attempt.ok workflow_id=%s run_id=%s case_id=%s attempt_id=%s status=%s outcome=%s receipt_artifact_id=%s manual_fallback_id=%s idempotent=1",
+                            workflow_id,
+                            run_id,
+                            req.case_id,
+                            existing.submission_attempt_id,
+                            existing.status,
+                            existing.outcome,
+                            existing.receipt_artifact_id,
+                            result.manual_fallback_package_id,
+                        )
+                        return result
+
+                    case = session.get(PermitCase, req.case_id, with_for_update=True)
+                    if case is None:
+                        raise LookupError(f"permit_case not found for case_id={req.case_id}")
+                    package = session.get(SubmissionPackage, req.package_id)
+                    if package is None:
+                        raise LookupError(f"submission_package not found for package_id={req.package_id}")
+
+                    attempt = SubmissionAttempt(
+                        submission_attempt_id=req.submission_attempt_id,
+                        case_id=req.case_id,
+                        package_id=req.package_id,
+                        manifest_artifact_id=package.manifest_artifact_id,
+                        target_portal_family=req.target_portal_family,
+                        portal_support_level=case.portal_support_level,
+                        request_id=req.request_id,
+                        idempotency_key=req.idempotency_key,
+                        attempt_number=req.attempt_number,
+                        status="PENDING",
+                        outcome=None,
+                        external_tracking_id=None,
+                        receipt_artifact_id=None,
+                        submitted_at=None,
+                        failure_class=None,
+                        last_error=None,
+                        last_error_context=None,
+                    )
+                    session.add(attempt)
+                    session.flush()
+
+                    support_level = case.portal_support_level or "UNKNOWN"
+                    fallback_required = support_level in {
+                        "UNSUPPORTED",
+                        "PARTIALLY_SUPPORTED_READ_ONLY",
+                    }
+
+                    fixtures, fixture_case_id = select_submission_adapter_fixtures(req.case_id)
+                    fixture = fixtures[0] if fixtures else None
+                    if fixture is None:
+                        logger.info(
+                            "submission_attempt.fixture_missing workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s",
+                            workflow_id,
+                            run_id,
+                            req.case_id,
+                            fixture_case_id,
+                        )
+
+                    if fallback_required:
+                        manual_fallback_id = f"MFP-{req.submission_attempt_id}"
+                        attachment_sources = fixture.required_attachment_sources if fixture else ["MANIFEST"]
+                        required_attachments = _resolve_required_attachments(
+                            session,
+                            package=package,
+                            attachment_sources=attachment_sources,
+                        )
+                        manual = ManualFallbackPackage(
+                            manual_fallback_package_id=manual_fallback_id,
+                            case_id=req.case_id,
+                            package_id=package.package_id,
+                            submission_attempt_id=attempt.submission_attempt_id,
+                            package_version=package.package_version,
+                            package_hash=package.manifest_sha256_digest,
+                            reason=fixture.reason if fixture and fixture.reason else "UNSUPPORTED_PORTAL_WORKFLOW",
+                            portal_support_level=support_level,
+                            channel_type=fixture.channel_type if fixture else "official_authority_email",
+                            proof_bundle_state="PENDING_REVIEW",
+                            required_attachments=required_attachments,
+                            operator_instructions=fixture.operator_instructions if fixture else [],
+                            required_proof_types=fixture.required_proof_types if fixture else [],
+                            escalation_owner=fixture.escalation_owner if fixture else None,
+                            proof_bundle_artifact_id=None,
+                        )
+                        session.add(manual)
+
+                        attempt.status = "MANUAL_FALLBACK"
+                        attempt.outcome = SubmissionAdapterOutcome.UNSUPPORTED_WORKFLOW.value
+
+                        result = SubmissionAdapterResult(
+                            submission_attempt_id=attempt.submission_attempt_id,
+                            status=attempt.status,
+                            outcome=SubmissionAdapterOutcome.UNSUPPORTED_WORKFLOW,
+                            external_tracking_id=None,
+                            receipt_artifact_id=None,
+                            submitted_at=None,
+                            manual_fallback_package_id=manual.manual_fallback_package_id,
+                            portal_support_level=support_level,
+                            failure_class=None,
+                        )
+                    else:
+                        settings = get_settings()
+                        storage = S3Storage(settings=settings)
+                        artifact_id = new_evidence_id()
+                        object_key = evidence_object_key(artifact_id)
+                        external_tracking_id = f"{req.target_portal_family}-{req.submission_attempt_id}"
+                        receipt_payload = (
+                            f"receipt: case={req.case_id} attempt={req.submission_attempt_id} "
+                            f"tracking={external_tracking_id}"
+                        )
+                        receipt_bytes = receipt_payload.encode("utf-8")
+                        receipt_sha256 = hashlib.sha256(receipt_bytes).hexdigest()
+                        put_result = storage.put_bytes(
+                            bucket=settings.s3_bucket_evidence,
+                            key=object_key,
+                            content=receipt_bytes,
+                            expected_sha256_hex=receipt_sha256,
+                            content_type="text/plain",
+                        )
+                        submitted_at = dt.datetime.now(dt.UTC)
+                        session.add(
+                            EvidenceArtifact(
+                                artifact_id=artifact_id,
+                                artifact_class=ArtifactClass.RECEIPT.value,
+                                producing_service="permit_case_workflow",
+                                linked_case_id=req.case_id,
+                                linked_object_id=attempt.submission_attempt_id,
+                                authoritativeness="AUTHORITATIVE",
+                                retention_class=RetentionClass.CASE_CORE_7Y.value,
+                                checksum=put_result.sha256_hex,
+                                storage_uri=f"s3://{put_result.bucket}/{put_result.key}",
+                                content_bytes=put_result.bytes,
+                                content_type="text/plain",
+                                provenance={
+                                    "request_id": req.request_id,
+                                    "manifest_id": req.manifest_id,
+                                    "target_portal_family": req.target_portal_family,
+                                },
+                                created_at=submitted_at,
+                                legal_hold_flag=False,
+                            )
+                        )
+
+                        attempt.status = "SUBMITTED"
+                        attempt.outcome = SubmissionAdapterOutcome.SUCCESS.value
+                        attempt.external_tracking_id = external_tracking_id
+                        attempt.receipt_artifact_id = artifact_id
+                        attempt.submitted_at = submitted_at
+
+                        result = SubmissionAdapterResult(
+                            submission_attempt_id=attempt.submission_attempt_id,
+                            status=attempt.status,
+                            outcome=SubmissionAdapterOutcome.SUCCESS,
+                            external_tracking_id=external_tracking_id,
+                            receipt_artifact_id=artifact_id,
+                            submitted_at=submitted_at,
+                            manual_fallback_package_id=None,
+                            portal_support_level=support_level,
+                            failure_class=None,
+                        )
+
+                logger.info(
+                    "submission_attempt.ok workflow_id=%s run_id=%s case_id=%s attempt_id=%s status=%s outcome=%s receipt_artifact_id=%s manual_fallback_id=%s idempotent=0",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    result.submission_attempt_id,
+                    result.status,
+                    result.outcome,
+                    result.receipt_artifact_id,
+                    result.manual_fallback_package_id,
+                )
+                return result
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing = (
+                session.query(SubmissionAttempt)
+                .filter(
+                    (SubmissionAttempt.request_id == req.request_id)
+                    | (SubmissionAttempt.idempotency_key == req.idempotency_key)
+                )
+                .one_or_none()
+            )
+            if existing is None:
+                raise RuntimeError(
+                    "submission_attempt insert raced but row not found for request_id="
+                    f"{req.request_id}"
+                )
+            result = _load_existing_result(session, existing)
+            logger.info(
+                "submission_attempt.ok workflow_id=%s run_id=%s case_id=%s attempt_id=%s status=%s outcome=%s receipt_artifact_id=%s manual_fallback_id=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                existing.submission_attempt_id,
+                existing.status,
+                existing.outcome,
+                existing.receipt_artifact_id,
+                result.manual_fallback_package_id,
+            )
+            return result
+    except Exception as exc:
+        logger.exception(
+            "submission_attempt.error workflow_id=%s run_id=%s case_id=%s attempt_id=%s request_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.submission_attempt_id,
+            req.request_id,
+            type(exc).__name__,
+        )
+
+        try:
+            with SessionLocal() as session:
+                with session.begin():
+                    attempt = session.get(SubmissionAttempt, req.submission_attempt_id)
+                    if attempt is not None and attempt.status != "SUBMITTED":
+                        attempt.status = "FAILED"
+                        attempt.outcome = SubmissionAdapterOutcome.FAILED.value
+                        attempt.failure_class = "ADAPTER_ERROR"
+                        attempt.last_error = str(exc)
+                        attempt.last_error_context = {
+                            "request_id": req.request_id,
+                            "exc_type": type(exc).__name__,
+                        }
+        except Exception:
+            logger.exception(
+                "submission_attempt.error_record_failed case_id=%s attempt_id=%s",
+                req.case_id,
+                req.submission_attempt_id,
+            )
         raise

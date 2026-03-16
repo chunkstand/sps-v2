@@ -63,6 +63,13 @@ A governed workflow system that can produce and submit permit packages with revi
   - API endpoints for package/manifest retrieval (implemented)
   - R015 validated (with operational notes): deterministic document generation + digest computation proven in pytest; full persistence + API proven in S02 (live end-to-end execution deferred due to Temporal task queue configuration issues)
 
+- **Phase 7 submission attempt + manual fallback slice (M007/S01) complete:**
+  - SubmissionAttempt + ManualFallbackPackage schema with receipt evidence linkage
+  - Deterministic submission adapter activity with idempotent persistence and manual fallback generation
+  - Proof bundle guard enforced before SUBMITTED transition
+  - Case API read surfaces for submission attempts and manual fallback packages
+  - R016/R018/R019 validated via integration tests (`tests/m007_s01_*`)
+
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
 - **Contradiction blocking guard is complete (M003/S03):**

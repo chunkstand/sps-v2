@@ -425,6 +425,114 @@ class SubmissionPackage(Base):
     )
 
 
+class SubmissionAttempt(Base):
+    __tablename__ = "submission_attempts"
+
+    submission_attempt_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    package_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("submission_packages.package_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    manifest_artifact_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("evidence_artifacts.artifact_id", ondelete="RESTRICT"), nullable=False
+    )
+
+    target_portal_family: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    portal_support_level: Mapped[str] = mapped_column(sa.Text, nullable=False)
+
+    request_id: Mapped[str] = mapped_column(sa.Text, nullable=False, unique=True)
+    idempotency_key: Mapped[str] = mapped_column(sa.Text, nullable=False, unique=True)
+    attempt_number: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default=sa.text("1"))
+
+    status: Mapped[str] = mapped_column(
+        sa.Text, nullable=False, server_default=sa.text("'PENDING'")
+    )
+    outcome: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    external_tracking_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    receipt_artifact_id: Mapped[str | None] = mapped_column(
+        sa.Text, sa.ForeignKey("evidence_artifacts.artifact_id", ondelete="RESTRICT"), nullable=True
+    )
+    submitted_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+    failure_class: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    last_error_context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "case_id",
+            "attempt_number",
+            name="uq_submission_attempts_case_attempt_number",
+        ),
+    )
+
+
+class ManualFallbackPackage(Base):
+    __tablename__ = "manual_fallback_packages"
+
+    manual_fallback_package_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    package_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("submission_packages.package_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    submission_attempt_id: Mapped[str | None] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("submission_attempts.submission_attempt_id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
+    package_version: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    package_hash: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    reason: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    portal_support_level: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    channel_type: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    proof_bundle_state: Mapped[str] = mapped_column(
+        sa.Text, nullable=False, server_default=sa.text("'PENDING_REVIEW'")
+    )
+
+    required_attachments: Mapped[list[str]] = mapped_column(
+        sa.ARRAY(sa.Text), nullable=False, server_default="{}"
+    )
+    operator_instructions: Mapped[list[str]] = mapped_column(
+        sa.ARRAY(sa.Text), nullable=False, server_default="{}"
+    )
+    required_proof_types: Mapped[list[str]] = mapped_column(
+        sa.ARRAY(sa.Text), nullable=False, server_default="{}"
+    )
+    escalation_owner: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    proof_bundle_artifact_id: Mapped[str | None] = mapped_column(
+        sa.Text, sa.ForeignKey("evidence_artifacts.artifact_id", ondelete="RESTRICT"), nullable=True
+    )
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "case_id",
+            "package_id",
+            "package_version",
+            name="uq_manual_fallback_packages_case_package_version",
+        ),
+    )
+
+
 class DocumentArtifact(Base):
     __tablename__ = "document_artifacts"
 

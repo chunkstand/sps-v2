@@ -12,11 +12,14 @@ from sps.db.models import (
     CaseTransitionLedger,
     ContradictionArtifact,
     EvidenceArtifact,
+    ManualFallbackPackage,
     PermitCase,
     Project,
     ReleaseArtifact,
     ReleaseBundle,
     ReviewDecision,
+    SubmissionAttempt,
+    SubmissionPackage,
 )
 from sps.db.session import get_engine, get_sessionmaker
 
@@ -47,6 +50,10 @@ def db_session():
             sa.text(
                 """
                 TRUNCATE TABLE
+                  manual_fallback_packages,
+                  submission_attempts,
+                  document_artifacts,
+                  submission_packages,
                   review_decisions,
                   contradiction_artifacts,
                   case_transition_ledger,
@@ -68,7 +75,7 @@ def db_session():
         session.close()
 
 
-def test_schema_smoke_insert_read(db_session):
+def test_submission_schema_smoke_insert_read(db_session):
     case_id = "CASE-2026-000123"
     project_id = "PROJ-001"
 
@@ -172,6 +179,97 @@ def test_schema_smoke_insert_read(db_session):
             created_at=_utcnow(),
             expires_at=None,
             legal_hold_flag=False,
+        )
+    )
+
+    db_session.add(
+        EvidenceArtifact(
+            artifact_id="ART-MAN-001",
+            artifact_class="PACKAGE_MANIFEST",
+            producing_service="packager",
+            linked_case_id=case_id,
+            linked_object_id="PKG-004",
+            authoritativeness="authoritative",
+            retention_class="CASE_CORE_7Y",
+            checksum="sha256:manifest",
+            storage_uri="s3://evidence/ART-MAN-001.json",
+            provenance={"producer": "packager"},
+            created_at=_utcnow(),
+            expires_at=None,
+            legal_hold_flag=False,
+        )
+    )
+
+    db_session.add(
+        EvidenceArtifact(
+            artifact_id="ART-REC-001",
+            artifact_class="SUBMISSION_RECEIPT",
+            producing_service="submission-adapter",
+            linked_case_id=case_id,
+            linked_object_id="SUBATT-001",
+            authoritativeness="authoritative",
+            retention_class="CASE_CORE_7Y",
+            checksum="sha256:receipt",
+            storage_uri="s3://evidence/ART-REC-001.json",
+            provenance={"producer": "submission-adapter"},
+            created_at=_utcnow(),
+            expires_at=None,
+            legal_hold_flag=False,
+        )
+    )
+
+    db_session.flush()
+
+    db_session.add(
+        SubmissionPackage(
+            package_id="PKG-004",
+            case_id=case_id,
+            package_version="4",
+            manifest_artifact_id="ART-MAN-001",
+            manifest_sha256_digest="sha256:manifest",
+            provenance={"source": "unit-test"},
+        )
+    )
+
+    db_session.add(
+        SubmissionAttempt(
+            submission_attempt_id="SUBATT-001",
+            case_id=case_id,
+            package_id="PKG-004",
+            manifest_artifact_id="ART-MAN-001",
+            target_portal_family="CITY_PORTAL_FAMILY_A",
+            portal_support_level="SUPPORTED",
+            request_id="REQ-CASE-2026-000123-1",
+            idempotency_key="submit-CASE-2026-000123-1",
+            attempt_number=1,
+            status="SUBMITTED",
+            outcome="SUCCESS",
+            external_tracking_id="HEL-PORTAL-9981",
+            receipt_artifact_id="ART-REC-001",
+            submitted_at=_utcnow(),
+            failure_class=None,
+            last_error=None,
+            last_error_context=None,
+        )
+    )
+
+    db_session.add(
+        ManualFallbackPackage(
+            manual_fallback_package_id="MFP-001",
+            case_id=case_id,
+            package_id="PKG-004",
+            submission_attempt_id="SUBATT-001",
+            package_version="4",
+            package_hash="sha256:pkg",
+            reason="UNSUPPORTED_PORTAL_WORKFLOW",
+            portal_support_level="UNSUPPORTED",
+            channel_type="official_authority_email",
+            proof_bundle_state="PENDING_REVIEW",
+            required_attachments=["ART-010"],
+            operator_instructions=["Submit via email"],
+            required_proof_types=["email_receipt"],
+            escalation_owner="OPS-ONCALL",
+            proof_bundle_artifact_id=None,
         )
     )
 

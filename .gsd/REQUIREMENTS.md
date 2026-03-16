@@ -3,17 +3,6 @@
 ## Active
 
 
-### R016 — Idempotent submission adapters + receipt persistence (F-006/F-007)
-- Class: integration
-- Status: active
-- Description: SPS executes idempotent submission attempts and persists receipt artifacts correlated to tracking IDs.
-- Why it matters: Submission must be auditable and non-duplicative to avoid portal-side inconsistencies.
-- Source: spec (section 6.1 F-006/F-007)
-- Primary owning slice: M007/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Single mock adapter in Phase 7.
-
 ### R017 — Status normalization + tracking events (F-007)
 - Class: integration
 - Status: active
@@ -24,28 +13,6 @@
 - Supporting slices: none
 - Validation: pending (integration tests + runbook)
 - Notes: Fixture-based status maps in Phase 7.
-
-### R018 — Manual fallback package generation (F-008)
-- Class: integration
-- Status: active
-- Description: SPS produces ManualFallbackPackage for unsupported portals and enters bounded manual state.
-- Why it matters: Unsupported portals must not silently fail; manual fallback is a governed safe-stop path.
-- Source: spec (section 6.1 F-008)
-- Primary owning slice: M007/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Manual fallback path only; no full operator UI yet.
-
-### R019 — Proof bundle validation and reviewer confirmation (CTL-06A)
-- Class: compliance/security
-- Status: active
-- Description: SPS validates proof bundle sufficiency before marking submission as complete.
-- Why it matters: Prevents submission without required evidence and reviewer confirmation.
-- Source: spec (section 18A; CTL-06A)
-- Primary owning slice: M007/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: API-level confirmation only in Phase 7.
 
 ### R020 — Reviewer UI queue/evidence view/decision capture (E-001)
 - Class: governance
@@ -213,6 +180,39 @@
 - Notes: Governed mutation paths only.
 
 ## Validated
+
+### R016 — Idempotent submission adapters + receipt persistence (F-006/F-007)
+- Class: integration
+- Status: validated
+- Description: SPS executes idempotent submission attempts and persists receipt artifacts correlated to tracking IDs.
+- Why it matters: Submission must be auditable and non-duplicative to avoid portal-side inconsistencies.
+- Source: spec (section 6.1 F-006/F-007)
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m007_s01_submission_attempts_test.py -v -s)
+- Notes: Single mock adapter in Phase 7.
+
+### R018 — Manual fallback package generation (F-008)
+- Class: integration
+- Status: validated
+- Description: SPS produces ManualFallbackPackage for unsupported portals and enters bounded manual state.
+- Why it matters: Unsupported portals must not silently fail; manual fallback is a governed safe-stop path.
+- Source: spec (section 6.1 F-008)
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m007_s01_manual_fallback_test.py -v -s)
+- Notes: Manual fallback path only; no full operator UI yet.
+
+### R019 — Proof bundle validation and reviewer confirmation (CTL-06A)
+- Class: compliance/security
+- Status: validated
+- Description: SPS validates proof bundle sufficiency before marking submission as complete.
+- Why it matters: Prevents submission without required evidence and reviewer confirmation.
+- Source: spec (section 18A; CTL-06A)
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m007_s01_proof_bundle_gate_test.py -v -s)
+- Notes: API-level confirmation only in Phase 7.
 
 ### R015 — Submission package generation (F-006)
 - Class: integration

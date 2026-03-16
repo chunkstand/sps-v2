@@ -186,3 +186,94 @@ class SubmissionPackageResponse(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
+
+class EvidenceArtifactResponse(BaseModel):
+    """Evidence artifact metadata for receipt/manual proof surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    artifact_id: str = Field(min_length=1)
+    artifact_class: str = Field(min_length=1)
+    producing_service: str | None = None
+    linked_case_id: str | None = None
+    linked_object_id: str | None = None
+    authoritativeness: str = Field(min_length=1)
+    retention_class: str = Field(min_length=1)
+    checksum: str = Field(min_length=1)
+    storage_uri: str = Field(min_length=1)
+    content_bytes: int | None = None
+    content_type: str | None = None
+    provenance: dict[str, Any] | None = None
+    created_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class SubmissionAttemptResponse(BaseModel):
+    """Submission attempt payload for case read surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    submission_attempt_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    package_id: str = Field(min_length=1)
+    manifest_artifact_id: str = Field(min_length=1)
+    target_portal_family: str = Field(min_length=1)
+    portal_support_level: str = Field(min_length=1)
+    request_id: str = Field(min_length=1)
+    idempotency_key: str = Field(min_length=1)
+    attempt_number: int
+    status: str = Field(min_length=1)
+    outcome: str | None = None
+    external_tracking_id: str | None = None
+    receipt_artifact_id: str | None = None
+    submitted_at: datetime | None = None
+    failure_class: str | None = None
+    last_error: str | None = None
+    last_error_context: dict[str, Any] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    receipt_evidence: EvidenceArtifactResponse | None = None
+
+
+class SubmissionAttemptListResponse(BaseModel):
+    """List response for submission attempts per case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    submission_attempts: list[SubmissionAttemptResponse]
+
+
+class ManualFallbackPackageResponse(BaseModel):
+    """Manual fallback package payload for case read surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    manual_fallback_package_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    package_id: str = Field(min_length=1)
+    submission_attempt_id: str | None = None
+    package_version: str = Field(min_length=1)
+    package_hash: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    portal_support_level: str = Field(min_length=1)
+    channel_type: str = Field(min_length=1)
+    proof_bundle_state: str = Field(min_length=1)
+    required_attachments: list[str] = Field(default_factory=list)
+    operator_instructions: list[str] = Field(default_factory=list)
+    required_proof_types: list[str] = Field(default_factory=list)
+    escalation_owner: str | None = None
+    proof_bundle_artifact_id: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    proof_bundle_evidence: EvidenceArtifactResponse | None = None
+
+
+class ManualFallbackPackageListResponse(BaseModel):
+    """List response for manual fallback packages per case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    manual_fallback_packages: list[ManualFallbackPackageResponse]
+
