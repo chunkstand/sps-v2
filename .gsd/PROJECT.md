@@ -78,6 +78,7 @@ A governed workflow system that can produce and submit permit packages with revi
   - `scripts/verify_m007_s03.sh` boots docker-compose, runs migrations, and executes intake → review → submission → status ingest
   - Runbook fetches receipt evidence metadata + download URL and asserts submission/status persistence via Postgres helpers
   - Operational proof of receipt evidence + ExternalStatusEvent persistence with real API + worker entrypoints
+- **Phase 7 milestone M007-b2t1rz complete:** deterministic submission attempts, fail-closed status tracking, and manual fallback are proven via integration tests and live runbook
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
@@ -126,7 +127,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M004-lp1flz: Phase 4 — intake, jurisdiction, and requirements workers
 - [x] M005-j3c8qk: Phase 5 — compliance and incentives workers
 - [x] M006-h7v2qk: Phase 6 — document and submission package generation
-- [ ] M007-b2t1rz: Phase 7 — submission, tracking, and manual fallback
+- [x] M007-b2t1rz: Phase 7 — submission, tracking, and manual fallback
 - [ ] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds
 - [ ] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
 - [ ] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
