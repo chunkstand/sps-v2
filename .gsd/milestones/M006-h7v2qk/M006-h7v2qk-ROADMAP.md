@@ -39,7 +39,7 @@ This milestone is complete only when all are true:
 ## Slices
 - [x] **S01: Deterministic document artifacts + submission package persistence** `risk:high` `depends:[]`
   > After this: fixture-backed document generation persists a sealed SubmissionPackage with manifest/digests and evidence artifacts retrievable via API (proven by integration tests).
-- [ ] **S02: Workflow document stage + end-to-end package runbook** `risk:medium` `depends:[S01]`
+- [x] **S02: Workflow document stage + end-to-end package runbook** `risk:medium` `depends:[S01]`
   > After this: a live docker-compose workflow run reaches DOCUMENT_COMPLETE and proves package + evidence retrieval end-to-end.
 
 ## Boundary Map

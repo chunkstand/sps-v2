@@ -17,6 +17,7 @@ from sps.workflows.permit_case.activities import (
     persist_jurisdiction_resolutions,
     persist_requirement_sets,
     persist_review_decision,
+    persist_submission_package,
 )
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import try_get_pydantic_data_converter
@@ -67,6 +68,7 @@ async def _run_worker() -> None:
             persist_requirement_sets,
             persist_compliance_evaluation,
             persist_incentive_assessment,
+            persist_submission_package,
             apply_state_transition,
             persist_review_decision,
         ],

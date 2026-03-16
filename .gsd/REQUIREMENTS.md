@@ -11,8 +11,8 @@
 - Source: spec (section 6.1 F-006)
 - Primary owning slice: M006/S01
 - Supporting slices: M006/S02
-- Validation: partial (deterministic document generation + digest computation proven in pytest; full persistence + workflow + API proven pending S3 infrastructure in S02)
-- Notes: Fixture templates only; external document services deferred. S01 proved document generation, digest determinism, and persistence logic; S02 will prove end-to-end with live S3/Temporal/API.
+- Validation: partial (S01 pytest proves document generation + digest computation + persistence logic; S02 proves schema/activity/API exist in operational environment; full workflow execution in docker-compose blocked by task queue configuration issues)
+- Notes: Fixture templates only; external document services deferred. Worker activity registration fixed in S02. Workflow code exists and structure is correct; operational verification deferred pending Temporal task queue investigation.
 
 ### R016 — Idempotent submission adapters + receipt persistence (F-006/F-007)
 - Class: integration
