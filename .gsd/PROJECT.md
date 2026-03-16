@@ -75,4 +75,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 - M001 → M001-r2v2t3 (complete)
 - M002 → M002-dq2dn9 (complete)
-- M003 → M003-ozqkoh (queued)
+- M003 → M003-ozqkoh (complete)
