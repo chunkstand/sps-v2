@@ -10,8 +10,6 @@ from sps.workflows.permit_case.contracts import (
     CaseState,
     PermitCaseWorkflowInput,
     PermitCaseWorkflowResult,
-    PersistReviewDecisionRequest,
-    ReviewDecisionOutcome,
     ReviewDecisionSignal,
     StateTransitionRequest,
     parse_state_transition_result,
@@ -24,7 +22,6 @@ with workflow.unsafe.imports_passed_through():
     from sps.workflows.permit_case.activities import (
         apply_state_transition,
         ensure_permit_case_exists,
-        persist_review_decision,
     )
 
 
@@ -47,7 +44,8 @@ class PermitCaseWorkflow:
       1) bootstrap the case record via a Postgres-backed activity
       2) attempt protected transition REVIEW_PENDING → APPROVED_FOR_SUBMISSION
       3) on APPROVAL_GATE_DENIED, wait deterministically for ReviewDecision signal
-      4) persist ReviewDecision idempotently, re-attempt guarded transition
+      4) use signal.decision_id (persisted by the reviewer API) as required_review_id,
+         re-attempt the guarded transition
     """
 
     def __init__(self) -> None:
@@ -181,29 +179,14 @@ class PermitCaseWorkflow:
             review_signal.reviewer_id,
         )
 
-        review_decision_id = f"review/{info.workflow_id}/{info.run_id}"
-        review_idempotency_key = f"review/{info.workflow_id}/{info.run_id}"
-
-        await workflow.execute_activity(
-            persist_review_decision,
-            PersistReviewDecisionRequest(
-                decision_id=review_decision_id,
-                case_id=self._case_id,
-                object_id=self._case_id,
-                decision_outcome=review_signal.decision_outcome,
-                reviewer_id=review_signal.reviewer_id,
-                reviewer_independence_status=review_signal.reviewer_independence_status,
-                evidence_ids=review_signal.evidence_ids,
-                contradiction_resolution=review_signal.contradiction_resolution,
-                dissent_flag=(
-                    review_signal.decision_outcome == ReviewDecisionOutcome.ACCEPT_WITH_DISSENT
-                ),
-                notes=review_signal.notes,
-                decision_at=_utc(workflow.now()),
-                idempotency_key=review_idempotency_key,
-            ),
-            start_to_close_timeout=timedelta(seconds=30),
-        )
+        # M003/S01: persist_review_decision activity removed. The reviewer API is now
+        # the sole writer of the review_decisions table. The signal carries the
+        # already-persisted decision_id; raise loudly if it's missing (legacy signal).
+        if review_signal.decision_id is None:
+            raise RuntimeError(
+                "ReviewDecisionSignal missing decision_id — legacy signal unsupported after M003/S01"
+            )
+        review_decision_id = review_signal.decision_id
 
         requested_at_2 = _utc(workflow.now())
         workflow.logger.info(

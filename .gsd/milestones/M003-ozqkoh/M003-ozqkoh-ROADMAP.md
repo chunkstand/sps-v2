@@ -1,7 +1,7 @@
 # M003-ozqkoh Roadmap
 
 **Milestone:** Phase 3 — reviewer service + independence/dissent/contradiction governance  
-**Status:** queued  
+**Status:** active  
 **Risk profile:** High — changes authority boundary between HTTP API and Temporal orchestration  
 **Proof strategy:** End-to-end integration first (HTTP → Postgres → Temporal signal → workflow resume), then layer governance policies on top
 
@@ -15,37 +15,17 @@ All four Active requirements (R006–R009) map to slices; no orphans.
 
 ## Slices
 
-### S01: Reviewer API authority boundary ✓ primary integration proof
-- **Risk:** High — operational contract change; signal delivery critical path
-- **Depends on:** M002 (guarded transitions + Temporal harness)
-- **Demo:** Start local stack, start a PermitCaseWorkflow via CLI, observe denial and `REVIEW_PENDING` state. Record a ReviewDecision via `POST /api/v1/reviews/decisions` with idempotency key, observe workflow resume and transition to `APPROVED_FOR_SUBMISSION`. Query Postgres and confirm exactly one `review_decisions` row and one `CASE_STATE_CHANGED` ledger event. Retry the POST with same idempotency key and identical payload → 200 (existing). Retry with conflicting payload → 409.
-- **Proof:** Temporal+Postgres integration test proving HTTP reviewer API writes ReviewDecision, signals workflow, workflow resumes and applies protected transition. Idempotency conflict (409) test. Post-slice verification: `bash scripts/verify_m003_s01.sh` (runbook analog to M002/S03).
-- **Establishes:** Reviewer API HTTP surface, ReviewDecision sole-writer authority boundary, workflow signal delivery pattern, idempotency semantics at API boundary
-- **Requirement coverage:** R006 (primary)
+- [x] **S01: Reviewer API authority boundary** `risk:high` `depends:[]`
+  > After this: A PermitCaseWorkflow in REVIEW_PENDING is unblocked by POST /api/v1/reviews/decisions against a live docker-compose run; workflow resumes to APPROVED_FOR_SUBMISSION; idempotency conflict returns 409 — proven by integration test and verify_m003_s01.sh runbook.
 
-### S02: Reviewer independence policy guard
-- **Risk:** Medium — independence semantics underspecified (no author model yet); must fail closed
-- **Depends on:** S01 (reviewer API writes ReviewDecision)
-- **Demo:** Attempt to record a ReviewDecision for a high-risk surface where `reviewer_id == subject_author_id` (self-approval) → API returns 403 with `guard_assertion_id=INV-SPS-REV-001` and normalized invariant `INV-008`. Record a valid decision with distinct reviewer/author → succeeds.
-- **Proof:** Integration test proving self-approval denial on high-risk surfaces + stable guard/invariant identifiers in denial payload.
-- **Establishes:** Fail-closed reviewer independence checks, stable denial identifiers for independence violations
-- **Requirement coverage:** R007 (primary)
+- [ ] **S02: Reviewer independence policy guard** `risk:medium` `depends:[S01]`
+  > After this: Self-approval on a high-risk surface returns 403 with guard_assertion_id=INV-SPS-REV-001; valid distinct-reviewer decision succeeds — proven by integration test.
 
-### S03: Contradiction artifacts + advancement blocking
-- **Risk:** Medium — guard must block deterministically; contradiction create/resolve must be idempotent
-- **Depends on:** S01 (guarded transitions proven end-to-end)
-- **Demo:** Create a blocking contradiction artifact for a case in `REVIEW_PENDING`. Attempt protected transition → denied with `event_type=CONTRADICTION_ADVANCE_DENIED`, `guard_assertion_id=INV-SPS-CONTRA-001`. Resolve the contradiction via API. Re-attempt transition → succeeds.
-- **Proof:** Integration test proving contradiction blocking in `apply_state_transition` guard + manual create/resolve API endpoints + stable denial identifiers.
-- **Establishes:** Contradiction artifact CRUD API, guarded advancement blocking on unresolved contradictions, CTL-14A denial audit event type
-- **Requirement coverage:** R008 (primary)
+- [ ] **S03: Contradiction artifacts + advancement blocking** `risk:medium` `depends:[S01]`
+  > After this: A blocking contradiction prevents protected transition with stable denial identifiers; resolving it allows advancement — proven by integration test against real docker-compose.
 
-### S04: Dissent artifacts
-- **Risk:** Low — record-only surface; no blocking behavior
-- **Depends on:** S01 (ReviewDecision persistence proven)
-- **Demo:** Record an `ACCEPT_WITH_DISSENT` ReviewDecision via API. Query Postgres and observe a persisted `dissent_artifacts` row linked to the `ReviewDecision.decision_id`. Query dissent via API and confirm artifact is returned with resolution state.
-- **Proof:** Integration test proving dissent persistence for ACCEPT_WITH_DISSENT decisions + API query endpoint.
-- **Establishes:** Dissent artifact persistence + query API, audit trail for accept-with-dissent outcomes
-- **Requirement coverage:** R009 (primary)
+- [ ] **S04: Dissent artifacts** `risk:low` `depends:[S01]`
+  > After this: ACCEPT_WITH_DISSENT decisions persist a dissent_artifacts row linked to the ReviewDecision, queryable via API — proven by integration test.
 
 ## Milestone Definition of Done
 

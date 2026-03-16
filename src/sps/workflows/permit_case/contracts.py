@@ -58,6 +58,12 @@ class ReviewDecisionSignal(BaseModel):
     contradiction_resolution: str | None = None
     notes: str | None = None
 
+    # Added in M003-S01: the API-issued decision_id is carried in the signal so
+    # the workflow can reference the already-persisted ReviewDecision row without
+    # an additional DB round-trip.  Defaults to None for backward compatibility
+    # with existing workflows and tests that omit this field.
+    decision_id: str | None = None
+
 
 class CaseState(str, Enum):
     """Authoritative PermitCase.case_state enum (contract-aligned)."""

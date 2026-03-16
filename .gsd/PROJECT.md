@@ -14,6 +14,12 @@ A governed workflow system that can produce and submit permit packages with revi
 - CI verifies repo wiring + `PACKAGE-MANIFEST.json` integrity + JSON schema metaschema validity.
 - Local dev infra scaffold exists (`docker-compose.yml`: Postgres, Temporal, Temporal UI, MinIO).
 - Python monorepo scaffold exists (`pyproject.toml`, `src/sps/`).
+- **Phase 3 reviewer service authority boundary is complete (M003/S01):**
+  - `POST /api/v1/reviews/decisions` is the sole authoritative writer of `ReviewDecision` records; dev API key middleware gates the endpoint
+  - Idempotency enforcement: same key + same `decision_id` → 200; same key + different `decision_id` → 409 `IDEMPOTENCY_CONFLICT`
+  - Post-commit Temporal signal delivery with structured log instrumentation (`reviewer_api.decision_received/persisted/signal_sent/signal_failed`)
+  - `PermitCaseWorkflow` no longer calls `persist_review_decision` activity; uses API-issued `decision_id` from signal
+  - Proof surfaces: integration test (`tests/m003_s01_reviewer_api_boundary_test.py`) + operator runbook (`scripts/verify_m003_s01.sh`)
 - **Phase 2 Temporal harness + guarded transitions are complete (M002/S01–S03):**
   - Temporal worker entrypoint + deterministic PermitCaseWorkflow (bootstrap → denial → wait for `ReviewDecision` signal → resume)
   - Operator CLI to start workflows and send `ReviewDecision` signals

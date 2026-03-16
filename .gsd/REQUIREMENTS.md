@@ -2,17 +2,6 @@
 
 ## Active
 
-### R006 — Reviewer service records ReviewDecision and unblocks workflows
-- Class: core-capability
-- Status: active
-- Description: A reviewer service (HTTP API) is the sole authoritative writer of ReviewDecision records, enforces idempotency and policy denials, and signals waiting Temporal workflows to resume.
-- Why it matters: Reviewer approval is the permission gate for protected transitions; Phase 2 test-only signal injection must be replaced by a governed reviewer-owned authority boundary.
-- Source: spec (spec.md section 10.3; tasks E-001)
-- Primary owning slice: M003/S01
-- Supporting slices: none
-- Validation: tbd
-- Notes: Align error cases (409 idempotency conflict; policy denials include guard/invariant IDs).
-
 ### R007 — Reviewer independence/self-approval guard on high-risk surfaces (INV-008)
 - Class: compliance/security
 - Status: active
@@ -47,6 +36,17 @@
 - Notes: Release-blocking enforcement is deferred until release gate milestone(s).
 
 ## Validated
+
+### R006 — Reviewer service records ReviewDecision and unblocks workflows
+- Class: core-capability
+- Status: validated
+- Description: A reviewer service (HTTP API) is the sole authoritative writer of ReviewDecision records, enforces idempotency and policy denials, and signals waiting Temporal workflows to resume.
+- Why it matters: Reviewer approval is the permission gate for protected transitions; Phase 2 test-only signal injection must be replaced by a governed reviewer-owned authority boundary.
+- Source: spec (spec.md section 10.3; tasks E-001)
+- Primary owning slice: M003/S01
+- Supporting slices: none
+- Validation: proved (Temporal+Postgres integration tests + operator runbook verify_m003_s01.sh)
+- Notes: Proved HTTP POST → Postgres review_decisions row → Temporal signal → workflow APPROVED_FOR_SUBMISSION; 409 on idempotency conflict; 401 on missing/wrong key.
 
 ### R004 — Temporal harness runs PermitCaseWorkflow with replay-safe semantics
 - Class: core-capability
@@ -129,7 +129,7 @@
 | R003 | compliance/security | validated | M001/S03 | none | proved (deny + purge tests) |
 | R004 | core-capability | validated | M002/S01 | M002/S02,M002/S03 | proved (Temporal+Postgres + replay + retry idempotency + runbook) |
 | R005 | compliance/security | validated | M002/S02 | M002/S03 | proved (Temporal+Postgres integration tests) |
-| R006 | core-capability | active | M003/S01 | none | tbd |
+| R006 | core-capability | validated | M003/S01 | none | proved (Temporal+Postgres integration tests + operator runbook) |
 | R007 | compliance/security | active | M003/S02 | none | tbd |
 | R008 | compliance/security | active | M003/S03 | none | tbd |
 | R009 | governance | active | M003/S04 | none | tbd |
@@ -137,7 +137,7 @@
 
 ## Coverage Summary
 
-- Active requirements: 4
+- Active requirements: 3
 - Mapped to slices: 9
-- Validated: 5
+- Validated: 6
 - Unmapped active requirements: 0

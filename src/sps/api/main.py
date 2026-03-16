@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from sps.config import get_settings
 
 from sps.api.routes.evidence import router as evidence_router
+from sps.api.routes.reviews import router as reviews_router
 
 app = FastAPI(
     title="SPS API",
@@ -13,6 +14,7 @@ app = FastAPI(
 
 # Phase 1 API surface
 app.include_router(evidence_router, prefix="/api/v1")
+app.include_router(reviews_router, prefix="/api/v1/reviews")
 
 
 @app.get("/healthz")

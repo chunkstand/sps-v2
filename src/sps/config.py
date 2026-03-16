@@ -74,6 +74,10 @@ class Settings(BaseSettings):
 
     s3_presign_expires_seconds: int = Field(default=600, validation_alias="SPS_S3_PRESIGN_EXPIRES_SECONDS")
 
+    # Reviewer API
+    # IMPORTANT: this value must never be logged — treat it as a credential.
+    reviewer_api_key: str = Field(default="dev-reviewer-key", validation_alias="SPS_REVIEWER_API_KEY")
+
     def postgres_dsn(self) -> str:
         if self.db_dsn:
             return self.db_dsn
