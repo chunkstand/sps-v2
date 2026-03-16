@@ -97,6 +97,32 @@ class CaseState(str, Enum):
     ROLLED_BACK = "ROLLED_BACK"
 
 
+class ExternalStatusClass(str, Enum):
+    """Canonical ExternalStatusEvent.normalized_status enum."""
+
+    RECEIVED_UNCONFIRMED = "RECEIVED_UNCONFIRMED"
+    RECEIVED_CONFIRMED = "RECEIVED_CONFIRMED"
+    IN_REVIEW = "IN_REVIEW"
+    COMMENT_ISSUED = "COMMENT_ISSUED"
+    RESUBMISSION_REQUESTED = "RESUBMISSION_REQUESTED"
+    APPROVAL_REPORTED = "APPROVAL_REPORTED"
+    APPROVAL_CONFIRMED = "APPROVAL_CONFIRMED"
+    REJECTION_REPORTED = "REJECTION_REPORTED"
+    WITHDRAWN_REPORTED = "WITHDRAWN_REPORTED"
+    CLOSED_REPORTED = "CLOSED_REPORTED"
+    UNKNOWN_EXTERNAL_STATUS = "UNKNOWN_EXTERNAL_STATUS"
+    CONTRADICTORY_EXTERNAL_STATUS = "CONTRADICTORY_EXTERNAL_STATUS"
+
+
+class ExternalStatusConfidence(str, Enum):
+    """Confidence rating for external status normalization."""
+
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+    NONE = "NONE"
+
+
 class ActorType(str, Enum):
     planner = "planner"
     specialist_worker = "specialist_worker"
@@ -168,6 +194,36 @@ class PersistIncentiveAssessmentRequest(BaseModel):
 
     request_id: str = Field(min_length=1)
     case_id: str = Field(min_length=1)
+
+
+class ExternalStatusNormalizationRequest(BaseModel):
+    """Activity input for normalizing and persisting external status events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+    raw_status: str = Field(min_length=1)
+    received_at: dt.datetime | None = None
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class ExternalStatusNormalizationResult(BaseModel):
+    """Normalized external status event payload."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str
+    case_id: str
+    submission_attempt_id: str
+    raw_status: str
+    normalized_status: ExternalStatusClass
+    confidence: ExternalStatusConfidence
+    auto_advance_eligible: bool
+    evidence_ids: list[str] = Field(default_factory=list)
+    mapping_version: str
+    received_at: dt.datetime
 
 
 class PermitCaseStateSnapshot(BaseModel):

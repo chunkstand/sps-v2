@@ -3,17 +3,6 @@
 ## Active
 
 
-### R017 — Status normalization + tracking events (F-007)
-- Class: integration
-- Status: active
-- Description: SPS normalizes external status events via mapping rules and persists them as ExternalStatusEvent records.
-- Why it matters: Unmapped statuses must fail closed; tracking drives case progression and review comment loops.
-- Source: spec (section 6.1 F-007)
-- Primary owning slice: M007/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Fixture-based status maps in Phase 7.
-
 ### R020 — Reviewer UI queue/evidence view/decision capture (E-001)
 - Class: governance
 - Status: active
@@ -191,6 +180,17 @@
 - Supporting slices: none
 - Validation: proved (pytest tests/m007_s01_submission_attempts_test.py -v -s)
 - Notes: Single mock adapter in Phase 7.
+
+### R017 — Status normalization + tracking events (F-007)
+- Class: integration
+- Status: validated
+- Description: SPS normalizes external status events via mapping rules and persists them as ExternalStatusEvent records.
+- Why it matters: Unmapped statuses must fail closed; tracking drives case progression and review comment loops.
+- Source: spec (section 6.1 F-007)
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m007_s02_external_status_events_test.py -v -s)
+- Notes: Fixture-based status maps in Phase 7.
 
 ### R018 — Manual fallback package generation (F-008)
 - Class: integration
@@ -416,10 +416,10 @@
 | R013 | integration | validated | M005/S01 | none | proved (pytest tests/m005_s01_compliance_workflow_test.py + scripts/verify_m005_s03.sh) |
 | R014 | integration | validated | M005/S01 | none | proved (pytest tests/m005_s02_incentives_workflow_test.py + scripts/verify_m005_s03.sh) |
 | R015 | integration | validated | M006/S01 | M006/S02 | proved (S01 pytest + S02 operational check, full e2e deferred) |
-| R016 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
-| R017 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
-| R018 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
-| R019 | compliance/security | active | M007/S01 | none | pending (integration tests + runbook) |
+| R016 | integration | validated | M007/S01 | none | proved (pytest tests/m007_s01_submission_attempts_test.py -v -s) |
+| R017 | integration | validated | M007/S01 | none | proved (pytest tests/m007_s02_external_status_events_test.py -v -s) |
+| R018 | integration | validated | M007/S01 | none | proved (pytest tests/m007_s01_manual_fallback_test.py -v -s) |
+| R019 | compliance/security | validated | M007/S01 | none | proved (pytest tests/m007_s01_proof_bundle_gate_test.py -v -s) |
 | R020 | governance | active | M008/S01 | none | pending (UI smoke + integration tests + runbook) |
 | R021 | compliance/security | active | M008/S01 | none | pending (policy tests + integration tests) |
 | R022 | observability | active | M009/S01 | none | pending (event schema tests + integration checks) |

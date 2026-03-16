@@ -69,6 +69,11 @@ A governed workflow system that can produce and submit permit packages with revi
   - Proof bundle guard enforced before SUBMITTED transition
   - Case API read surfaces for submission attempts and manual fallback packages
   - R016/R018/R019 validated via integration tests (`tests/m007_s01_*`)
+- **Phase 7 status normalization + tracking events (M007/S02) complete:**
+  - Phase 7 status mapping fixtures + loader selection with version metadata
+  - ExternalStatusEvent model + persistence activity with fail-closed unknown status handling
+  - Case API ingest/list endpoints for normalized external status events
+  - Integration tests for known/unknown status + API readback (`tests/m007_s02_external_status_events_test.py`)
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.

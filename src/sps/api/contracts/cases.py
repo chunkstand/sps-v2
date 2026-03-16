@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from sps.workflows.permit_case.contracts import ExternalStatusClass, ExternalStatusConfidence
+
 
 class JurisdictionResolutionResponse(BaseModel):
     """Jurisdiction resolution payload for case read surfaces."""
@@ -242,6 +244,46 @@ class SubmissionAttemptListResponse(BaseModel):
 
     case_id: str = Field(min_length=1)
     submission_attempts: list[SubmissionAttemptResponse]
+
+
+class ExternalStatusEventIngestRequest(BaseModel):
+    """Payload for ingesting an external status event for a case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str | None = None
+    submission_attempt_id: str = Field(min_length=1)
+    raw_status: str = Field(min_length=1)
+    received_at: datetime | None = None
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class ExternalStatusEventResponse(BaseModel):
+    """External status event payload for case read surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+    raw_status: str = Field(min_length=1)
+    normalized_status: ExternalStatusClass
+    confidence: ExternalStatusConfidence
+    auto_advance_eligible: bool
+    evidence_ids: list[str] = Field(default_factory=list)
+    mapping_version: str = Field(min_length=1)
+    received_at: datetime
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class ExternalStatusEventListResponse(BaseModel):
+    """List response for external status events per case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    external_status_events: list[ExternalStatusEventResponse]
 
 
 class ManualFallbackPackageResponse(BaseModel):

@@ -12,6 +12,7 @@ from sps.db.models import (
     ContradictionArtifact,
     DocumentArtifact,
     EvidenceArtifact,
+    ExternalStatusEvent,
     IncentiveAssessment,
     JurisdictionResolution,
     ManualFallbackPackage,
@@ -26,11 +27,16 @@ from sps.db.session import get_sessionmaker
 from sps.failpoints import FailpointFired, fail_once
 from sps.fixtures.phase4 import select_jurisdiction_fixtures, select_requirement_fixtures
 from sps.fixtures.phase5 import select_compliance_fixtures, select_incentive_fixtures
+from sps.fixtures.phase7 import select_status_mapping_for_case
 from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import (
     AppliedStateTransitionResult,
     CaseState,
     DeniedStateTransitionResult,
+    ExternalStatusClass,
+    ExternalStatusConfidence,
+    ExternalStatusNormalizationRequest,
+    ExternalStatusNormalizationResult,
     PermitCaseStateSnapshot,
     PersistComplianceEvaluationRequest,
     PersistIncentiveAssessmentRequest,
@@ -691,6 +697,156 @@ def persist_incentive_assessment(
             run_id,
             req.case_id,
             req.request_id,
+            type(exc).__name__,
+        )
+        raise
+
+
+@activity.defn
+def persist_external_status_event(
+    request: ExternalStatusNormalizationRequest | dict,
+) -> ExternalStatusNormalizationResult:
+    """Normalize and persist an ExternalStatusEvent with fail-closed behavior."""
+
+    req = ExternalStatusNormalizationRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "external_status_event.persist.start workflow_id=%s run_id=%s case_id=%s event_id=%s submission_attempt_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.event_id,
+        req.submission_attempt_id,
+    )
+
+    mapping_version: str | None = None
+    selection, fixture_case_id = select_status_mapping_for_case(req.case_id)
+    mapping_version = selection.mapping_version
+    mapping = selection.mappings.get(req.raw_status)
+    if mapping is None:
+        logger.error(
+            "external_status_event.persist.error workflow_id=%s run_id=%s case_id=%s raw_status=%s mapping_version=%s error=UNKNOWN_RAW_STATUS",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.raw_status,
+            selection.mapping_version,
+        )
+        raise ValueError("UNKNOWN_RAW_STATUS")
+
+    normalized_status = ExternalStatusClass(mapping.normalized_status)
+    confidence = ExternalStatusConfidence(mapping.confidence)
+    auto_advance_eligible = bool(mapping.auto_advance)
+    evidence_ids = sorted({*req.evidence_ids, *mapping.required_evidence})
+
+    received_at = req.received_at or dt.datetime.now(dt.UTC)
+    if received_at.tzinfo is None:
+        received_at = received_at.replace(tzinfo=dt.UTC)
+
+    SessionLocal = get_sessionmaker()
+
+    def _row_to_result(row: ExternalStatusEvent) -> ExternalStatusNormalizationResult:
+        return ExternalStatusNormalizationResult(
+            event_id=row.event_id,
+            case_id=row.case_id,
+            submission_attempt_id=row.submission_attempt_id,
+            raw_status=row.raw_status,
+            normalized_status=ExternalStatusClass(row.normalized_status),
+            confidence=ExternalStatusConfidence(row.confidence),
+            auto_advance_eligible=row.auto_advance_eligible,
+            evidence_ids=row.evidence_ids or [],
+            mapping_version=row.mapping_version,
+            received_at=row.received_at,
+        )
+
+    try:
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    existing = session.get(ExternalStatusEvent, req.event_id)
+                    if existing is not None:
+                        result = _row_to_result(existing)
+                        logger.info(
+                            "external_status_event.persist.ok workflow_id=%s run_id=%s case_id=%s event_id=%s normalized_status=%s mapping_version=%s idempotent=1",
+                            workflow_id,
+                            run_id,
+                            req.case_id,
+                            req.event_id,
+                            result.normalized_status,
+                            result.mapping_version,
+                        )
+                        return result
+
+                    case = session.get(PermitCase, req.case_id, with_for_update=True)
+                    if case is None:
+                        raise LookupError(f"permit_case not found for case_id={req.case_id}")
+
+                    attempt = session.get(SubmissionAttempt, req.submission_attempt_id)
+                    if attempt is None:
+                        raise LookupError(
+                            "submission_attempt not found for submission_attempt_id=%s"
+                            % req.submission_attempt_id
+                        )
+                    if attempt.case_id != req.case_id:
+                        raise LookupError(
+                            "submission_attempt_case_mismatch attempt_id=%s case_id=%s"
+                            % (req.submission_attempt_id, req.case_id)
+                        )
+
+                    event = ExternalStatusEvent(
+                        event_id=req.event_id,
+                        case_id=req.case_id,
+                        submission_attempt_id=req.submission_attempt_id,
+                        raw_status=req.raw_status,
+                        normalized_status=normalized_status.value,
+                        confidence=confidence.value,
+                        auto_advance_eligible=auto_advance_eligible,
+                        evidence_ids=evidence_ids,
+                        mapping_version=selection.mapping_version,
+                        received_at=received_at,
+                    )
+                    session.add(event)
+
+                result = _row_to_result(event)
+                logger.info(
+                    "external_status_event.persist.ok workflow_id=%s run_id=%s case_id=%s event_id=%s normalized_status=%s mapping_version=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    req.event_id,
+                    result.normalized_status,
+                    result.mapping_version,
+                )
+                return result
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing = session.get(ExternalStatusEvent, req.event_id)
+            if existing is None:
+                raise RuntimeError(
+                    f"external_status_events insert raced but row not found for event_id={req.event_id}"
+                )
+            result = _row_to_result(existing)
+            logger.info(
+                "external_status_event.persist.ok workflow_id=%s run_id=%s case_id=%s event_id=%s normalized_status=%s mapping_version=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                req.event_id,
+                result.normalized_status,
+                result.mapping_version,
+            )
+            return result
+    except Exception as exc:
+        logger.exception(
+            "external_status_event.persist.error workflow_id=%s run_id=%s case_id=%s event_id=%s mapping_version=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.event_id,
+            mapping_version or "unknown",
             type(exc).__name__,
         )
         raise

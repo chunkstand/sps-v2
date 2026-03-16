@@ -14,6 +14,9 @@ from sps.api.contracts.cases import (
     ComplianceEvaluationResponse,
     DocumentReferenceResponse,
     EvidenceArtifactResponse,
+    ExternalStatusEventIngestRequest,
+    ExternalStatusEventListResponse,
+    ExternalStatusEventResponse,
     IncentiveAssessmentListResponse,
     IncentiveAssessmentResponse,
     JurisdictionResolutionListResponse,
@@ -32,6 +35,7 @@ from sps.config import get_settings
 from sps.db.models import (
     ComplianceEvaluation,
     EvidenceArtifact,
+    ExternalStatusEvent,
     IncentiveAssessment,
     JurisdictionResolution,
     ManualFallbackPackage,
@@ -41,7 +45,12 @@ from sps.db.models import (
     SubmissionAttempt,
 )
 from sps.db.session import get_db
-from sps.workflows.permit_case.contracts import CaseState, PermitCaseWorkflowInput
+from sps.workflows.permit_case.activities import persist_external_status_event
+from sps.workflows.permit_case.contracts import (
+    CaseState,
+    ExternalStatusNormalizationRequest,
+    PermitCaseWorkflowInput,
+)
 from sps.workflows.permit_case.ids import permit_case_workflow_id
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import connect_client
@@ -52,6 +61,7 @@ router = APIRouter(tags=["cases"])
 
 _CASE_ID_PREFIX = "CASE-"
 _PROJECT_ID_PREFIX = "PROJ-"
+_EXTERNAL_STATUS_EVENT_PREFIX = "ESE-"
 
 
 def _new_case_id() -> str:
@@ -60,6 +70,10 @@ def _new_case_id() -> str:
 
 def _new_project_id() -> str:
     return f"{_PROJECT_ID_PREFIX}{ulid.new()}"
+
+
+def _new_external_status_event_id() -> str:
+    return f"{_EXTERNAL_STATUS_EVENT_PREFIX}{ulid.new()}"
 
 
 def _format_address(site_address: SiteAddress) -> str:
@@ -192,6 +206,23 @@ def _submission_attempt_row_to_response(
         created_at=row.created_at,
         updated_at=row.updated_at,
         receipt_evidence=_evidence_row_to_response(receipt) if receipt else None,
+    )
+
+
+def _external_status_row_to_response(row: ExternalStatusEvent) -> ExternalStatusEventResponse:
+    return ExternalStatusEventResponse(
+        event_id=row.event_id,
+        case_id=row.case_id,
+        submission_attempt_id=row.submission_attempt_id,
+        raw_status=row.raw_status,
+        normalized_status=row.normalized_status,
+        confidence=row.confidence,
+        auto_advance_eligible=row.auto_advance_eligible,
+        evidence_ids=row.evidence_ids or [],
+        mapping_version=row.mapping_version,
+        received_at=row.received_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
     )
 
 
@@ -764,6 +795,180 @@ def get_case_submission_attempts(
             )
             for attempt in attempts
         ],
+    )
+
+
+@router.post(
+    "/cases/{case_id}/external-status-events",
+    response_model=ExternalStatusEventResponse,
+    status_code=201,
+)
+def ingest_external_status_event(
+    case_id: str,
+    req: ExternalStatusEventIngestRequest,
+    db: Session = Depends(get_db),
+) -> ExternalStatusEventResponse:
+    event_id = req.event_id or _new_external_status_event_id()
+
+    case = db.get(PermitCase, case_id)
+    if case is None:
+        logger.warning("cases.external_status_missing_case case_id=%s", case_id)
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "case_not_found", "case_id": case_id},
+        )
+
+    attempt = db.get(SubmissionAttempt, req.submission_attempt_id)
+    if attempt is None:
+        logger.warning(
+            "cases.external_status_missing_attempt case_id=%s submission_attempt_id=%s",
+            case_id,
+            req.submission_attempt_id,
+        )
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "submission_attempt_not_found",
+                "case_id": case_id,
+                "submission_attempt_id": req.submission_attempt_id,
+            },
+        )
+    if attempt.case_id != case_id:
+        logger.warning(
+            "cases.external_status_attempt_case_mismatch case_id=%s submission_attempt_id=%s",
+            case_id,
+            req.submission_attempt_id,
+        )
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "submission_attempt_case_mismatch",
+                "case_id": case_id,
+                "submission_attempt_id": req.submission_attempt_id,
+            },
+        )
+
+    request = ExternalStatusNormalizationRequest(
+        event_id=event_id,
+        case_id=case_id,
+        submission_attempt_id=req.submission_attempt_id,
+        raw_status=req.raw_status,
+        received_at=req.received_at,
+        evidence_ids=req.evidence_ids,
+    )
+
+    try:
+        result = persist_external_status_event(request)
+    except ValueError as exc:
+        if str(exc) == "UNKNOWN_RAW_STATUS":
+            logger.warning(
+                "cases.external_status_unknown case_id=%s raw_status=%s", case_id, req.raw_status
+            )
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "external_status_unknown",
+                    "case_id": case_id,
+                    "raw_status": req.raw_status,
+                },
+            ) from exc
+        raise
+    except LookupError as exc:
+        logger.warning(
+            "cases.external_status_reference_missing case_id=%s submission_attempt_id=%s",
+            case_id,
+            req.submission_attempt_id,
+        )
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "external_status_reference_missing",
+                "case_id": case_id,
+                "submission_attempt_id": req.submission_attempt_id,
+            },
+        ) from exc
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.external_status_persist_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "external_status_persist_failed", "case_id": case_id},
+        ) from exc
+
+    logger.info(
+        "cases.external_status_ingested case_id=%s event_id=%s normalized_status=%s",
+        case_id,
+        result.event_id,
+        result.normalized_status,
+    )
+    return ExternalStatusEventResponse(
+        event_id=result.event_id,
+        case_id=result.case_id,
+        submission_attempt_id=result.submission_attempt_id,
+        raw_status=result.raw_status,
+        normalized_status=result.normalized_status,
+        confidence=result.confidence,
+        auto_advance_eligible=result.auto_advance_eligible,
+        evidence_ids=result.evidence_ids,
+        mapping_version=result.mapping_version,
+        received_at=result.received_at,
+        created_at=None,
+        updated_at=None,
+    )
+
+
+@router.get(
+    "/cases/{case_id}/external-status-events",
+    response_model=ExternalStatusEventListResponse,
+)
+def get_case_external_status_events(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> ExternalStatusEventListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.external_status_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        rows = (
+            db.query(ExternalStatusEvent)
+            .filter(ExternalStatusEvent.case_id == case_id)
+            .order_by(ExternalStatusEvent.received_at.desc())
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.external_status_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "external_status_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    if not rows:
+        logger.warning("cases.external_status_missing case_id=%s", case_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "external_status_events_not_ready",
+                "case_id": case_id,
+                "missing": "external_status_event",
+            },
+        )
+
+    logger.info("cases.external_status_fetched case_id=%s count=%s", case_id, len(rows))
+    return ExternalStatusEventListResponse(
+        case_id=case_id,
+        external_status_events=[_external_status_row_to_response(row) for row in rows],
     )
 
 

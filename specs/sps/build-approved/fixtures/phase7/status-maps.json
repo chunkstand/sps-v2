@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-16T00:00:00Z",
+  "status_maps": [
+    {
+      "adapter_family": "CITY_PORTAL_FAMILY_A",
+      "mapping_version": "2026-03-16.1",
+      "generated_at": "2026-03-16T00:00:00Z",
+      "mappings": [
+        {
+          "raw_status": "Approved",
+          "normalized_status": "APPROVAL_REPORTED",
+          "confidence": "HIGH",
+          "allowed_case_states": [
+            "SUBMITTED"
+          ],
+          "auto_advance": false,
+          "required_evidence": [
+            "approval_letter"
+          ],
+          "reviewer_confirmation_required": true,
+          "contradiction_triggers": [
+            "REJECTION_REPORTED"
+          ]
+        },
+        {
+          "raw_status": "Rejected",
+          "normalized_status": "REJECTION_REPORTED",
+          "confidence": "HIGH",
+          "allowed_case_states": [
+            "SUBMITTED"
+          ],
+          "auto_advance": false,
+          "required_evidence": [
+            "rejection_notice"
+          ],
+          "reviewer_confirmation_required": true,
+          "contradiction_triggers": [
+            "APPROVAL_REPORTED"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -476,6 +476,36 @@ class SubmissionAttempt(Base):
     )
 
 
+class ExternalStatusEvent(Base):
+    __tablename__ = "external_status_events"
+
+    event_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    submission_attempt_id: Mapped[str] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("submission_attempts.submission_attempt_id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+    raw_status: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    normalized_status: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    confidence: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    auto_advance_eligible: Mapped[bool] = mapped_column(sa.Boolean, nullable=False)
+    evidence_ids: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")
+    mapping_version: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    received_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
 class ManualFallbackPackage(Base):
     __tablename__ = "manual_fallback_packages"
 
