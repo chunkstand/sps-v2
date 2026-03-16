@@ -48,5 +48,11 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/sps"]
 
+[tool.pytest.ini_options]
+markers = [
+  "fixtures: Fixture loading and schema validation tests",
+  "integration: Integration tests requiring database or Temporal runtime",
+]
+
 [tool.ruff]
 line-length = 100

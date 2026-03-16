@@ -10,12 +10,14 @@ from sps.db.models import (
     CaseTransitionLedger,
     ComplianceEvaluation,
     ContradictionArtifact,
+    DocumentArtifact,
     IncentiveAssessment,
     JurisdictionResolution,
     PermitCase,
     Project,
     RequirementSet,
     ReviewDecision,
+    SubmissionPackage,
 )
 from sps.db.session import get_sessionmaker
 from sps.failpoints import FailpointFired, fail_once
@@ -32,6 +34,7 @@ from sps.workflows.permit_case.contracts import (
     PersistJurisdictionResolutionRequest,
     PersistRequirementSetRequest,
     PersistReviewDecisionRequest,
+    PersistSubmissionPackageRequest,
     StateTransitionRequest,
     StateTransitionResult,
     parse_state_transition_result,
@@ -1007,6 +1010,28 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                         applied_at=requested_at,
                                     )
                                     case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.INCENTIVES_COMPLETE
+                            and req.to_state == CaseState.DOCUMENT_COMPLETE
+                        ):
+                            # Guard: submission package must exist
+                            package = (
+                                session.query(SubmissionPackage)
+                                .filter(SubmissionPackage.case_id == req.case_id)
+                                .first()
+                            )
+                            if package is None:
+                                result = _deny(
+                                    denied_at=requested_at,
+                                    event_type="DOCUMENT_PACKAGE_REQUIRED_DENIED",
+                                    denial_reason="SUBMISSION_PACKAGE_REQUIRED",
+                                )
+                            else:
+                                result = AppliedStateTransitionResult(
+                                    event_type=_EVENT_CASE_STATE_CHANGED,
+                                    applied_at=requested_at,
+                                )
+                                case.case_state = req.to_state.value
                         else:
                             result = _deny(
                                 denied_at=requested_at,
@@ -1232,6 +1257,241 @@ def persist_review_decision(request: PersistReviewDecisionRequest | dict) -> str
             run_id,
             req.case_id,
             req.decision_id,
+            type(exc).__name__,
+        )
+        raise
+
+
+@activity.defn
+def persist_submission_package(request: PersistSubmissionPackageRequest | dict) -> str:
+    """
+    Persist submission package + document artifacts idempotently.
+    
+    Generates documents from Phase 6 fixtures, registers them in evidence registry,
+    stores SubmissionPackage row + DocumentArtifact rows, and updates 
+    permit_cases.current_package_id in a single transaction.
+    
+    Returns the persisted package_id.
+    """
+    from sps.config import get_settings
+    from sps.db.models import EvidenceArtifact
+    from sps.documents.generator import generate_submission_package
+    from sps.documents.registry import EvidenceRegistry
+    from sps.evidence.ids import new_evidence_id
+    from sps.evidence.models import ArtifactClass, RetentionClass
+    from sps.fixtures.phase6 import select_document_fixtures
+    from sps.storage.s3 import S3Storage
+    
+    req = PersistSubmissionPackageRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+    
+    logger.info(
+        "activity.start name=persist_submission_package workflow_id=%s run_id=%s case_id=%s request_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.request_id,
+    )
+    
+    # Load fixture and generate documents
+    fixtures, fixture_case_id = select_document_fixtures(req.case_id)
+    logger.info(
+        "activity.lookup name=persist_submission_package workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s override=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        fixture_case_id,
+        1 if fixture_case_id != req.case_id else 0,
+    )
+    
+    if not fixtures:
+        raise LookupError(
+            f"no document fixtures found for case_id={req.case_id} fixture_case_id={fixture_case_id}"
+        )
+    
+    doc_set = fixtures[0]
+    
+    # Generate submission package with all documents
+    package_payload = generate_submission_package(doc_set, runtime_case_id=req.case_id)
+    package_id = package_payload.package_id
+    
+    # Initialize evidence registry
+    settings = get_settings()
+    storage = S3Storage(settings=settings)
+    registry = EvidenceRegistry(storage=storage, settings=settings)
+    
+    # Register manifest in evidence registry
+    manifest_json = package_payload.manifest.model_dump_json(exclude_none=True, indent=None)
+    manifest_bytes = manifest_json.encode("utf-8")
+    manifest_reg = registry.register_manifest(
+        content=manifest_bytes,
+        case_id=req.case_id,
+        provenance={"package_id": package_id, "request_id": req.request_id},
+    )
+    
+    logger.info(
+        "package_activity.manifest_registered case_id=%s manifest_id=%s artifact_id=%s digest=%s bytes=%d",
+        req.case_id,
+        package_payload.manifest.manifest_id,
+        manifest_reg.artifact_id,
+        manifest_reg.sha256_digest,
+        manifest_reg.content_bytes,
+    )
+    
+    SessionLocal = get_sessionmaker()
+    
+    try:
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    # Check if package already exists (idempotency)
+                    existing = session.get(SubmissionPackage, package_id)
+                    if existing is not None:
+                        logger.info(
+                            "activity.ok name=persist_submission_package workflow_id=%s run_id=%s case_id=%s package_id=%s idempotent=1",
+                            workflow_id,
+                            run_id,
+                            req.case_id,
+                            package_id,
+                        )
+                        return package_id
+                    
+                    # Create manifest evidence artifact
+                    session.add(
+                        EvidenceArtifact(
+                            artifact_id=manifest_reg.artifact_id,
+                            artifact_class=ArtifactClass.MANIFEST.value,
+                            producing_service="permit_case_workflow",
+                            linked_case_id=req.case_id,
+                            linked_object_id=package_id,
+                            authoritativeness="AUTHORITATIVE",
+                            retention_class=RetentionClass.CASE_CORE_7Y.value,
+                            checksum=manifest_reg.sha256_digest,
+                            storage_uri=manifest_reg.storage_uri,
+                            content_bytes=manifest_reg.content_bytes,
+                            content_type="application/json",
+                            provenance={"request_id": req.request_id, "manifest_id": package_payload.manifest.manifest_id},
+                            created_at=dt.datetime.now(dt.UTC),
+                            legal_hold_flag=False,
+                        )
+                    )
+                    session.flush()
+                    
+                    # Create submission package
+                    session.add(
+                        SubmissionPackage(
+                            package_id=package_id,
+                            case_id=req.case_id,
+                            package_version=package_payload.package_version,
+                            manifest_artifact_id=manifest_reg.artifact_id,
+                            manifest_sha256_digest=manifest_reg.sha256_digest,
+                            provenance={"request_id": req.request_id, "fixture_set_id": doc_set.document_set_id},
+                        )
+                    )
+                    
+                    # Flush to ensure package exists before document artifacts
+                    session.flush()
+                    
+                    # Register and persist document artifacts
+                    doc_count = 0
+                    for doc_payload in package_payload.document_artifacts:
+                        # Register document in evidence registry
+                        doc_reg = registry.register_document(
+                            content=doc_payload.content_bytes,
+                            case_id=req.case_id,
+                            document_type=doc_payload.document_type.value,
+                            provenance={
+                                "document_id": doc_payload.document_id,
+                                "template_name": doc_payload.template_name,
+                            },
+                        )
+                        
+                        # Evidence artifact for document
+                        session.add(
+                            EvidenceArtifact(
+                                artifact_id=doc_reg.artifact_id,
+                                artifact_class=ArtifactClass.DOCUMENT.value,
+                                producing_service="permit_case_workflow",
+                                linked_case_id=req.case_id,
+                                linked_object_id=doc_payload.document_id,
+                                authoritativeness="AUTHORITATIVE",
+                                retention_class=RetentionClass.CASE_CORE_7Y.value,
+                                checksum=doc_reg.sha256_digest,
+                                storage_uri=doc_reg.storage_uri,
+                                content_bytes=doc_reg.content_bytes,
+                                content_type="text/plain",
+                                provenance={"document_id": doc_payload.document_id},
+                                created_at=dt.datetime.now(dt.UTC),
+                                legal_hold_flag=False,
+                            )
+                        )
+                        session.flush()
+                        
+                        # Document artifact row
+                        session.add(
+                            DocumentArtifact(
+                                document_artifact_id=new_evidence_id(),
+                                package_id=package_id,
+                                document_id=doc_payload.document_id,
+                                document_type=doc_payload.document_type.value,
+                                template_name=doc_payload.template_name,
+                                evidence_artifact_id=doc_reg.artifact_id,
+                                sha256_digest=doc_reg.sha256_digest,
+                                provenance={"template_name": doc_payload.template_name},
+                            )
+                        )
+                        doc_count += 1
+                    
+                    # Update permit_cases.current_package_id
+                    case = session.get(PermitCase, req.case_id)
+                    if case is None:
+                        raise RuntimeError(f"permit_case not found: {req.case_id}")
+                    case.current_package_id = package_id
+                    
+                    logger.info(
+                        "package_activity.persisted workflow_id=%s run_id=%s case_id=%s package_id=%s manifest_id=%s doc_count=%s",
+                        workflow_id,
+                        run_id,
+                        req.case_id,
+                        package_id,
+                        manifest_reg.artifact_id,
+                        doc_count,
+                    )
+                
+                logger.info(
+                    "activity.ok name=persist_submission_package workflow_id=%s run_id=%s case_id=%s package_id=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    package_id,
+                )
+                return package_id
+                
+            except IntegrityError as e:
+                session.rollback()
+                # Check if package exists from a race
+                existing = session.get(SubmissionPackage, package_id)
+                if existing is None:
+                    raise RuntimeError(
+                        f"submission_packages insert raced but row not found for package_id={package_id}"
+                    ) from e
+                
+                logger.info(
+                    "activity.ok name=persist_submission_package workflow_id=%s run_id=%s case_id=%s package_id=%s idempotent=1",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    package_id,
+                )
+                return package_id
+                
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=persist_submission_package workflow_id=%s run_id=%s case_id=%s request_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.request_id,
             type(exc).__name__,
         )
         raise

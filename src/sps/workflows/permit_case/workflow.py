@@ -15,6 +15,7 @@ from sps.workflows.permit_case.contracts import (
     PersistIncentiveAssessmentRequest,
     PersistJurisdictionResolutionRequest,
     PersistRequirementSetRequest,
+    PersistSubmissionPackageRequest,
     ReviewDecisionSignal,
     StateTransitionRequest,
     parse_state_transition_result,
@@ -32,6 +33,7 @@ with workflow.unsafe.imports_passed_through():
         persist_incentive_assessment,
         persist_jurisdiction_resolutions,
         persist_requirement_sets,
+        persist_submission_package,
     )
 
 
@@ -602,6 +604,110 @@ class PermitCaseWorkflow:
                 review_signal=None,
                 final_request_id=incentives_request_id,
                 final_result=incentives_result,
+                intake_request_id=None,
+                intake_result=None,
+            )
+        
+        if snapshot.case_state == CaseState.INCENTIVES_COMPLETE:
+            # Generate and persist submission package
+            package_activity_id = _activity_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                activity_name="persist_submission_package",
+                attempt=1,
+            )
+            package_id = await workflow.execute_activity(
+                persist_submission_package,
+                PersistSubmissionPackageRequest(
+                    request_id=package_activity_id,
+                    case_id=self._case_id,
+                ),
+                start_to_close_timeout=timedelta(seconds=60),
+            )
+            
+            workflow.logger.info(
+                "workflow.package_persisted workflow_id=%s run_id=%s case_id=%s package_id=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                package_id,
+            )
+            
+            # Transition INCENTIVES_COMPLETE → DOCUMENT_COMPLETE
+            document_transition = "incentives_complete_to_document_complete"
+            document_request_id = _transition_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                transition=document_transition,
+                attempt=1,
+            )
+            document_requested_at = _utc(workflow.now())
+            workflow.logger.info(
+                "workflow.transition_attempt workflow_id=%s run_id=%s case_id=%s request_id=%s from_state=%s to_state=%s attempt=1",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                document_request_id,
+                CaseState.INCENTIVES_COMPLETE,
+                CaseState.DOCUMENT_COMPLETE,
+            )
+            
+            raw_document = await workflow.execute_activity(
+                apply_state_transition,
+                StateTransitionRequest(
+                    request_id=document_request_id,
+                    case_id=self._case_id,
+                    from_state=CaseState.INCENTIVES_COMPLETE,
+                    to_state=CaseState.DOCUMENT_COMPLETE,
+                    actor_type=ActorType.system_guard,
+                    actor_id="system-guard",
+                    correlation_id=correlation_id,
+                    causation_id=None,
+                    required_review_id=None,
+                    required_evidence_ids=[],
+                    override_id=None,
+                    requested_at=document_requested_at,
+                    notes=None,
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            document_result = parse_state_transition_result(
+                raw_document.model_dump() if hasattr(raw_document, "model_dump") else raw_document
+            )
+            
+            if document_result.result != "applied":
+                workflow.logger.info(
+                    "workflow.transition_denied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s denial_reason=%s",
+                    info.workflow_id,
+                    info.run_id,
+                    self._case_id,
+                    document_request_id,
+                    document_result.event_type,
+                    getattr(document_result, "denial_reason", None),
+                )
+                raise RuntimeError(
+                    "document transition did not apply "
+                    f"(event_type={document_result.event_type})"
+                )
+            
+            workflow.logger.info(
+                "workflow.transition_applied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                document_request_id,
+                document_result.event_type,
+            )
+            
+            return PermitCaseWorkflowResult(
+                case_id=self._case_id,
+                correlation_id=correlation_id,
+                initial_request_id=document_request_id,
+                initial_result=document_result,
+                review_decision_id=None,
+                review_signal=None,
+                final_request_id=document_request_id,
+                final_result=document_result,
                 intake_request_id=None,
                 intake_result=None,
             )

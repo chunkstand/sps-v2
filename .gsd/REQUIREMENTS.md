@@ -5,14 +5,14 @@
 
 ### R015 — Submission package generation (F-006)
 - Class: integration
-- Status: active
+- Status: active (partial validation)
 - Description: SPS generates a SubmissionPackage with documents, manifest, and artifact digests.
 - Why it matters: Submission and review depend on a sealed package with auditable artifacts and digests.
 - Source: spec (section 6.1 F-006)
 - Primary owning slice: M006/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Fixture templates only; external document services deferred.
+- Supporting slices: M006/S02
+- Validation: partial (deterministic document generation + digest computation proven in pytest; full persistence + workflow + API proven pending S3 infrastructure in S02)
+- Notes: Fixture templates only; external document services deferred. S01 proved document generation, digest determinism, and persistence logic; S02 will prove end-to-end with live S3/Temporal/API.
 
 ### R016 — Idempotent submission adapters + receipt persistence (F-006/F-007)
 - Class: integration
@@ -414,7 +414,7 @@
 | R012 | integration | validated | M004/S01 | none | proved (pytest tests/m004_s02_jurisdiction_requirements_workflow_test.py + scripts/verify_m004_s02.sh runbook) |
 | R013 | integration | validated | M005/S01 | none | proved (pytest tests/m005_s01_compliance_workflow_test.py + scripts/verify_m005_s03.sh) |
 | R014 | integration | validated | M005/S01 | none | proved (pytest tests/m005_s02_incentives_workflow_test.py + scripts/verify_m005_s03.sh) |
-| R015 | integration | active | M006/S01 | none | pending (integration tests + runbook) |
+| R015 | integration | active | M006/S01 | M006/S02 | partial (deterministic document generation + digest computation proven in pytest; full persistence + workflow + API proven pending S3 infrastructure in S02) |
 | R016 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
 | R017 | integration | active | M007/S01 | none | pending (integration tests + runbook) |
 | R018 | integration | active | M007/S01 | none | pending (integration tests + runbook) |

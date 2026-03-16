@@ -144,3 +144,45 @@ class IncentiveAssessmentListResponse(BaseModel):
 
     case_id: str = Field(min_length=1)
     incentive_assessments: list[IncentiveAssessmentResponse]
+
+
+class DocumentReferenceResponse(BaseModel):
+    """Document reference in a submission manifest."""
+    
+    model_config = ConfigDict(extra="forbid")
+    
+    document_id: str = Field(min_length=1)
+    document_type: str = Field(min_length=1)
+    artifact_id: str = Field(min_length=1)
+    sha256_digest: str = Field(min_length=1)
+
+
+class SubmissionManifestResponse(BaseModel):
+    """Submission manifest payload for case read surfaces."""
+    
+    model_config = ConfigDict(extra="forbid")
+    
+    manifest_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    package_version: str = Field(min_length=1)
+    generated_at: datetime
+    document_references: list[DocumentReferenceResponse]
+    required_attachments: list[str] = Field(default_factory=list)
+    target_portal_family: str = Field(min_length=1)
+    provenance: dict[str, Any] | None = None
+
+
+class SubmissionPackageResponse(BaseModel):
+    """Submission package payload for case read surfaces."""
+    
+    model_config = ConfigDict(extra="forbid")
+    
+    package_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    package_version: str = Field(min_length=1)
+    manifest_artifact_id: str = Field(min_length=1)
+    manifest_sha256_digest: str = Field(min_length=1)
+    provenance: dict[str, Any] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+

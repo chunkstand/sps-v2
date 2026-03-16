@@ -1,0 +1,28 @@
+SITE PLAN CHECKLIST
+===================
+
+Case: {{case_id}}
+Reviewed: {{review_date}}
+
+REQUIRED ELEMENTS
+-----------------
+[ ] Property boundaries clearly marked
+[ ] North arrow and scale
+[ ] Panel array layout with dimensions
+[ ] Setback measurements
+[ ] Conduit routing and meter location
+[ ] Fire access pathways ({{fire_access_required}})
+[ ] Utility connection point
+[ ] Ground/roof mounting details
+
+ZONING COMPLIANCE
+-----------------
+District: {{zoning_district}}
+{{zoning_notes}}
+
+SPECIAL CONDITIONS
+------------------
+{{special_conditions}}
+
+Checklist Generated: {{generation_timestamp}}
+Authority Reference: {{authority_reference}}

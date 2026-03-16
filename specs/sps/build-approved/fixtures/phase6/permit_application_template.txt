@@ -1,0 +1,33 @@
+SOLAR PERMIT APPLICATION
+========================
+
+Case ID: {{case_id}}
+Application Date: {{application_date}}
+
+PROJECT INFORMATION
+-------------------
+Applicant: {{applicant_name}}
+Project Address: {{project_address}}
+System Size: {{system_size_kw}} kW
+Panel Count: {{panel_count}}
+Battery Storage: {{battery_storage}}
+
+JURISDICTION SUMMARY
+--------------------
+Primary Authority: {{primary_authority}}
+Jurisdiction Resolution ID: {{jurisdiction_resolution_id}}
+
+COMPLIANCE STATUS
+-----------------
+{{compliance_summary}}
+
+INCENTIVE PROGRAMS
+------------------
+{{incentive_programs_summary}}
+
+REQUIRED ATTACHMENTS
+--------------------
+{{required_attachments}}
+
+Prepared by: Solar Permitting System v{{system_version}}
+Generated: {{generation_timestamp}}

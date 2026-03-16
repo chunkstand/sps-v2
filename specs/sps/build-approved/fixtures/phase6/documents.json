@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-03-16T00:00:00Z",
+  "document_sets": [
+    {
+      "document_set_id": "DOC-SET-001",
+      "case_id": "CASE-EXAMPLE-001",
+      "schema_version": "1.0.0",
+      "generated_at": "2026-03-16T01:00:00Z",
+      "documents": [
+        {
+          "document_id": "DOC-APP-001",
+          "document_type": "PERMIT_APPLICATION",
+          "template_name": "permit_application_template.txt",
+          "variables": {
+            "case_id": "CASE-EXAMPLE-001",
+            "application_date": "2026-03-15",
+            "applicant_name": "SolarCo Development LLC",
+            "project_address": "123 Commerce Blvd, Austin, TX 78701",
+            "system_size_kw": "18.5",
+            "panel_count": "42",
+            "battery_storage": "Yes - 10 kWh",
+            "primary_authority": "City of Austin",
+            "jurisdiction_resolution_id": "JUR-RES-001",
+            "compliance_summary": "All zoning and building code requirements met. Fire access pathways comply with IFC 2021.",
+            "incentive_programs_summary": "Eligible for State Solar Rebate ($2,500) and Utility Storage Adder ($1,200).",
+            "required_attachments": "- Site plan (scaled)\n- Single-line electrical diagram\n- Structural calculations\n- Equipment specifications",
+            "system_version": "1.0.0",
+            "generation_timestamp": "2026-03-16T01:00:00Z"
+          },
+          "provenance": {
+            "generated_by": "document-engine-v1",
+            "upstream_ids": {
+              "jurisdiction_resolution_id": "JUR-RES-001",
+              "requirement_set_id": "REQ-SET-001",
+              "compliance_evaluation_id": "COMP-EVAL-001",
+              "incentive_assessment_id": "INC-ASSESS-001"
+            }
+          }
+        },
+        {
+          "document_id": "DOC-CHECKLIST-001",
+          "document_type": "SITE_PLAN_CHECKLIST",
+          "template_name": "site_plan_checklist_template.txt",
+          "variables": {
+            "case_id": "CASE-EXAMPLE-001",
+            "review_date": "2026-03-16",
+            "fire_access_required": "Required per IFC 2021 Section 605",
+            "zoning_district": "LI (Light Industrial)",
+            "zoning_notes": "Commercial solar installations permitted by right in LI district with proper setbacks.",
+            "special_conditions": "None - standard approval pathway.",
+            "generation_timestamp": "2026-03-16T01:00:00Z",
+            "authority_reference": "AUT-CITY-AUSTIN-001"
+          },
+          "provenance": {
+            "generated_by": "document-engine-v1",
+            "upstream_ids": {
+              "jurisdiction_resolution_id": "JUR-RES-001",
+              "requirement_set_id": "REQ-SET-001",
+              "compliance_evaluation_id": "COMP-EVAL-001"
+            }
+          }
+        }
+      ],
+      "manifest": {
+        "manifest_id": "MANIFEST-001",
+        "case_id": "CASE-EXAMPLE-001",
+        "package_version": "1.0.0",
+        "generated_at": "2026-03-16T01:00:00Z",
+        "document_references": [
+          {
+            "document_id": "DOC-APP-001",
+            "document_type": "PERMIT_APPLICATION",
+            "artifact_id": "ART-DOC-APP-001",
+            "expected_digest": "placeholder_sha256_to_be_computed"
+          },
+          {
+            "document_id": "DOC-CHECKLIST-001",
+            "document_type": "SITE_PLAN_CHECKLIST",
+            "artifact_id": "ART-DOC-CHECKLIST-001",
+            "expected_digest": "placeholder_sha256_to_be_computed"
+          }
+        ],
+        "required_attachments": [
+          "site_plan_scaled",
+          "electrical_diagram_single_line",
+          "structural_calculations",
+          "equipment_specs"
+        ],
+        "target_portal_family": "accela_civic_platform",
+        "provenance": {
+          "assembled_by": "manifest-assembler-v1",
+          "fixtures_version": "phase6"
+        }
+      },
+      "provenance": {
+        "generated_by": "document-engine-v1",
+        "run_id": "phase6-document-fixture-001",
+        "fixtures_version": "phase6"
+      }
+    }
+  ]
+}

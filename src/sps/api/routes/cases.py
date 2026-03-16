@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import logging
 
 import ulid
@@ -11,12 +12,15 @@ from sqlalchemy.orm import Session
 from sps.api.contracts.cases import (
     ComplianceEvaluationListResponse,
     ComplianceEvaluationResponse,
+    DocumentReferenceResponse,
     IncentiveAssessmentListResponse,
     IncentiveAssessmentResponse,
     JurisdictionResolutionListResponse,
     JurisdictionResolutionResponse,
     RequirementSetListResponse,
     RequirementSetResponse,
+    SubmissionManifestResponse,
+    SubmissionPackageResponse,
 )
 from sps.api.contracts.intake import CreateCaseRequest, CreateCaseResponse, SiteAddress
 from sps.config import get_settings
@@ -429,3 +433,182 @@ def get_case_incentives(
         case_id=case_id,
         incentive_assessments=[_incentive_row_to_response(row) for row in rows],
     )
+
+
+@router.get("/cases/{case_id}/package", response_model=SubmissionPackageResponse)
+def get_case_package(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> SubmissionPackageResponse:
+    """Retrieve the current submission package for a case."""
+    from sps.api.contracts.cases import SubmissionPackageResponse
+    from sps.db.models import SubmissionPackage
+    
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.package_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+        
+        if case.current_package_id is None:
+            logger.warning("cases.package_not_ready case_id=%s", case_id)
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "package_not_ready",
+                    "case_id": case_id,
+                    "missing": "current_package_id",
+                },
+            )
+        
+        package = db.get(SubmissionPackage, case.current_package_id)
+        if package is None:
+            logger.error(
+                "cases.package_missing case_id=%s package_id=%s",
+                case_id,
+                case.current_package_id,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "package_reference_broken",
+                    "case_id": case_id,
+                    "package_id": case.current_package_id,
+                },
+            )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.package_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "package_fetch_failed", "case_id": case_id},
+        ) from exc
+    
+    logger.info("cases.package_fetched case_id=%s package_id=%s", case_id, package.package_id)
+    return SubmissionPackageResponse(
+        package_id=package.package_id,
+        case_id=package.case_id,
+        package_version=package.package_version,
+        manifest_artifact_id=package.manifest_artifact_id,
+        manifest_sha256_digest=package.manifest_sha256_digest,
+        provenance=package.provenance,
+        created_at=package.created_at,
+        updated_at=package.updated_at,
+    )
+
+
+@router.get("/cases/{case_id}/manifest", response_model=SubmissionManifestResponse)
+def get_case_manifest(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> SubmissionManifestResponse:
+    """Retrieve the manifest for the current submission package."""
+    from sps.api.contracts.cases import DocumentReferenceResponse, SubmissionManifestResponse
+    from sps.db.models import DocumentArtifact, EvidenceArtifact, SubmissionPackage
+    
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.manifest_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+        
+        if case.current_package_id is None:
+            logger.warning("cases.manifest_not_ready case_id=%s", case_id)
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "manifest_not_ready",
+                    "case_id": case_id,
+                    "missing": "current_package_id",
+                },
+            )
+        
+        package = db.get(SubmissionPackage, case.current_package_id)
+        if package is None:
+            logger.error(
+                "cases.manifest_package_missing case_id=%s package_id=%s",
+                case_id,
+                case.current_package_id,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "package_reference_broken",
+                    "case_id": case_id,
+                    "package_id": case.current_package_id,
+                },
+            )
+        
+        manifest_artifact = db.get(EvidenceArtifact, package.manifest_artifact_id)
+        if manifest_artifact is None:
+            logger.error(
+                "cases.manifest_artifact_missing case_id=%s artifact_id=%s",
+                case_id,
+                package.manifest_artifact_id,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "manifest_artifact_missing",
+                    "case_id": case_id,
+                    "artifact_id": package.manifest_artifact_id,
+                },
+            )
+        
+        # Fetch document artifacts for this package
+        doc_artifacts = (
+            db.query(DocumentArtifact)
+            .filter(DocumentArtifact.package_id == package.package_id)
+            .all()
+        )
+        
+        document_references = [
+            DocumentReferenceResponse(
+                document_id=doc.document_id,
+                document_type=doc.document_type,
+                artifact_id=doc.evidence_artifact_id,
+                sha256_digest=doc.sha256_digest,
+            )
+            for doc in doc_artifacts
+        ]
+        
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.manifest_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "manifest_fetch_failed", "case_id": case_id},
+        ) from exc
+    
+    logger.info(
+        "cases.manifest_fetched case_id=%s package_id=%s doc_count=%d",
+        case_id,
+        package.package_id,
+        len(document_references),
+    )
+    
+    # Build synthetic manifest response from package + document artifacts
+    # In production, you might deserialize the actual manifest JSON from S3
+    return SubmissionManifestResponse(
+        manifest_id=package.manifest_artifact_id,
+        case_id=package.case_id,
+        package_version=package.package_version,
+        generated_at=package.created_at or dt.datetime.now(dt.UTC),
+        document_references=document_references,
+        required_attachments=[],
+        target_portal_family="acela",
+        provenance=package.provenance,
+    )
+

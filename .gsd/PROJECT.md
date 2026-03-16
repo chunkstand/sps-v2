@@ -53,6 +53,15 @@ A governed workflow system that can produce and submit permit packages with revi
   - `scripts/verify_m005_s03.sh` drives the live API + worker to INCENTIVES_COMPLETE with fixture overrides
   - Runbook asserts ComplianceEvaluation + IncentiveAssessment persistence and ledger transitions via Postgres + API readbacks
   - R013/R014 validated via integration tests + runbook proof
+- **Phase 6 document generation + package persistence (M006/S01) complete:**
+  - Phase 6 fixture dataset with deterministic document templates + loader with case_id override support
+  - SubmissionPackage + DocumentArtifact schema with migration applied
+  - EvidenceRegistry helper for sha256-validated document/manifest artifact storage
+  - Document generator producing deterministic bytes from templates with sha256 digest computation
+  - persist_submission_package activity with transactional package persistence + evidence registration
+  - Workflow transition INCENTIVES_COMPLETE → DOCUMENT_COMPLETE (implemented, pending S3 infrastructure for full proof)
+  - API endpoints for package/manifest retrieval (implemented, pending S3 infrastructure for full proof)
+  - R015 partially validated: deterministic document generation + digest computation proven in pytest; full persistence + workflow + API proven pending S3 infrastructure in S02
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
 - **Contradiction blocking guard is complete (M003/S03):**

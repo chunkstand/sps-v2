@@ -243,6 +243,15 @@ class PersistReviewDecisionRequest(BaseModel):
     idempotency_key: str = Field(min_length=1)
 
 
+class PersistSubmissionPackageRequest(BaseModel):
+    """Activity input for persisting submission package + document artifacts."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+
+
 class PermitCaseWorkflowResult(BaseModel):
     """Workflow completion payload.
 
