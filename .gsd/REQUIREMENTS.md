@@ -2,7 +2,38 @@
 
 ## Active
 
+### R010 — Intake normalization into Project (F-001)
+- Class: core-capability
+- Status: active
+- Description: SPS creates a PermitCase from intake and persists a normalized Project object using the spec-derived intake contract.
+- Why it matters: All downstream research/compliance/document work depends on normalized project facts that are durable and auditable.
+- Source: spec (section 6.1 F-001)
+- Primary owning slice: M004/S01
+- Supporting slices: none
+- Validation: pending (Postgres-backed integration tests + operator runbook)
+- Notes: Spec-derived intake contract; no external intake integrations yet.
 
+### R011 — Jurisdiction stack resolution (F-002)
+- Class: integration
+- Status: active
+- Description: SPS determines the full authority stack and support level (city/county/state/utility/overlays) and persists a JurisdictionResolution.
+- Why it matters: Jurisdiction drives requirements, portal support, and safe-stop/manual handling decisions.
+- Source: spec (section 6.1 F-002)
+- Primary owning slice: M004/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Uses spec-sourced fixtures in Phase 4.
+
+### R012 — Requirements retrieval with provenance (F-003)
+- Class: integration
+- Status: active
+- Description: SPS retrieves permit requirements from ranked authoritative sources and persists provenance in a RequirementSet.
+- Why it matters: Authoritative requirements are the foundation for compliance, document generation, and review.
+- Source: spec (section 6.1 F-003)
+- Primary owning slice: M004/S01
+- Supporting slices: none
+- Validation: pending (integration tests + runbook)
+- Notes: Fixture-based sources only; external integrations deferred.
 
 ## Validated
 
@@ -135,11 +166,14 @@
 | R007 | compliance/security | validated | M003/S02 | none | proved (Postgres integration tests — self-approval → 403 + INV-SPS-REV-001 + INV-008 + no DB row; distinct reviewer → 201 + PASS) |
 | R008 | compliance/security | validated | M003/S03 | none | proved (Postgres integration tests — blocking → CONTRADICTION_ADVANCE_DENIED + INV-SPS-CONTRA-001 + INV-003; resolve → CASE_STATE_CHANGED; runbook ok) |
 | R009 | governance | validated | M003/S04 | none | proved (Postgres integration tests — ACCEPT_WITH_DISSENT → dissent_artifacts row queryable; ACCEPT → no row; runbook ok) |
+| R010 | core-capability | active | M004/S01 | none | pending (integration tests + runbook) |
+| R011 | integration | active | M004/S01 | none | pending (integration tests + runbook) |
+| R012 | integration | active | M004/S01 | none | pending (integration tests + runbook) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 0
-- Mapped to slices: 9
+- Active requirements: 3
+- Mapped to slices: 12
 - Validated: 9
 - Unmapped active requirements: 0

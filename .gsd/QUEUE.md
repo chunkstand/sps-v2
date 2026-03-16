@@ -4,3 +4,4 @@
 
 - 2026-03-15 — Queued **M002-dq2dn9**: Phase 2 — Temporal harness + guarded state transitions
 - 2026-03-16 — Queued **M003-ozqkoh**: Phase 3 — reviewer service + independence/dissent/contradiction governance
+- 2026-03-15 — Queued **M004-lp1flz**: Phase 4 — intake, jurisdiction, and requirements workers

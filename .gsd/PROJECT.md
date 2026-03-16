@@ -70,6 +70,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M002: Phase 2 — Temporal harness + guarded state transitions
 - [x] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance (**COMPLETE — all slices done**)
 - [ ] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
+- [ ] M004-lp1flz: Phase 4 — intake, jurisdiction, and requirements workers
 
 ## Milestone ID Mapping
 
