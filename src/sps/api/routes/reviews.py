@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from sps.config import get_settings
 from sps.db.models import ReviewDecision
 from sps.db.session import get_db
+from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import ReviewDecisionOutcome, ReviewDecisionSignal
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ class CreateReviewDecisionRequest(BaseModel):
     idempotency_key: str = Field(min_length=1)
     case_id: str = Field(min_length=1)
     reviewer_id: str = Field(min_length=1)
+    subject_author_id: str = Field(min_length=1)
     outcome: ReviewDecisionOutcome
     notes: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
@@ -105,6 +107,29 @@ def _row_to_response(row: ReviewDecision) -> ReviewDecisionResponse:
         idempotency_key=row.idempotency_key,
         created=row.created_at,
     )
+
+
+def _check_reviewer_independence(reviewer_id: str, subject_author_id: str) -> None:
+    """Enforce reviewer independence: reviewer must not be the subject author.
+
+    Raises HTTPException(403) when the IDs match, with stable guard/invariant IDs
+    sourced from the guard-assertions registry (INV-SPS-REV-001).
+    Returns None on pass (IDs differ).
+    """
+    if reviewer_id == subject_author_id:
+        logger.warning(
+            "reviewer_api.independence_denied reviewer_id=%s subject_author_id=%s guard_assertion_id=INV-SPS-REV-001",
+            reviewer_id,
+            subject_author_id,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "REVIEW_INDEPENDENCE_DENIED",
+                "guard_assertion_id": "INV-SPS-REV-001",
+                "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+            },
+        )
 
 
 async def _send_review_signal(
@@ -188,6 +213,9 @@ async def create_review_decision(
         req.idempotency_key,
         req.case_id,
     )
+
+    # Independence guard — must precede any DB operation
+    _check_reviewer_independence(req.reviewer_id, req.subject_author_id)
 
     # Idempotency check
     existing = (

@@ -18,7 +18,7 @@ All four Active requirements (R006–R009) map to slices; no orphans.
 - [x] **S01: Reviewer API authority boundary** `risk:high` `depends:[]`
   > After this: A PermitCaseWorkflow in REVIEW_PENDING is unblocked by POST /api/v1/reviews/decisions against a live docker-compose run; workflow resumes to APPROVED_FOR_SUBMISSION; idempotency conflict returns 409 — proven by integration test and verify_m003_s01.sh runbook.
 
-- [ ] **S02: Reviewer independence policy guard** `risk:medium` `depends:[S01]`
+- [x] **S02: Reviewer independence policy guard** `risk:medium` `depends:[S01]`
   > After this: Self-approval on a high-risk surface returns 403 with guard_assertion_id=INV-SPS-REV-001; valid distinct-reviewer decision succeeds — proven by integration test.
 
 - [ ] **S03: Contradiction artifacts + advancement blocking** `risk:medium` `depends:[S01]`

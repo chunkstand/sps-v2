@@ -2,17 +2,6 @@
 
 ## Active
 
-### R007 — Reviewer independence/self-approval guard on high-risk surfaces (INV-008)
-- Class: compliance/security
-- Status: active
-- Description: Reviewer decision creation is fail-closed on high-risk surfaces when independence/self-approval policy is violated, absent supported exception artifacts.
-- Why it matters: Prevents authority drift and self-approval on critical surfaces; required by CTL-11A and INV-008.
-- Source: spec (spec.md section 8.5/14.4; CTL-11A; INV-008)
-- Primary owning slice: M003/S02
-- Supporting slices: none
-- Validation: tbd
-- Notes: Threshold-metrics enforcement may be deferred, but self-approval prohibition must be enforceable.
-
 ### R008 — Contradiction artifacts + advancement blocking until resolution (INV-003)
 - Class: compliance/security
 - Status: active
@@ -36,6 +25,17 @@
 - Notes: Release-blocking enforcement is deferred until release gate milestone(s).
 
 ## Validated
+
+### R007 — Reviewer independence/self-approval guard on high-risk surfaces (INV-008)
+- Class: compliance/security
+- Status: validated
+- Description: Reviewer decision creation is fail-closed on high-risk surfaces when independence/self-approval policy is violated, absent supported exception artifacts.
+- Why it matters: Prevents authority drift and self-approval on critical surfaces; required by CTL-11A and INV-008.
+- Source: spec (spec.md section 8.5/14.4; CTL-11A; INV-008)
+- Primary owning slice: M003/S02
+- Supporting slices: none
+- Validation: proved (Postgres integration tests — self-approval → 403 + guard_assertion_id=INV-SPS-REV-001 + INV-008 + no DB row; distinct reviewer → 201 + reviewer_independence_status=PASS in DB)
+- Notes: Threshold-metrics enforcement may be deferred, but self-approval prohibition is now enforced and proven.
 
 ### R006 — Reviewer service records ReviewDecision and unblocks workflows
 - Class: core-capability
@@ -130,14 +130,14 @@
 | R004 | core-capability | validated | M002/S01 | M002/S02,M002/S03 | proved (Temporal+Postgres + replay + retry idempotency + runbook) |
 | R005 | compliance/security | validated | M002/S02 | M002/S03 | proved (Temporal+Postgres integration tests) |
 | R006 | core-capability | validated | M003/S01 | none | proved (Temporal+Postgres integration tests + operator runbook) |
-| R007 | compliance/security | active | M003/S02 | none | tbd |
+| R007 | compliance/security | validated | M003/S02 | none | proved (Postgres integration tests — self-approval → 403 + INV-SPS-REV-001 + INV-008 + no DB row; distinct reviewer → 201 + PASS) |
 | R008 | compliance/security | active | M003/S03 | none | tbd |
 | R009 | governance | active | M003/S04 | none | tbd |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 3
+- Active requirements: 2
 - Mapped to slices: 9
-- Validated: 6
+- Validated: 7
 - Unmapped active requirements: 0

@@ -223,6 +223,7 @@ async def _run_unblock_test() -> None:
                     "idempotency_key": idempotency_key,
                     "case_id": case_id,
                     "reviewer_id": "reviewer-integration-test",
+                    "subject_author_id": "author-of-the-case",
                     "outcome": "ACCEPT",
                 },
             )
@@ -334,6 +335,7 @@ async def _run_conflict_test() -> None:
                     "idempotency_key": idempotency_key,
                     "case_id": case_id,
                     "reviewer_id": "reviewer-conflict-test",
+                    "subject_author_id": "author-of-the-case",
                     "outcome": "ACCEPT",
                 },
             )
@@ -348,6 +350,7 @@ async def _run_conflict_test() -> None:
                     "idempotency_key": idempotency_key,
                     "case_id": case_id,
                     "reviewer_id": "reviewer-conflict-test",
+                    "subject_author_id": "author-of-the-case",
                     "outcome": "ACCEPT",
                 },
             )

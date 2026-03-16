@@ -20,6 +20,12 @@ A governed workflow system that can produce and submit permit packages with revi
   - Post-commit Temporal signal delivery with structured log instrumentation (`reviewer_api.decision_received/persisted/signal_sent/signal_failed`)
   - `PermitCaseWorkflow` no longer calls `persist_review_decision` activity; uses API-issued `decision_id` from signal
   - Proof surfaces: integration test (`tests/m003_s01_reviewer_api_boundary_test.py`) + operator runbook (`scripts/verify_m003_s01.sh`)
+- **Reviewer independence guard is complete (M003/S02):**
+  - `subject_author_id` is a required field on `CreateReviewDecisionRequest`; guard is fail-closed with no skip path
+  - Self-approval (`reviewer_id == subject_author_id`) → 403 with `guard_assertion_id=INV-SPS-REV-001` and `normalized_business_invariants=["INV-008"]`; zero DB writes on denial
+  - Accepted decisions receive `reviewer_independence_status='PASS'` in the `review_decisions` row
+  - WARNING log `reviewer_api.independence_denied` emitted before any DB operation on denial
+  - Proof surfaces: integration test (`tests/m003_s02_reviewer_independence_test.py`) — both denial path (no DB row) and acceptance path (PASS in DB) against real Postgres
 - **Phase 2 Temporal harness + guarded transitions are complete (M002/S01–S03):**
   - Temporal worker entrypoint + deterministic PermitCaseWorkflow (bootstrap → denial → wait for `ReviewDecision` signal → resume)
   - Operator CLI to start workflows and send `ReviewDecision` signals
