@@ -39,6 +39,8 @@ A governed workflow system that can produce and submit permit packages with revi
   - Proof surfaces: `tests/m004_s02_jurisdiction_requirements_workflow_test.py` and `scripts/verify_m004_s02.sh`
 - **Phase 4 end-to-end docker-compose proof (M004/S03) complete:**
   - `scripts/verify_m004_s03.sh` posts intake, starts the worker with a fixture override, restarts the workflow, and proves RESEARCH_COMPLETE with API/DB evidence
+- **Phase 4 milestone M004-lp1flz complete:**
+  - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
 - **Contradiction blocking guard is complete (M003/S03):**
   - `POST /api/v1/contradictions/` creates contradiction artifacts with `blocking_effect` and `resolution_status=OPEN`; 409 on duplicate
   - `POST /api/v1/contradictions/{id}/resolve` transitions `OPEN → RESOLVED`; 409 if already resolved; 404 if unknown
