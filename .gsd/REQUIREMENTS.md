@@ -422,9 +422,9 @@
 | R019 | compliance/security | validated | M007/S01 | none | proved (pytest tests/m007_s01_proof_bundle_gate_test.py -v -s) |
 | R020 | governance | validated | M008/S01 | M008/S02 | proved (integration tests passed + S02 docker-compose runbook exercising end-to-end API flows) |
 | R021 | compliance/security | validated | M008/S01 | M008/S02 | proved (pytest tests/m008_s02_reviewer_independence_thresholds_test.py + scripts/verify_m008_s02.sh runbook) |
-| R022 | observability | active | M009/S01 | none | pending (event schema tests + integration checks) |
-| R023 | observability | active | M009/S01 | none | pending (dashboard/alert checks + runbook) |
-| R024 | release | active | M009/S01 | none | pending (release bundle tests + runbook) |
+| R022 | observability | validated | M009/S01 | none | proved (pytest tests/m009_s01_audit_events_test.py) |
+| R023 | observability | validated | M009/S01 | none | proved (pytest tests/m009_s01_dashboard_test.py) |
+| R024 | release | validated | M009/S01 | none | proved (pytest tests/m009_s02_release_bundle_test.py + scripts/verify_m009_s02.sh) |
 | R025 | release | validated | M009/S01 | none | proved (pytest tests/m009_s03_rollback_rehearsal_test.py + scripts/verify_m009_s03.sh) |
 | R026 | release | validated | M009/S01 | none | proved (runbooks/sps/post-release-validation.md + scripts/verify_m009_s03.sh) |
 | R027 | security | active | M010/S01 | none | pending (auth integration tests) |
@@ -439,7 +439,7 @@
 
 ## Coverage Summary
 
-- Active requirements: 15
+- Active requirements: 8
 - Mapped to slices: 34
-- Validated: 19
+- Validated: 25
 - Unmapped active requirements: 0

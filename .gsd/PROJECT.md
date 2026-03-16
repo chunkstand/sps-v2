@@ -147,7 +147,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M001: Phase 1 — authoritative data foundations — Postgres schema + evidence registry + retention/legal-hold guardrails
 - [x] M002: Phase 2 — Temporal harness + guarded state transitions
 - [x] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance (**COMPLETE — all slices done**)
-- [ ] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
+- [x] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
 - [x] M004-lp1flz: Phase 4 — intake, jurisdiction, and requirements workers
 - [x] M005-j3c8qk: Phase 5 — compliance and incentives workers
 - [x] M006-h7v2qk: Phase 6 — document and submission package generation
