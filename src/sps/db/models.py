@@ -204,6 +204,7 @@ class ReviewDecision(Base):
 
     decision_outcome: Mapped[str] = mapped_column(sa.Text, nullable=False)
     reviewer_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    subject_author_id: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     reviewer_independence_status: Mapped[str] = mapped_column(sa.Text, nullable=False)
 
     evidence_ids: Mapped[list[str]] = mapped_column(sa.ARRAY(sa.Text), nullable=False, server_default="{}")

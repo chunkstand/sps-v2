@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
+from dataclasses import dataclass
 from typing import Annotated
 
 import sqlalchemy as sa
@@ -30,7 +31,11 @@ from sps.db.models import (
 )
 from sps.db.session import get_db
 from sps.guards.guard_assertions import get_normalized_business_invariants
-from sps.workflows.permit_case.contracts import ReviewDecisionOutcome, ReviewDecisionSignal
+from sps.workflows.permit_case.contracts import (
+    ReviewDecisionOutcome,
+    ReviewDecisionSignal,
+    ReviewerIndependenceStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -216,16 +221,117 @@ def _collect_evidence_ids(db: Session, case_id: str) -> list[str]:
 
 
 
-def _check_reviewer_independence(reviewer_id: str, subject_author_id: str) -> None:
-    """Enforce reviewer independence: reviewer must not be the subject author.
+@dataclass(frozen=True)
+class ReviewerIndependenceMetrics:
+    window_start: dt.datetime
+    window_end: dt.datetime
+    total_reviews: int
+    pair_total_reviews: int
+    repeated_pair_reviews: int
+    repeated_pair_rate: float
 
-    Raises HTTPException(403) when the IDs match, with stable guard/invariant IDs
-    sourced from the guard-assertions registry (INV-SPS-REV-001).
-    Returns None on pass (IDs differ).
+
+def _compute_reviewer_independence_metrics(
+    db: Session,
+    reviewer_id: str,
+    subject_author_id: str,
+    decision_at: dt.datetime,
+) -> ReviewerIndependenceMetrics:
+    window_end = decision_at
+    window_start = window_end - dt.timedelta(days=90)
+
+    total_reviews = (
+        db.query(sa.func.count(ReviewDecision.decision_id))
+        .filter(ReviewDecision.decision_at >= window_start)
+        .scalar()
+    )
+    pair_total_reviews = (
+        db.query(sa.func.count(ReviewDecision.decision_id))
+        .filter(ReviewDecision.decision_at >= window_start)
+        .filter(ReviewDecision.reviewer_id == reviewer_id)
+        .filter(ReviewDecision.subject_author_id == subject_author_id)
+        .scalar()
+    )
+
+    if total_reviews is None or pair_total_reviews is None:
+        raise RuntimeError("independence_metrics_unavailable")
+
+    total_reviews = int(total_reviews) + 1
+    pair_total_reviews = int(pair_total_reviews) + 1
+    repeated_pair_reviews = max(pair_total_reviews - 1, 0)
+
+    if total_reviews <= 0 or pair_total_reviews < 0 or pair_total_reviews > total_reviews:
+        raise RuntimeError("independence_metrics_invalid")
+
+    repeated_pair_rate = repeated_pair_reviews / total_reviews
+
+    return ReviewerIndependenceMetrics(
+        window_start=window_start,
+        window_end=window_end,
+        total_reviews=total_reviews,
+        pair_total_reviews=pair_total_reviews,
+        repeated_pair_reviews=repeated_pair_reviews,
+        repeated_pair_rate=repeated_pair_rate,
+    )
+
+
+def _emit_independence_log(
+    event_name: str,
+    *,
+    reviewer_id: str,
+    subject_author_id: str,
+    metrics: ReviewerIndependenceMetrics,
+    status: ReviewerIndependenceStatus | None = None,
+    reason: str | None = None,
+) -> None:
+    logger.warning(
+        "%s reviewer_id=%s subject_author_id=%s total_reviews=%d pair_total_reviews=%d repeated_pair_reviews=%d "
+        "repeated_pair_rate=%.4f window_start=%s window_end=%s status=%s reason=%s",
+        event_name,
+        reviewer_id,
+        subject_author_id,
+        metrics.total_reviews,
+        metrics.pair_total_reviews,
+        metrics.repeated_pair_reviews,
+        metrics.repeated_pair_rate,
+        metrics.window_start.isoformat(),
+        metrics.window_end.isoformat(),
+        status.value if status else None,
+        reason,
+    )
+
+
+def _independence_status_for_rate(rate: float) -> ReviewerIndependenceStatus:
+    if rate > 0.50:
+        return ReviewerIndependenceStatus.BLOCKED
+    if rate > 0.35:
+        return ReviewerIndependenceStatus.ESCALATION_REQUIRED
+    if rate > 0.25:
+        return ReviewerIndependenceStatus.WARNING
+    return ReviewerIndependenceStatus.PASS
+
+
+def _check_reviewer_independence(
+    db: Session,
+    reviewer_id: str,
+    subject_author_id: str,
+    decision_at: dt.datetime,
+) -> ReviewerIndependenceStatus:
+    """Enforce reviewer independence and rolling-quarter threshold policy.
+
+    Raises HTTPException(403) when the IDs match or thresholds are blocked, with
+    stable guard/invariant IDs sourced from the guard-assertions registry
+    (INV-SPS-REV-001). Returns the computed ReviewerIndependenceStatus on pass
+    or when warning/escalation thresholds are triggered.
     """
     if reviewer_id == subject_author_id:
         logger.warning(
             "reviewer_api.independence_denied reviewer_id=%s subject_author_id=%s guard_assertion_id=INV-SPS-REV-001",
+            reviewer_id,
+            subject_author_id,
+        )
+        logger.warning(
+            "reviewer_api.independence_blocked reviewer_id=%s subject_author_id=%s reason=self_approval guard_assertion_id=INV-SPS-REV-001",
             reviewer_id,
             subject_author_id,
         )
@@ -235,8 +341,73 @@ def _check_reviewer_independence(reviewer_id: str, subject_author_id: str) -> No
                 "error": "REVIEW_INDEPENDENCE_DENIED",
                 "guard_assertion_id": "INV-SPS-REV-001",
                 "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+                "blocked_reason": "SELF_APPROVAL",
             },
         )
+
+    try:
+        metrics = _compute_reviewer_independence_metrics(
+            db=db,
+            reviewer_id=reviewer_id,
+            subject_author_id=subject_author_id,
+            decision_at=decision_at,
+        )
+    except Exception as exc:
+        logger.warning(
+            "reviewer_api.independence_blocked reviewer_id=%s subject_author_id=%s reason=metrics_unavailable guard_assertion_id=INV-SPS-REV-001 exc_type=%s",
+            reviewer_id,
+            subject_author_id,
+            type(exc).__name__,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "REVIEW_INDEPENDENCE_DENIED",
+                "guard_assertion_id": "INV-SPS-REV-001",
+                "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+                "blocked_reason": "METRICS_UNAVAILABLE",
+            },
+        )
+
+    status = _independence_status_for_rate(metrics.repeated_pair_rate)
+
+    if status == ReviewerIndependenceStatus.WARNING:
+        _emit_independence_log(
+            "reviewer_api.independence_warning",
+            reviewer_id=reviewer_id,
+            subject_author_id=subject_author_id,
+            metrics=metrics,
+            status=status,
+        )
+    elif status == ReviewerIndependenceStatus.ESCALATION_REQUIRED:
+        _emit_independence_log(
+            "reviewer_api.independence_escalation",
+            reviewer_id=reviewer_id,
+            subject_author_id=subject_author_id,
+            metrics=metrics,
+            status=status,
+        )
+    elif status == ReviewerIndependenceStatus.BLOCKED:
+        _emit_independence_log(
+            "reviewer_api.independence_blocked",
+            reviewer_id=reviewer_id,
+            subject_author_id=subject_author_id,
+            metrics=metrics,
+            status=status,
+            reason="threshold_exceeded",
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "REVIEW_INDEPENDENCE_DENIED",
+                "guard_assertion_id": "INV-SPS-REV-001",
+                "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+                "blocked_reason": "INDEPENDENCE_THRESHOLD_BLOCKED",
+            },
+        )
+
+    return status
 
 
 async def _send_review_signal(
@@ -321,8 +492,15 @@ async def create_review_decision(
         req.case_id,
     )
 
+    now = _utcnow()
+
     # Independence guard — must precede any DB operation
-    _check_reviewer_independence(req.reviewer_id, req.subject_author_id)
+    independence_status = _check_reviewer_independence(
+        db,
+        req.reviewer_id,
+        req.subject_author_id,
+        now,
+    )
 
     # Idempotency check
     existing = (
@@ -346,7 +524,6 @@ async def create_review_decision(
             )
 
     # New decision — insert
-    now = _utcnow()
     row = ReviewDecision(
         decision_id=req.decision_id,
         schema_version="1.0",
@@ -355,7 +532,8 @@ async def create_review_decision(
         object_id=req.case_id,
         decision_outcome=req.outcome.value,
         reviewer_id=req.reviewer_id,
-        reviewer_independence_status="PASS",
+        subject_author_id=req.subject_author_id,
+        reviewer_independence_status=independence_status.value,
         evidence_ids=req.evidence_ids,
         contradiction_resolution=None,
         dissent_flag=(req.outcome == ReviewDecisionOutcome.ACCEPT_WITH_DISSENT),
