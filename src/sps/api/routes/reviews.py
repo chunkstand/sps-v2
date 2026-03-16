@@ -6,11 +6,11 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
 from sps.config import get_settings
-from sps.db.models import ReviewDecision
+from sps.db.models import DissentArtifact, ReviewDecision
 from sps.db.session import get_db
 from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import ReviewDecisionOutcome, ReviewDecisionSignal
@@ -44,11 +44,27 @@ class CreateReviewDecisionRequest(BaseModel):
     notes: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
 
+    dissent_scope: str | None = None
+    dissent_rationale: str | None = None
+    dissent_required_followup: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_dissent_fields(self) -> "CreateReviewDecisionRequest":
+        if self.outcome == ReviewDecisionOutcome.ACCEPT_WITH_DISSENT and (
+            self.dissent_scope is None or self.dissent_rationale is None
+        ):
+            raise ValueError(
+                "dissent_scope and dissent_rationale are required when outcome is ACCEPT_WITH_DISSENT"
+            )
+        return self
+
 
 class ReviewDecisionResponse(BaseModel):
     """Response shape for created / retrieved review decisions.
 
     Safe to log: decision_id and idempotency_key are non-sensitive identifiers.
+    dissent_artifact_id is populated for ACCEPT_WITH_DISSENT decisions so callers
+    can discover the linked artifact ID without a separate query.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -58,6 +74,7 @@ class ReviewDecisionResponse(BaseModel):
     outcome: ReviewDecisionOutcome
     idempotency_key: str
     created: dt.datetime
+    dissent_artifact_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +123,7 @@ def _row_to_response(row: ReviewDecision) -> ReviewDecisionResponse:
         outcome=ReviewDecisionOutcome(row.decision_outcome),
         idempotency_key=row.idempotency_key,
         created=row.created_at,
+        dissent_artifact_id=f"DISSENT-{row.decision_id}" if row.dissent_flag else None,
     )
 
 
@@ -257,6 +275,34 @@ async def create_review_decision(
         idempotency_key=req.idempotency_key,
     )
     db.add(row)
+
+    # If ACCEPT_WITH_DISSENT, queue a linked DissentArtifact in the same transaction.
+    # dissent_scope and dissent_rationale are guaranteed non-null by model_validator.
+    if row.dissent_flag:
+        # Flush the ReviewDecision row first so the FK constraint on
+        # dissent_artifacts.linked_review_id is satisfied at INSERT time.
+        # Without an ORM relationship(), SQLAlchemy's unit-of-work cannot infer
+        # the required flush ordering from the FK column definition alone.
+        db.flush()
+        dissent_row = DissentArtifact(
+            dissent_id=f"DISSENT-{row.decision_id}",
+            linked_review_id=row.decision_id,
+            case_id=row.case_id,
+            scope=req.dissent_scope,
+            rationale=req.dissent_rationale,
+            required_followup=req.dissent_required_followup,
+            resolution_state="OPEN",
+            created_at=now,
+        )
+        db.add(dissent_row)
+        logger.info(
+            "reviewer_api.dissent_artifact_created dissent_id=%s linked_review_id=%s case_id=%s scope_len=%d",
+            dissent_row.dissent_id,
+            row.decision_id,
+            row.case_id,
+            len(req.dissent_scope or ""),
+        )
+
     db.commit()
 
     logger.info(

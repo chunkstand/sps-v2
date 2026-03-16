@@ -20,6 +20,14 @@ A governed workflow system that can produce and submit permit packages with revi
   - Post-commit Temporal signal delivery with structured log instrumentation (`reviewer_api.decision_received/persisted/signal_sent/signal_failed`)
   - `PermitCaseWorkflow` no longer calls `persist_review_decision` activity; uses API-issued `decision_id` from signal
   - Proof surfaces: integration test (`tests/m003_s01_reviewer_api_boundary_test.py`) + operator runbook (`scripts/verify_m003_s01.sh`)
+- **Dissent artifacts are complete (M003/S04):**
+  - `POST /api/v1/reviews/decisions` with `outcome=ACCEPT_WITH_DISSENT` + `dissent_scope` + `dissent_rationale` → 201 + `dissent_artifact_id` in response; dissent row persisted in same transaction as ReviewDecision
+  - `GET /api/v1/dissents/{dissent_id}` — gated by `require_reviewer_api_key`; returns full artifact with `resolution_state=OPEN`; 404 on unknown
+  - ACCEPT decisions produce no dissent row (`dissent_artifact_id=null` in response)
+  - Missing dissent fields on ACCEPT_WITH_DISSENT → HTTP 422 (Pydantic model_validator)
+  - `reviewer_api.dissent_artifact_created` structured log event (scope_len only — no raw reviewer text)
+  - Proof surfaces: integration test (`tests/m003_s04_dissent_artifacts_test.py`) 2 passed + operator runbook (`scripts/verify_m003_s04.sh`) exits 0
+  - **M003 fully complete: R006, R007, R008, R009 all validated**
 - **Contradiction blocking guard is complete (M003/S03):**
   - `POST /api/v1/contradictions/` creates contradiction artifacts with `blocking_effect` and `resolution_status=OPEN`; 409 on duplicate
   - `POST /api/v1/contradictions/{id}/resolve` transitions `OPEN → RESOLVED`; 409 if already resolved; 404 if unknown
@@ -60,7 +68,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 - [x] M001: Phase 1 — authoritative data foundations — Postgres schema + evidence registry + retention/legal-hold guardrails
 - [x] M002: Phase 2 — Temporal harness + guarded state transitions
-- [ ] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance
+- [x] M003: Phase 3 — reviewer service + independence/dissent/contradiction governance (**COMPLETE — all slices done**)
 - [ ] M004: Phase 4–7 — domain workers, submission/tracking/manual fallback, release/rollback gates, conformance hardening
 
 ## Milestone ID Mapping

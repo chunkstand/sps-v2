@@ -127,6 +127,30 @@ class ContradictionArtifact(Base):
     )
 
 
+class DissentArtifact(Base):
+    __tablename__ = "dissent_artifacts"
+
+    dissent_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    linked_review_id: Mapped[str] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("review_decisions.decision_id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    scope: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    rationale: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    required_followup: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    resolution_state: Mapped[str] = mapped_column(sa.Text, nullable=False, server_default=sa.text("'OPEN'"))
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
 class CaseTransitionLedger(Base):
     __tablename__ = "case_transition_ledger"
 

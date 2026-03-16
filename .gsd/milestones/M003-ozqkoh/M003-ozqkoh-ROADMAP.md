@@ -24,7 +24,7 @@ All four Active requirements (R006–R009) map to slices; no orphans.
 - [x] **S03: Contradiction artifacts + advancement blocking** `risk:medium` `depends:[S01]`
   > After this: A blocking contradiction prevents protected transition with stable denial identifiers; resolving it allows advancement — proven by integration test against real docker-compose.
 
-- [ ] **S04: Dissent artifacts** `risk:low` `depends:[S01]`
+- [x] **S04: Dissent artifacts** `risk:low` `depends:[S01]`
   > After this: ACCEPT_WITH_DISSENT decisions persist a dissent_artifacts row linked to the ReviewDecision, queryable via API — proven by integration test.
 
 ## Milestone Definition of Done

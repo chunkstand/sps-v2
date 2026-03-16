@@ -4,18 +4,18 @@
 
 
 
+## Validated
+
 ### R009 — Dissent artifacts recorded and queryable
 - Class: governance
-- Status: active
+- Status: validated
 - Description: Accept-with-dissent decisions create a durable dissent artifact linked to the originating review decision, with resolution state.
 - Why it matters: High-risk dissent tightens release conditions and must be auditable even before release gating is implemented.
 - Source: spec (section 17.6; task E-003; dissent artifact contract matrix)
 - Primary owning slice: M003/S04
 - Supporting slices: none
-- Validation: tbd
+- Validation: proved (Postgres integration tests — ACCEPT_WITH_DISSENT → dissent_artifacts row with linked_review_id, case_id, scope, rationale, resolution_state=OPEN; ACCEPT → no dissent row; GET /api/v1/dissents/{dissent_id} returns full artifact; operator runbook verify_m003_s04.sh exits 0)
 - Notes: Release-blocking enforcement is deferred until release gate milestone(s).
-
-## Validated
 
 ### R008 — Contradiction artifacts + advancement blocking until resolution (INV-003)
 - Class: compliance/security
@@ -134,12 +134,12 @@
 | R006 | core-capability | validated | M003/S01 | none | proved (Temporal+Postgres integration tests + operator runbook) |
 | R007 | compliance/security | validated | M003/S02 | none | proved (Postgres integration tests — self-approval → 403 + INV-SPS-REV-001 + INV-008 + no DB row; distinct reviewer → 201 + PASS) |
 | R008 | compliance/security | validated | M003/S03 | none | proved (Postgres integration tests — blocking → CONTRADICTION_ADVANCE_DENIED + INV-SPS-CONTRA-001 + INV-003; resolve → CASE_STATE_CHANGED; runbook ok) |
-| R009 | governance | active | M003/S04 | none | tbd |
+| R009 | governance | validated | M003/S04 | none | proved (Postgres integration tests — ACCEPT_WITH_DISSENT → dissent_artifacts row queryable; ACCEPT → no row; runbook ok) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 1
+- Active requirements: 0
 - Mapped to slices: 9
-- Validated: 8
+- Validated: 9
 - Unmapped active requirements: 0
