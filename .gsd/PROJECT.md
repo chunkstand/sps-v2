@@ -52,6 +52,7 @@ A governed workflow system that can produce and submit permit packages with revi
 - **Phase 5 end-to-end docker-compose proof (M005/S03) complete:**
   - `scripts/verify_m005_s03.sh` drives the live API + worker to INCENTIVES_COMPLETE with fixture overrides
   - Runbook asserts ComplianceEvaluation + IncentiveAssessment persistence and ledger transitions via Postgres + API readbacks
+  - R013/R014 validated via integration tests + runbook proof
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
 - **Contradiction blocking guard is complete (M003/S03):**
