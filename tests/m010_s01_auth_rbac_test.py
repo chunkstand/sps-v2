@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from sps.api.main import app
 from sps.config import get_settings
-from tests.helpers.auth_tokens import build_jwt
+from tests.helpers.auth_tokens import build_jwt, build_service_principal_jwt
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -29,8 +29,12 @@ def auth_env(monkeypatch: pytest.MonkeyPatch) -> None:
     get_settings.cache_clear()
 
 
-def _auth_headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+def _auth_headers(token: str, *, mtls_header_value: str | None = None) -> dict[str, str]:
+    headers = {"Authorization": f"Bearer {token}"}
+    if mtls_header_value is not None:
+        settings = get_settings()
+        headers[settings.auth_mtls_signal_header] = mtls_header_value
+    return headers
 
 
 def test_auth_required_missing_token(auth_env: None) -> None:
@@ -69,17 +73,17 @@ def test_role_denied(auth_env: None) -> None:
 
 
 @pytest.mark.parametrize(
-    ("method", "path", "roles", "payload", "expected"),
+    ("method", "path", "roles", "payload", "expected", "service_principal"),
     [
-        ("post", "/api/v1/cases", ["intake"], {}, 422),
-        ("post", "/api/v1/evidence/artifacts", ["intake"], {}, 422),
-        ("post", "/api/v1/reviews/decisions", ["reviewer"], {}, 422),
-        ("get", "/reviewer", ["reviewer"], None, 200),
-        ("post", "/api/v1/contradictions", ["reviewer"], {}, 422),
-        ("get", "/api/v1/dissents/DISSENT-404", ["reviewer"], None, 404),
-        ("post", "/api/v1/releases/bundles", ["release"], {}, 422),
-        ("get", "/api/v1/ops/dashboard/metrics", ["ops"], None, 200),
-        ("get", "/ops", ["ops"], None, 200),
+        ("post", "/api/v1/cases", ["intake"], {}, 422, False),
+        ("post", "/api/v1/evidence/artifacts", ["intake"], {}, 422, False),
+        ("post", "/api/v1/reviews/decisions", ["reviewer"], {}, 422, False),
+        ("get", "/reviewer", ["reviewer"], None, 200, False),
+        ("post", "/api/v1/contradictions", ["reviewer"], {}, 422, False),
+        ("get", "/api/v1/dissents/DISSENT-404", ["reviewer"], None, 404, False),
+        ("post", "/api/v1/releases/bundles", ["release"], {}, 422, True),
+        ("get", "/api/v1/ops/dashboard/metrics", ["ops"], None, 200, True),
+        ("get", "/ops", ["ops"], None, 200, False),
     ],
 )
 def test_allowed_role_access(
@@ -89,10 +93,16 @@ def test_allowed_role_access(
     roles: list[str],
     payload: dict[str, object] | None,
     expected: int,
+    service_principal: bool,
 ) -> None:
     client = TestClient(app)
-    token = build_jwt(subject="user-1", roles=roles)
-    response = client.request(method, path, json=payload, headers=_auth_headers(token))
+    if service_principal:
+        token = build_service_principal_jwt(subject="svc-ops", roles=roles)
+        headers = _auth_headers(token, mtls_header_value="present")
+    else:
+        token = build_jwt(subject="user-1", roles=roles)
+        headers = _auth_headers(token)
+    response = client.request(method, path, json=payload, headers=headers)
     assert response.status_code == expected, response.text
     assert response.status_code not in (401, 403)
 

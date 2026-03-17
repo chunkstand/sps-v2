@@ -35,7 +35,19 @@ def _coerce_roles(value: Any) -> tuple[str, ...]:
     raise AuthError("invalid_roles")
 
 
-def validate_jwt_identity(token: str, settings: Settings) -> Identity:
+def _validate_principal_type(value: Any, expected: str) -> None:
+    if not isinstance(value, str) or not value:
+        raise AuthError("missing_principal_type")
+    if value != expected:
+        raise AuthError("invalid_principal_type")
+
+
+def validate_jwt_identity(
+    token: str,
+    settings: Settings,
+    *,
+    expected_principal_type: str | None = None,
+) -> Identity:
     """Validate and decode the JWT, returning an Identity on success.
 
     Enforces issuer, audience, expiry, and subject presence. Never logs tokens.
@@ -64,6 +76,9 @@ def validate_jwt_identity(token: str, settings: Settings) -> Identity:
         raise AuthError("missing_subject")
 
     roles = _coerce_roles(payload.get("roles"))
+
+    if expected_principal_type is not None:
+        _validate_principal_type(payload.get("principal_type"), expected_principal_type)
 
     issuer = payload.get("iss") if isinstance(payload.get("iss"), str) else None
     audience = payload.get("aud") if isinstance(payload.get("aud"), str) else None

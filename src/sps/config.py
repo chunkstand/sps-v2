@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     auth_jwt_audience: str = Field(default="sps.api", validation_alias="SPS_AUTH_JWT_AUDIENCE")
     auth_jwt_secret: str = Field(default="dev-secret", validation_alias="SPS_AUTH_JWT_SECRET")
     auth_jwt_algorithm: str = Field(default="HS256", validation_alias="SPS_AUTH_JWT_ALGORITHM")
+    auth_mtls_signal_header: str = Field(
+        default="X-Forwarded-Client-Cert",
+        validation_alias="SPS_AUTH_MTLS_SIGNAL_HEADER",
+    )
 
     # Reviewer API (deprecated in M010 S01; retained for compatibility until removal).
     # IMPORTANT: this value must never be logged — treat it as a credential.

@@ -14,16 +14,6 @@
 - Validation: pending (log inspection + negative tests)
 - Notes: Ensure no secrets in structured logs.
 
-### R031 — Service-to-service mTLS and signed principals (SEC-005)
-- Class: security
-- Status: active
-- Description: Service-to-service communication enforces mTLS and signed service principals.
-- Why it matters: Prevents spoofed internal calls and unauthorized authority mutation.
-- Source: spec (section 6.3 SEC-005)
-- Primary owning slice: M010/S01
-- Supporting slices: none
-- Validation: pending (integration tests)
-- Notes: Baseline support only in Phase 10.
 
 ### R032 — Comment resolution and resubmission loops (F-008)
 - Class: integration
@@ -92,6 +82,17 @@
 - Supporting slices: none
 - Validation: proved (pytest tests/m010_s01_auth_rbac_test.py -v)
 - Notes: Focus on key role separations first.
+
+### R031 — Service-to-service mTLS and signed principals (SEC-005)
+- Class: security
+- Status: validated
+- Description: Service-to-service communication enforces mTLS and signed service principals.
+- Why it matters: Prevents spoofed internal calls and unauthorized authority mutation.
+- Source: spec (section 6.3 SEC-005)
+- Primary owning slice: M010/S02
+- Supporting slices: none
+- Validation: proved (pytest tests/m010_s02_service_principal_auth_test.py -v)
+- Notes: Baseline support only in Phase 10.
 
 ### R020 — Reviewer UI queue/evidence view/decision capture (E-001)
 - Class: governance
@@ -430,7 +431,7 @@
 | R027 | security | validated | M010/S01 | none | proved (pytest tests/m010_s01_auth_rbac_test.py -v) |
 | R028 | security | validated | M010/S01 | none | proved (pytest tests/m010_s01_auth_rbac_test.py -v) |
 | R029 | security | active | M010/S01 | none | pending (log inspection + negative tests) |
-| R031 | security | active | M010/S01 | none | pending (integration tests) |
+| R031 | security | validated | M010/S02 | none | proved (pytest tests/m010_s02_service_principal_auth_test.py -v) |
 | R032 | integration | active | M011/S01 | none | pending (integration tests + runbook) |
 | R033 | integration | active | M011/S01 | none | pending (integration tests + runbook) |
 | R034 | governance | active | M012/S01 | none | pending (integration tests + runbook) |
@@ -439,7 +440,7 @@
 
 ## Coverage Summary
 
-- Active requirements: 6
+- Active requirements: 5
 - Mapped to slices: 34
-- Validated: 27
+- Validated: 28
 - Unmapped active requirements: 0

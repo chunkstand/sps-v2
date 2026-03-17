@@ -4,7 +4,7 @@ import logging
 from enum import StrEnum
 from typing import Iterable
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 
 from sps.auth.identity import AuthError, Identity, validate_jwt_identity
 from sps.config import get_settings
@@ -78,6 +78,71 @@ def require_identity(authorization: str | None = Header(default=None, alias="Aut
             status_code=401,
             detail={"error": "auth_required", "auth_reason": exc.reason},
         ) from exc
+
+    return identity
+
+
+def require_service_principal(
+    request: Request,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+) -> Identity:
+    token = _extract_bearer_token(authorization)
+    if token is None:
+        _emit_denied_log(
+            error_code="auth_required",
+            subject=None,
+            roles=None,
+            auth_reason="missing_or_invalid_authorization",
+        )
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "auth_required",
+                "auth_reason": "missing_or_invalid_authorization",
+                "guard": "service_principal",
+            },
+        )
+
+    settings = get_settings()
+    try:
+        identity = validate_jwt_identity(
+            token,
+            settings,
+            expected_principal_type="service_principal",
+        )
+    except AuthError as exc:
+        _emit_denied_log(
+            error_code="service_principal_denied",
+            subject=None,
+            roles=None,
+            auth_reason=exc.reason,
+        )
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "auth_required",
+                "auth_reason": exc.reason,
+                "guard": "service_principal",
+            },
+        ) from exc
+
+    mtls_header_name = settings.auth_mtls_signal_header
+    mtls_value = request.headers.get(mtls_header_name)
+    if mtls_value is None or not mtls_value.strip():
+        _emit_denied_log(
+            error_code="mtls_required",
+            subject=identity.subject,
+            roles=identity.roles,
+            auth_reason="missing_mtls_signal",
+        )
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "auth_required",
+                "auth_reason": "missing_mtls_signal",
+                "guard": "mtls_signal",
+            },
+        )
 
     return identity
 
