@@ -603,3 +603,110 @@ class DocumentArtifact(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
     )
+
+
+class CorrectionTask(Base):
+    __tablename__ = "correction_tasks"
+
+    correction_task_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    submission_attempt_id: Mapped[str] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("submission_attempts.submission_attempt_id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+    status: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    summary: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    requested_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    due_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
+class ResubmissionPackage(Base):
+    __tablename__ = "resubmission_packages"
+
+    resubmission_package_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    submission_attempt_id: Mapped[str] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("submission_attempts.submission_attempt_id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+    package_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    package_version: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    status: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    submitted_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
+class ApprovalRecord(Base):
+    __tablename__ = "approval_records"
+
+    approval_record_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    submission_attempt_id: Mapped[str] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("submission_attempts.submission_attempt_id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+    decision: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    authority: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    decided_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+
+class InspectionMilestone(Base):
+    __tablename__ = "inspection_milestones"
+
+    inspection_milestone_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    submission_attempt_id: Mapped[str] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("submission_attempts.submission_attempt_id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+    milestone_type: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    status: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    scheduled_for: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )

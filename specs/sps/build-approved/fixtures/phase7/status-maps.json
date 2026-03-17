@@ -38,6 +38,111 @@
           "contradiction_triggers": [
             "APPROVAL_REPORTED"
           ]
+        },
+        {
+          "raw_status": "Comments Issued",
+          "normalized_status": "COMMENT_ISSUED",
+          "confidence": "HIGH",
+          "allowed_case_states": [
+            "SUBMITTED"
+          ],
+          "auto_advance": false,
+          "required_evidence": [
+            "comment_letter"
+          ],
+          "reviewer_confirmation_required": false,
+          "contradiction_triggers": []
+        },
+        {
+          "raw_status": "Resubmission Required",
+          "normalized_status": "RESUBMISSION_REQUESTED",
+          "confidence": "HIGH",
+          "allowed_case_states": [
+            "SUBMITTED",
+            "CORRECTION_PENDING"
+          ],
+          "auto_advance": false,
+          "required_evidence": [
+            "resubmission_notice"
+          ],
+          "reviewer_confirmation_required": false,
+          "contradiction_triggers": []
+        },
+        {
+          "raw_status": "Approved - Pending Inspection",
+          "normalized_status": "APPROVAL_PENDING_INSPECTION",
+          "confidence": "HIGH",
+          "allowed_case_states": [
+            "SUBMITTED"
+          ],
+          "auto_advance": false,
+          "required_evidence": [
+            "conditional_approval"
+          ],
+          "reviewer_confirmation_required": false,
+          "contradiction_triggers": []
+        },
+        {
+          "raw_status": "Final Approval",
+          "normalized_status": "APPROVAL_FINAL",
+          "confidence": "HIGH",
+          "allowed_case_states": [
+            "SUBMITTED"
+          ],
+          "auto_advance": false,
+          "required_evidence": [
+            "final_approval_letter"
+          ],
+          "reviewer_confirmation_required": true,
+          "contradiction_triggers": [
+            "REJECTION_REPORTED"
+          ]
+        },
+        {
+          "raw_status": "Inspection Scheduled",
+          "normalized_status": "INSPECTION_SCHEDULED",
+          "confidence": "HIGH",
+          "allowed_case_states": [
+            "SUBMITTED"
+          ],
+          "auto_advance": false,
+          "required_evidence": [
+            "inspection_notice"
+          ],
+          "reviewer_confirmation_required": false,
+          "contradiction_triggers": []
+        },
+        {
+          "raw_status": "Inspection Passed",
+          "normalized_status": "INSPECTION_PASSED",
+          "confidence": "HIGH",
+          "allowed_case_states": [
+            "SUBMITTED"
+          ],
+          "auto_advance": false,
+          "required_evidence": [
+            "inspection_report"
+          ],
+          "reviewer_confirmation_required": false,
+          "contradiction_triggers": [
+            "INSPECTION_FAILED"
+          ]
+        },
+        {
+          "raw_status": "Inspection Failed",
+          "normalized_status": "INSPECTION_FAILED",
+          "confidence": "HIGH",
+          "allowed_case_states": [
+            "SUBMITTED"
+          ],
+          "auto_advance": false,
+          "required_evidence": [
+            "inspection_report"
+          ],
+          "reviewer_confirmation_required": false,
+          "contradiction_triggers": [
+            "INSPECTION_PASSED"
+          ]
         }
       ]
     }

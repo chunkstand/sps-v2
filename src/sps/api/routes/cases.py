@@ -10,8 +10,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from sps.api.contracts.cases import (
+    ApprovalRecordListResponse,
+    ApprovalRecordResponse,
     ComplianceEvaluationListResponse,
     ComplianceEvaluationResponse,
+    CorrectionTaskListResponse,
+    CorrectionTaskResponse,
     DocumentReferenceResponse,
     EvidenceArtifactResponse,
     ExternalStatusEventIngestRequest,
@@ -19,12 +23,16 @@ from sps.api.contracts.cases import (
     ExternalStatusEventResponse,
     IncentiveAssessmentListResponse,
     IncentiveAssessmentResponse,
+    InspectionMilestoneListResponse,
+    InspectionMilestoneResponse,
     JurisdictionResolutionListResponse,
     JurisdictionResolutionResponse,
     ManualFallbackPackageListResponse,
     ManualFallbackPackageResponse,
     RequirementSetListResponse,
     RequirementSetResponse,
+    ResubmissionPackageListResponse,
+    ResubmissionPackageResponse,
     SubmissionAttemptListResponse,
     SubmissionAttemptResponse,
     SubmissionManifestResponse,
@@ -34,15 +42,19 @@ from sps.api.contracts.intake import CreateCaseRequest, CreateCaseResponse, Site
 from sps.auth.rbac import Role, require_roles
 from sps.config import get_settings
 from sps.db.models import (
+    ApprovalRecord,
     ComplianceEvaluation,
+    CorrectionTask,
     EvidenceArtifact,
     ExternalStatusEvent,
     IncentiveAssessment,
+    InspectionMilestone,
     JurisdictionResolution,
     ManualFallbackPackage,
     PermitCase,
     Project,
     RequirementSet,
+    ResubmissionPackage,
     SubmissionAttempt,
 )
 from sps.db.session import get_db
@@ -250,6 +262,61 @@ def _manual_fallback_row_to_response(
         created_at=row.created_at,
         updated_at=row.updated_at,
         proof_bundle_evidence=_evidence_row_to_response(proof_bundle) if proof_bundle else None,
+    )
+
+
+def _correction_task_row_to_response(row: CorrectionTask) -> CorrectionTaskResponse:
+    return CorrectionTaskResponse(
+        correction_task_id=row.correction_task_id,
+        case_id=row.case_id,
+        submission_attempt_id=row.submission_attempt_id,
+        status=row.status,
+        summary=row.summary,
+        requested_at=row.requested_at,
+        due_at=row.due_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _resubmission_package_row_to_response(row: ResubmissionPackage) -> ResubmissionPackageResponse:
+    return ResubmissionPackageResponse(
+        resubmission_package_id=row.resubmission_package_id,
+        case_id=row.case_id,
+        submission_attempt_id=row.submission_attempt_id,
+        package_id=row.package_id,
+        package_version=row.package_version,
+        status=row.status,
+        submitted_at=row.submitted_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _approval_record_row_to_response(row: ApprovalRecord) -> ApprovalRecordResponse:
+    return ApprovalRecordResponse(
+        approval_record_id=row.approval_record_id,
+        case_id=row.case_id,
+        submission_attempt_id=row.submission_attempt_id,
+        decision=row.decision,
+        authority=row.authority,
+        decided_at=row.decided_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _inspection_milestone_row_to_response(row: InspectionMilestone) -> InspectionMilestoneResponse:
+    return InspectionMilestoneResponse(
+        inspection_milestone_id=row.inspection_milestone_id,
+        case_id=row.case_id,
+        submission_attempt_id=row.submission_attempt_id,
+        milestone_type=row.milestone_type,
+        status=row.status,
+        scheduled_for=row.scheduled_for,
+        completed_at=row.completed_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
     )
 
 
@@ -1044,6 +1111,226 @@ def get_case_manual_fallbacks(
                 else None,
             )
             for package in packages
+        ],
+    )
+
+
+@router.get(
+    "/cases/{case_id}/correction-tasks",
+    response_model=CorrectionTaskListResponse,
+)
+def get_case_correction_tasks(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> CorrectionTaskListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.correction_tasks_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        tasks = (
+            db.query(CorrectionTask)
+            .filter(CorrectionTask.case_id == case_id)
+            .order_by(CorrectionTask.created_at.desc())
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.correction_tasks_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "correction_tasks_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    if not tasks:
+        logger.warning("cases.correction_tasks_missing case_id=%s", case_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "correction_tasks_not_ready",
+                "case_id": case_id,
+                "missing": "correction_task",
+            },
+        )
+
+    logger.info("cases.correction_tasks_fetched case_id=%s count=%s", case_id, len(tasks))
+    return CorrectionTaskListResponse(
+        case_id=case_id,
+        correction_tasks=[_correction_task_row_to_response(task) for task in tasks],
+    )
+
+
+@router.get(
+    "/cases/{case_id}/resubmission-packages",
+    response_model=ResubmissionPackageListResponse,
+)
+def get_case_resubmission_packages(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> ResubmissionPackageListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.resubmission_packages_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        packages = (
+            db.query(ResubmissionPackage)
+            .filter(ResubmissionPackage.case_id == case_id)
+            .order_by(ResubmissionPackage.created_at.desc())
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.resubmission_packages_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "resubmission_packages_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    if not packages:
+        logger.warning("cases.resubmission_packages_missing case_id=%s", case_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "resubmission_packages_not_ready",
+                "case_id": case_id,
+                "missing": "resubmission_package",
+            },
+        )
+
+    logger.info(
+        "cases.resubmission_packages_fetched case_id=%s count=%s",
+        case_id,
+        len(packages),
+    )
+    return ResubmissionPackageListResponse(
+        case_id=case_id,
+        resubmission_packages=[
+            _resubmission_package_row_to_response(package) for package in packages
+        ],
+    )
+
+
+@router.get(
+    "/cases/{case_id}/approval-records",
+    response_model=ApprovalRecordListResponse,
+)
+def get_case_approval_records(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> ApprovalRecordListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.approval_records_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        records = (
+            db.query(ApprovalRecord)
+            .filter(ApprovalRecord.case_id == case_id)
+            .order_by(ApprovalRecord.created_at.desc())
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.approval_records_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "approval_records_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    if not records:
+        logger.warning("cases.approval_records_missing case_id=%s", case_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "approval_records_not_ready",
+                "case_id": case_id,
+                "missing": "approval_record",
+            },
+        )
+
+    logger.info("cases.approval_records_fetched case_id=%s count=%s", case_id, len(records))
+    return ApprovalRecordListResponse(
+        case_id=case_id,
+        approval_records=[_approval_record_row_to_response(record) for record in records],
+    )
+
+
+@router.get(
+    "/cases/{case_id}/inspection-milestones",
+    response_model=InspectionMilestoneListResponse,
+)
+def get_case_inspection_milestones(
+    case_id: str,
+    db: Session = Depends(get_db),
+) -> InspectionMilestoneListResponse:
+    try:
+        case = db.get(PermitCase, case_id)
+        if case is None:
+            logger.warning("cases.inspection_milestones_missing_case case_id=%s", case_id)
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "case_not_found", "case_id": case_id},
+            )
+
+        milestones = (
+            db.query(InspectionMilestone)
+            .filter(InspectionMilestone.case_id == case_id)
+            .order_by(InspectionMilestone.created_at.desc())
+            .all()
+        )
+    except SQLAlchemyError as exc:
+        logger.exception(
+            "cases.inspection_milestones_fetch_failed case_id=%s exc_type=%s",
+            case_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "inspection_milestones_fetch_failed", "case_id": case_id},
+        ) from exc
+
+    if not milestones:
+        logger.warning("cases.inspection_milestones_missing case_id=%s", case_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "inspection_milestones_not_ready",
+                "case_id": case_id,
+                "missing": "inspection_milestone",
+            },
+        )
+
+    logger.info(
+        "cases.inspection_milestones_fetched case_id=%s count=%s",
+        case_id,
+        len(milestones),
+    )
+    return InspectionMilestoneListResponse(
+        case_id=case_id,
+        inspection_milestones=[
+            _inspection_milestone_row_to_response(milestone) for milestone in milestones
         ],
     )
 

@@ -37,7 +37,7 @@ This milestone is complete only when all are true:
 - Orphan risks: none
 
 ## Slices
-- [ ] **S01: Post-submission artifacts + workflow wiring** `risk:high` `depends:[]`
+- [x] **S01: Post-submission artifacts + workflow wiring** `risk:high` `depends:[]`
   > After this: Status ingestion and workflow runs (via tests) create correction/resubmission/approval/inspection artifacts with deterministic persistence and guarded transitions.
 - [ ] **S02: Live docker-compose post-submission runbook** `risk:medium` `depends:[S01]`
   > After this: A real API + worker + Postgres + Temporal runbook proves the end-to-end comment → resubmission → approval/inspection lifecycle.

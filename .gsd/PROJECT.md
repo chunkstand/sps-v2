@@ -107,6 +107,14 @@ A governed workflow system that can produce and submit permit packages with revi
 - **Phase 10 service principal + mTLS gate (M010/S02) complete:** Service-to-service routes require service principal JWTs with principal_type claims and a configurable mTLS signal header, with allow/deny integration tests proving enforcement.
 - **Phase 10 redaction + read-only observability (M010/S03) complete:** Central log redaction filter scrubs sensitive fields across API/worker/CLI logging, ops/release routes remain GET-only with mutation denials, and the M010/S03 runbook proves redacted log output with service-principal+mTLS requests.
 - **Phase 10 milestone M010-w8n5cl verified:** security tests and the S03 runbook confirm auth/RBAC enforcement, service-principal+mTLS validation, and log redaction/read-only observability in a live API.
+- **Phase 11 post-submission artifacts + workflow wiring (M011/S01) complete:**
+  - CorrectionTask, ResubmissionPackage, ApprovalRecord, InspectionMilestone ORM models + Alembic migration (b1c2d3e4f5a6)
+  - Idempotent persistence activities with case/submission_attempt validation and datetime normalization following established pattern (PK check + IntegrityError race handling)
+  - Extended Phase 7 status map fixtures with 7 post-submission statuses (COMMENT_ISSUED, RESUBMISSION_REQUESTED, APPROVAL_*, INSPECTION_*)
+  - Workflow state branches for COMMENT_REVIEW_PENDING → CORRECTION_PENDING → RESUBMISSION_PENDING → DOCUMENT_COMPLETE loop
+  - API list endpoints for all 4 artifact types protected by intake role RBAC
+  - Proof surfaces: `tests/m011_s01_post_submission_artifacts_api_test.py` (API integration test) + workflow code verification
+  - R032/R033 validated: correction/resubmission/approval/inspection artifact models proven, workflow wiring proven structurally, full runtime execution deferred to S02
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
@@ -159,7 +167,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds
 - [x] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
 - [x] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
-- [ ] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking
+- [ ] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking (S01 complete)
 - [ ] M012-v8s3qn: Phase 12 — emergency and override governance
 - [ ] M013-n6p1tg: Phase 13 — admin policy/config governance
 

@@ -107,6 +107,11 @@ class ExternalStatusClass(str, Enum):
     RESUBMISSION_REQUESTED = "RESUBMISSION_REQUESTED"
     APPROVAL_REPORTED = "APPROVAL_REPORTED"
     APPROVAL_CONFIRMED = "APPROVAL_CONFIRMED"
+    APPROVAL_PENDING_INSPECTION = "APPROVAL_PENDING_INSPECTION"
+    APPROVAL_FINAL = "APPROVAL_FINAL"
+    INSPECTION_SCHEDULED = "INSPECTION_SCHEDULED"
+    INSPECTION_PASSED = "INSPECTION_PASSED"
+    INSPECTION_FAILED = "INSPECTION_FAILED"
     REJECTION_REPORTED = "REJECTION_REPORTED"
     WITHDRAWN_REPORTED = "WITHDRAWN_REPORTED"
     CLOSED_REPORTED = "CLOSED_REPORTED"
@@ -194,6 +199,61 @@ class PersistIncentiveAssessmentRequest(BaseModel):
 
     request_id: str = Field(min_length=1)
     case_id: str = Field(min_length=1)
+
+
+class PersistCorrectionTaskRequest(BaseModel):
+    """Activity input for persisting correction task artifacts from external status events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    correction_task_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+    status: str = Field(min_length=1)
+    summary: str | None = None
+    requested_at: dt.datetime | None = None
+    due_at: dt.datetime | None = None
+
+
+class PersistResubmissionPackageRequest(BaseModel):
+    """Activity input for persisting resubmission package artifacts from external status events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    resubmission_package_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+    package_id: str = Field(min_length=1)
+    package_version: str = Field(min_length=1)
+    status: str = Field(min_length=1)
+    submitted_at: dt.datetime | None = None
+
+
+class PersistApprovalRecordRequest(BaseModel):
+    """Activity input for persisting approval record artifacts from external status events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    approval_record_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+    decision: str = Field(min_length=1)
+    authority: str | None = None
+    decided_at: dt.datetime | None = None
+
+
+class PersistInspectionMilestoneRequest(BaseModel):
+    """Activity input for persisting inspection milestone artifacts from external status events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    inspection_milestone_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+    milestone_type: str = Field(min_length=1)
+    status: str = Field(min_length=1)
+    scheduled_for: dt.datetime | None = None
+    completed_at: dt.datetime | None = None
 
 
 class ExternalStatusNormalizationRequest(BaseModel):

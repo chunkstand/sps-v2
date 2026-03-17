@@ -35,10 +35,14 @@ with workflow.unsafe.imports_passed_through():
         deterministic_submission_adapter,
         ensure_permit_case_exists,
         fetch_permit_case_state,
+        persist_approval_record,
         persist_compliance_evaluation,
+        persist_correction_task,
         persist_incentive_assessment,
+        persist_inspection_milestone,
         persist_jurisdiction_resolutions,
         persist_requirement_sets,
+        persist_resubmission_package,
         persist_submission_package,
     )
 
@@ -884,6 +888,223 @@ class PermitCaseWorkflow:
                 package_id=package_id,
                 initial_request_id=None,
                 initial_result=None,
+            )
+
+        if snapshot.case_state == CaseState.SUBMITTED:
+            # Post-submission state: workflow can wait for external status events
+            # that trigger comment/resubmission or approval/inspection flows
+            workflow.logger.info(
+                "workflow.post_submission_state workflow_id=%s run_id=%s case_id=%s state=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                snapshot.case_state,
+            )
+            return PermitCaseWorkflowResult(
+                case_id=self._case_id,
+                correlation_id=correlation_id,
+                initial_request_id=None,
+                initial_result=None,
+                review_decision_id=None,
+                review_signal=None,
+                final_request_id=None,
+                final_result=None,
+                intake_request_id=None,
+                intake_result=None,
+            )
+
+        if snapshot.case_state == CaseState.COMMENT_REVIEW_PENDING:
+            # Transition: COMMENT_REVIEW_PENDING → CORRECTION_PENDING
+            transition_name = "comment_review_pending_to_correction_pending"
+            request_id = _transition_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                transition=transition_name,
+                attempt=1,
+            )
+            requested_at = _utc(workflow.now())
+            workflow.logger.info(
+                "workflow.transition_attempt workflow_id=%s run_id=%s case_id=%s request_id=%s from_state=%s to_state=%s attempt=1",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                request_id,
+                CaseState.COMMENT_REVIEW_PENDING,
+                CaseState.CORRECTION_PENDING,
+            )
+
+            raw_transition = await workflow.execute_activity(
+                apply_state_transition,
+                StateTransitionRequest(
+                    request_id=request_id,
+                    case_id=self._case_id,
+                    from_state=CaseState.COMMENT_REVIEW_PENDING,
+                    to_state=CaseState.CORRECTION_PENDING,
+                    actor_type=ActorType.system_guard,
+                    actor_id="system-guard",
+                    correlation_id=correlation_id,
+                    causation_id=None,
+                    required_review_id=None,
+                    required_evidence_ids=[],
+                    override_id=None,
+                    requested_at=requested_at,
+                    notes=None,
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            transition_result = parse_state_transition_result(
+                raw_transition.model_dump() if hasattr(raw_transition, "model_dump") else raw_transition
+            )
+
+            if transition_result.result != "applied":
+                workflow.logger.info(
+                    "workflow.transition_denied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s denial_reason=%s",
+                    info.workflow_id,
+                    info.run_id,
+                    self._case_id,
+                    request_id,
+                    transition_result.event_type,
+                    getattr(transition_result, "denial_reason", None),
+                )
+                raise RuntimeError(
+                    f"comment review transition did not apply (event_type={transition_result.event_type})"
+                )
+
+            workflow.logger.info(
+                "workflow.transition_applied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                request_id,
+                transition_result.event_type,
+            )
+            return PermitCaseWorkflowResult(
+                case_id=self._case_id,
+                correlation_id=correlation_id,
+                initial_request_id=request_id,
+                initial_result=transition_result,
+                review_decision_id=None,
+                review_signal=None,
+                final_request_id=request_id,
+                final_result=transition_result,
+                intake_request_id=None,
+                intake_result=None,
+            )
+
+        if snapshot.case_state == CaseState.CORRECTION_PENDING:
+            # Workflow can wait for correction completion signal
+            workflow.logger.info(
+                "workflow.correction_pending workflow_id=%s run_id=%s case_id=%s state=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                snapshot.case_state,
+            )
+            return PermitCaseWorkflowResult(
+                case_id=self._case_id,
+                correlation_id=correlation_id,
+                initial_request_id=None,
+                initial_result=None,
+                review_decision_id=None,
+                review_signal=None,
+                final_request_id=None,
+                final_result=None,
+                intake_request_id=None,
+                intake_result=None,
+            )
+
+        if snapshot.case_state == CaseState.RESUBMISSION_PENDING:
+            # Transition: RESUBMISSION_PENDING → DOCUMENT_COMPLETE (to regenerate package)
+            transition_name = "resubmission_pending_to_document_complete"
+            request_id = _transition_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                transition=transition_name,
+                attempt=1,
+            )
+            requested_at = _utc(workflow.now())
+            workflow.logger.info(
+                "workflow.transition_attempt workflow_id=%s run_id=%s case_id=%s request_id=%s from_state=%s to_state=%s attempt=1",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                request_id,
+                CaseState.RESUBMISSION_PENDING,
+                CaseState.DOCUMENT_COMPLETE,
+            )
+
+            raw_transition = await workflow.execute_activity(
+                apply_state_transition,
+                StateTransitionRequest(
+                    request_id=request_id,
+                    case_id=self._case_id,
+                    from_state=CaseState.RESUBMISSION_PENDING,
+                    to_state=CaseState.DOCUMENT_COMPLETE,
+                    actor_type=ActorType.system_guard,
+                    actor_id="system-guard",
+                    correlation_id=correlation_id,
+                    causation_id=None,
+                    required_review_id=None,
+                    required_evidence_ids=[],
+                    override_id=None,
+                    requested_at=requested_at,
+                    notes=None,
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            transition_result = parse_state_transition_result(
+                raw_transition.model_dump() if hasattr(raw_transition, "model_dump") else raw_transition
+            )
+
+            if transition_result.result != "applied":
+                workflow.logger.info(
+                    "workflow.transition_denied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s denial_reason=%s",
+                    info.workflow_id,
+                    info.run_id,
+                    self._case_id,
+                    request_id,
+                    transition_result.event_type,
+                    getattr(transition_result, "denial_reason", None),
+                )
+                raise RuntimeError(
+                    f"resubmission transition did not apply (event_type={transition_result.event_type})"
+                )
+
+            workflow.logger.info(
+                "workflow.transition_applied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                request_id,
+                transition_result.event_type,
+            )
+
+            # After transitioning back to DOCUMENT_COMPLETE, regenerate package and resubmit
+            package_activity_id = _activity_request_id(
+                workflow_id=info.workflow_id,
+                run_id=info.run_id,
+                activity_name="persist_submission_package",
+                attempt=2,  # Second attempt for resubmission
+            )
+            package_id = await workflow.execute_activity(
+                persist_submission_package,
+                PersistSubmissionPackageRequest(
+                    request_id=package_activity_id,
+                    case_id=self._case_id,
+                ),
+                start_to_close_timeout=timedelta(seconds=60),
+            )
+            workflow.logger.info(
+                "workflow.package_persisted workflow_id=%s run_id=%s case_id=%s package_id=%s resubmission=1",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                package_id,
+            )
+            return await _run_submission_step(
+                package_id=package_id,
+                initial_request_id=request_id,
+                initial_result=transition_result,
             )
 
         transition_name = "review_pending_to_approved_for_submission"

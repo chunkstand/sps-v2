@@ -8,18 +8,22 @@ from temporalio import activity
 
 from sps.audit.events import emit_audit_event
 from sps.db.models import (
+    ApprovalRecord,
     CaseTransitionLedger,
     ComplianceEvaluation,
     ContradictionArtifact,
+    CorrectionTask,
     DocumentArtifact,
     EvidenceArtifact,
     ExternalStatusEvent,
     IncentiveAssessment,
+    InspectionMilestone,
     JurisdictionResolution,
     ManualFallbackPackage,
     PermitCase,
     Project,
     RequirementSet,
+    ResubmissionPackage,
     ReviewDecision,
     SubmissionAttempt,
     SubmissionPackage,
@@ -39,10 +43,14 @@ from sps.workflows.permit_case.contracts import (
     ExternalStatusNormalizationRequest,
     ExternalStatusNormalizationResult,
     PermitCaseStateSnapshot,
+    PersistApprovalRecordRequest,
     PersistComplianceEvaluationRequest,
+    PersistCorrectionTaskRequest,
     PersistIncentiveAssessmentRequest,
+    PersistInspectionMilestoneRequest,
     PersistJurisdictionResolutionRequest,
     PersistRequirementSetRequest,
+    PersistResubmissionPackageRequest,
     PersistReviewDecisionRequest,
     PersistSubmissionPackageRequest,
     SubmissionAdapterOutcome,
@@ -1251,6 +1259,46 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                     applied_at=requested_at,
                                 )
                                 case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.SUBMITTED
+                            and req.to_state == CaseState.COMMENT_REVIEW_PENDING
+                        ):
+                            # Post-submission: external status COMMENT_ISSUED triggers this transition
+                            result = AppliedStateTransitionResult(
+                                event_type=_EVENT_CASE_STATE_CHANGED,
+                                applied_at=requested_at,
+                            )
+                            case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.COMMENT_REVIEW_PENDING
+                            and req.to_state == CaseState.CORRECTION_PENDING
+                        ):
+                            # Move from comment review to correction work
+                            result = AppliedStateTransitionResult(
+                                event_type=_EVENT_CASE_STATE_CHANGED,
+                                applied_at=requested_at,
+                            )
+                            case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.CORRECTION_PENDING
+                            and req.to_state == CaseState.RESUBMISSION_PENDING
+                        ):
+                            # Corrections complete, ready for resubmission
+                            result = AppliedStateTransitionResult(
+                                event_type=_EVENT_CASE_STATE_CHANGED,
+                                applied_at=requested_at,
+                            )
+                            case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.RESUBMISSION_PENDING
+                            and req.to_state == CaseState.DOCUMENT_COMPLETE
+                        ):
+                            # Resubmission path: back to DOCUMENT_COMPLETE to regenerate package
+                            result = AppliedStateTransitionResult(
+                                event_type=_EVENT_CASE_STATE_CHANGED,
+                                applied_at=requested_at,
+                            )
+                            case.case_state = req.to_state.value
                         else:
                             result = _deny(
                                 denied_at=requested_at,
@@ -2050,4 +2098,411 @@ def deterministic_submission_adapter(
                 req.case_id,
                 req.submission_attempt_id,
             )
+        raise
+
+
+@activity.defn
+def persist_correction_task(request: PersistCorrectionTaskRequest | dict) -> str:
+    """Persist a correction task artifact with idempotent behavior."""
+
+    req = PersistCorrectionTaskRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "activity.start name=persist_correction_task workflow_id=%s run_id=%s case_id=%s correction_task_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.correction_task_id,
+    )
+
+    requested_at = req.requested_at
+    if requested_at and requested_at.tzinfo is None:
+        requested_at = requested_at.replace(tzinfo=dt.UTC)
+
+    due_at = req.due_at
+    if due_at and due_at.tzinfo is None:
+        due_at = due_at.replace(tzinfo=dt.UTC)
+
+    SessionLocal = get_sessionmaker()
+
+    try:
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    existing = session.get(CorrectionTask, req.correction_task_id)
+                    if existing is not None:
+                        logger.info(
+                            "activity.ok name=persist_correction_task workflow_id=%s run_id=%s case_id=%s correction_task_id=%s idempotent=1",
+                            workflow_id,
+                            run_id,
+                            req.case_id,
+                            req.correction_task_id,
+                        )
+                        return req.correction_task_id
+
+                    # Validate case and submission_attempt linkage
+                    case = session.get(PermitCase, req.case_id)
+                    if case is None:
+                        raise LookupError(f"permit_case not found for case_id={req.case_id}")
+
+                    attempt = session.get(SubmissionAttempt, req.submission_attempt_id)
+                    if attempt is None:
+                        raise LookupError(
+                            f"submission_attempt not found for submission_attempt_id={req.submission_attempt_id}"
+                        )
+                    if attempt.case_id != req.case_id:
+                        raise LookupError(
+                            f"submission_attempt_case_mismatch attempt_id={req.submission_attempt_id} case_id={req.case_id}"
+                        )
+
+                    session.add(
+                        CorrectionTask(
+                            correction_task_id=req.correction_task_id,
+                            case_id=req.case_id,
+                            submission_attempt_id=req.submission_attempt_id,
+                            status=req.status,
+                            summary=req.summary,
+                            requested_at=requested_at,
+                            due_at=due_at,
+                        )
+                    )
+
+                logger.info(
+                    "activity.ok name=persist_correction_task workflow_id=%s run_id=%s case_id=%s correction_task_id=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    req.correction_task_id,
+                )
+                return req.correction_task_id
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing = session.get(CorrectionTask, req.correction_task_id)
+            if existing is None:
+                raise RuntimeError(
+                    f"correction_tasks insert raced but row not found for correction_task_id={req.correction_task_id}"
+                )
+            logger.info(
+                "activity.ok name=persist_correction_task workflow_id=%s run_id=%s case_id=%s correction_task_id=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                req.correction_task_id,
+            )
+            return req.correction_task_id
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=persist_correction_task workflow_id=%s run_id=%s case_id=%s correction_task_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.correction_task_id,
+            type(exc).__name__,
+        )
+        raise
+
+
+@activity.defn
+def persist_resubmission_package(request: PersistResubmissionPackageRequest | dict) -> str:
+    """Persist a resubmission package artifact with idempotent behavior."""
+
+    req = PersistResubmissionPackageRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "activity.start name=persist_resubmission_package workflow_id=%s run_id=%s case_id=%s resubmission_package_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.resubmission_package_id,
+    )
+
+    submitted_at = req.submitted_at
+    if submitted_at and submitted_at.tzinfo is None:
+        submitted_at = submitted_at.replace(tzinfo=dt.UTC)
+
+    SessionLocal = get_sessionmaker()
+
+    try:
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    existing = session.get(ResubmissionPackage, req.resubmission_package_id)
+                    if existing is not None:
+                        logger.info(
+                            "activity.ok name=persist_resubmission_package workflow_id=%s run_id=%s case_id=%s resubmission_package_id=%s idempotent=1",
+                            workflow_id,
+                            run_id,
+                            req.case_id,
+                            req.resubmission_package_id,
+                        )
+                        return req.resubmission_package_id
+
+                    # Validate case and submission_attempt linkage
+                    case = session.get(PermitCase, req.case_id)
+                    if case is None:
+                        raise LookupError(f"permit_case not found for case_id={req.case_id}")
+
+                    attempt = session.get(SubmissionAttempt, req.submission_attempt_id)
+                    if attempt is None:
+                        raise LookupError(
+                            f"submission_attempt not found for submission_attempt_id={req.submission_attempt_id}"
+                        )
+                    if attempt.case_id != req.case_id:
+                        raise LookupError(
+                            f"submission_attempt_case_mismatch attempt_id={req.submission_attempt_id} case_id={req.case_id}"
+                        )
+
+                    session.add(
+                        ResubmissionPackage(
+                            resubmission_package_id=req.resubmission_package_id,
+                            case_id=req.case_id,
+                            submission_attempt_id=req.submission_attempt_id,
+                            package_id=req.package_id,
+                            package_version=req.package_version,
+                            status=req.status,
+                            submitted_at=submitted_at,
+                        )
+                    )
+
+                logger.info(
+                    "activity.ok name=persist_resubmission_package workflow_id=%s run_id=%s case_id=%s resubmission_package_id=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    req.resubmission_package_id,
+                )
+                return req.resubmission_package_id
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing = session.get(ResubmissionPackage, req.resubmission_package_id)
+            if existing is None:
+                raise RuntimeError(
+                    f"resubmission_packages insert raced but row not found for resubmission_package_id={req.resubmission_package_id}"
+                )
+            logger.info(
+                "activity.ok name=persist_resubmission_package workflow_id=%s run_id=%s case_id=%s resubmission_package_id=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                req.resubmission_package_id,
+            )
+            return req.resubmission_package_id
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=persist_resubmission_package workflow_id=%s run_id=%s case_id=%s resubmission_package_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.resubmission_package_id,
+            type(exc).__name__,
+        )
+        raise
+
+
+@activity.defn
+def persist_approval_record(request: PersistApprovalRecordRequest | dict) -> str:
+    """Persist an approval record artifact with idempotent behavior."""
+
+    req = PersistApprovalRecordRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "activity.start name=persist_approval_record workflow_id=%s run_id=%s case_id=%s approval_record_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.approval_record_id,
+    )
+
+    decided_at = req.decided_at
+    if decided_at and decided_at.tzinfo is None:
+        decided_at = decided_at.replace(tzinfo=dt.UTC)
+
+    SessionLocal = get_sessionmaker()
+
+    try:
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    existing = session.get(ApprovalRecord, req.approval_record_id)
+                    if existing is not None:
+                        logger.info(
+                            "activity.ok name=persist_approval_record workflow_id=%s run_id=%s case_id=%s approval_record_id=%s idempotent=1",
+                            workflow_id,
+                            run_id,
+                            req.case_id,
+                            req.approval_record_id,
+                        )
+                        return req.approval_record_id
+
+                    # Validate case and submission_attempt linkage
+                    case = session.get(PermitCase, req.case_id)
+                    if case is None:
+                        raise LookupError(f"permit_case not found for case_id={req.case_id}")
+
+                    attempt = session.get(SubmissionAttempt, req.submission_attempt_id)
+                    if attempt is None:
+                        raise LookupError(
+                            f"submission_attempt not found for submission_attempt_id={req.submission_attempt_id}"
+                        )
+                    if attempt.case_id != req.case_id:
+                        raise LookupError(
+                            f"submission_attempt_case_mismatch attempt_id={req.submission_attempt_id} case_id={req.case_id}"
+                        )
+
+                    session.add(
+                        ApprovalRecord(
+                            approval_record_id=req.approval_record_id,
+                            case_id=req.case_id,
+                            submission_attempt_id=req.submission_attempt_id,
+                            decision=req.decision,
+                            authority=req.authority,
+                            decided_at=decided_at,
+                        )
+                    )
+
+                logger.info(
+                    "activity.ok name=persist_approval_record workflow_id=%s run_id=%s case_id=%s approval_record_id=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    req.approval_record_id,
+                )
+                return req.approval_record_id
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing = session.get(ApprovalRecord, req.approval_record_id)
+            if existing is None:
+                raise RuntimeError(
+                    f"approval_records insert raced but row not found for approval_record_id={req.approval_record_id}"
+                )
+            logger.info(
+                "activity.ok name=persist_approval_record workflow_id=%s run_id=%s case_id=%s approval_record_id=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                req.approval_record_id,
+            )
+            return req.approval_record_id
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=persist_approval_record workflow_id=%s run_id=%s case_id=%s approval_record_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.approval_record_id,
+            type(exc).__name__,
+        )
+        raise
+
+
+@activity.defn
+def persist_inspection_milestone(request: PersistInspectionMilestoneRequest | dict) -> str:
+    """Persist an inspection milestone artifact with idempotent behavior."""
+
+    req = PersistInspectionMilestoneRequest.model_validate(request)
+    workflow_id, run_id = _safe_temporal_ids()
+
+    logger.info(
+        "activity.start name=persist_inspection_milestone workflow_id=%s run_id=%s case_id=%s inspection_milestone_id=%s",
+        workflow_id,
+        run_id,
+        req.case_id,
+        req.inspection_milestone_id,
+    )
+
+    scheduled_for = req.scheduled_for
+    if scheduled_for and scheduled_for.tzinfo is None:
+        scheduled_for = scheduled_for.replace(tzinfo=dt.UTC)
+
+    completed_at = req.completed_at
+    if completed_at and completed_at.tzinfo is None:
+        completed_at = completed_at.replace(tzinfo=dt.UTC)
+
+    SessionLocal = get_sessionmaker()
+
+    try:
+        with SessionLocal() as session:
+            try:
+                with session.begin():
+                    existing = session.get(InspectionMilestone, req.inspection_milestone_id)
+                    if existing is not None:
+                        logger.info(
+                            "activity.ok name=persist_inspection_milestone workflow_id=%s run_id=%s case_id=%s inspection_milestone_id=%s idempotent=1",
+                            workflow_id,
+                            run_id,
+                            req.case_id,
+                            req.inspection_milestone_id,
+                        )
+                        return req.inspection_milestone_id
+
+                    # Validate case and submission_attempt linkage
+                    case = session.get(PermitCase, req.case_id)
+                    if case is None:
+                        raise LookupError(f"permit_case not found for case_id={req.case_id}")
+
+                    attempt = session.get(SubmissionAttempt, req.submission_attempt_id)
+                    if attempt is None:
+                        raise LookupError(
+                            f"submission_attempt not found for submission_attempt_id={req.submission_attempt_id}"
+                        )
+                    if attempt.case_id != req.case_id:
+                        raise LookupError(
+                            f"submission_attempt_case_mismatch attempt_id={req.submission_attempt_id} case_id={req.case_id}"
+                        )
+
+                    session.add(
+                        InspectionMilestone(
+                            inspection_milestone_id=req.inspection_milestone_id,
+                            case_id=req.case_id,
+                            submission_attempt_id=req.submission_attempt_id,
+                            milestone_type=req.milestone_type,
+                            status=req.status,
+                            scheduled_for=scheduled_for,
+                            completed_at=completed_at,
+                        )
+                    )
+
+                logger.info(
+                    "activity.ok name=persist_inspection_milestone workflow_id=%s run_id=%s case_id=%s inspection_milestone_id=%s",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    req.inspection_milestone_id,
+                )
+                return req.inspection_milestone_id
+            except IntegrityError:
+                session.rollback()
+
+        with SessionLocal() as session:
+            existing = session.get(InspectionMilestone, req.inspection_milestone_id)
+            if existing is None:
+                raise RuntimeError(
+                    f"inspection_milestones insert raced but row not found for inspection_milestone_id={req.inspection_milestone_id}"
+                )
+            logger.info(
+                "activity.ok name=persist_inspection_milestone workflow_id=%s run_id=%s case_id=%s inspection_milestone_id=%s idempotent=1",
+                workflow_id,
+                run_id,
+                req.case_id,
+                req.inspection_milestone_id,
+            )
+            return req.inspection_milestone_id
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=persist_inspection_milestone workflow_id=%s run_id=%s case_id=%s inspection_milestone_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            req.inspection_milestone_id,
+            type(exc).__name__,
+        )
         raise

@@ -319,3 +319,110 @@ class ManualFallbackPackageListResponse(BaseModel):
     case_id: str = Field(min_length=1)
     manual_fallback_packages: list[ManualFallbackPackageResponse]
 
+
+class CorrectionTaskResponse(BaseModel):
+    """Correction task payload for case read surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    correction_task_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+
+    status: str = Field(min_length=1)
+    summary: str | None = None
+    requested_at: datetime | None = None
+    due_at: datetime | None = None
+
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CorrectionTaskListResponse(BaseModel):
+    """List response for correction tasks per case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    correction_tasks: list[CorrectionTaskResponse]
+
+
+class ResubmissionPackageResponse(BaseModel):
+    """Resubmission package payload for case read surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    resubmission_package_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+
+    package_id: str = Field(min_length=1)
+    package_version: str = Field(min_length=1)
+    status: str = Field(min_length=1)
+    submitted_at: datetime | None = None
+
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class ResubmissionPackageListResponse(BaseModel):
+    """List response for resubmission packages per case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    resubmission_packages: list[ResubmissionPackageResponse]
+
+
+class ApprovalRecordResponse(BaseModel):
+    """Approval record payload for case read surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    approval_record_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+
+    decision: str = Field(min_length=1)
+    authority: str | None = None
+    decided_at: datetime | None = None
+
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class ApprovalRecordListResponse(BaseModel):
+    """List response for approval records per case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    approval_records: list[ApprovalRecordResponse]
+
+
+class InspectionMilestoneResponse(BaseModel):
+    """Inspection milestone payload for case read surfaces."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    inspection_milestone_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+
+    milestone_type: str = Field(min_length=1)
+    status: str = Field(min_length=1)
+    scheduled_for: datetime | None = None
+    completed_at: datetime | None = None
+
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class InspectionMilestoneListResponse(BaseModel):
+    """List response for inspection milestones per case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=1)
+    inspection_milestones: list[InspectionMilestoneResponse]
+

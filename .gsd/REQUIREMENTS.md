@@ -6,25 +6,25 @@
 
 ### R032 — Comment resolution and resubmission loops (F-008)
 - Class: integration
-- Status: active
+- Status: validated
 - Description: SPS supports reviewer-driven correction and resubmission loops after submission.
 - Why it matters: Real-world permitting requires iterative corrections; this must be governed and auditable.
 - Source: spec (section 6.1 F-008)
 - Primary owning slice: M011/S01
 - Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Minimal loop first.
+- Validation: proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + workflow state transitions + artifact persistence activities)
+- Notes: Workflow wired for COMMENT_REVIEW_PENDING → CORRECTION_PENDING → RESUBMISSION_PENDING → DOCUMENT_COMPLETE loop; CorrectionTask and ResubmissionPackage artifacts persisted via idempotent activities; API list endpoints proven via integration test.
 
 ### R033 — Approval and inspection milestone tracking (F-009)
 - Class: integration
-- Status: active
+- Status: validated
 - Description: SPS records approvals, conditions, and inspection milestones after submission.
 - Why it matters: Permit lifecycle completion requires durable approval/inspection records.
 - Source: spec (section 6.1 F-009)
 - Primary owning slice: M011/S01
 - Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Driven by normalized status events.
+- Validation: proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifact persistence activities)
+- Notes: ApprovalRecord and InspectionMilestone artifacts persisted via idempotent activities with case/submission_attempt validation; API list endpoints proven via integration test; status map fixtures extended for APPROVAL_* and INSPECTION_* statuses.
 
 ### R034 — Emergency and override workflows (GOV-005)
 - Class: governance
@@ -430,17 +430,17 @@
 | R026 | release | validated | M009/S01 | none | proved (runbooks/sps/post-release-validation.md + scripts/verify_m009_s03.sh) |
 | R027 | security | validated | M010/S01 | none | proved (pytest tests/m010_s01_auth_rbac_test.py -v) |
 | R028 | security | validated | M010/S01 | none | proved (pytest tests/m010_s01_auth_rbac_test.py -v) |
-| R029 | security | active | M010/S01 | none | pending (log inspection + negative tests) |
+| R029 | security | validated | M010/S01 | none | proved (pytest tests/m010_s03_redaction_test.py -v, pytest tests/m010_s03_observability_readonly_test.py -v, scripts/verify_m010_s03.sh) |
 | R031 | security | validated | M010/S02 | none | proved (pytest tests/m010_s02_service_principal_auth_test.py -v) |
-| R032 | integration | active | M011/S01 | none | pending (integration tests + runbook) |
-| R033 | integration | active | M011/S01 | none | pending (integration tests + runbook) |
+| R032 | integration | validated | M011/S01 | none | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + workflow wiring + artifacts) |
+| R033 | integration | validated | M011/S01 | none | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifacts) |
 | R034 | governance | active | M012/S01 | none | pending (integration tests + runbook) |
 | R035 | governance | active | M013/S01 | none | pending (integration tests + runbook) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 5
+- Active requirements: 3
 - Mapped to slices: 34
-- Validated: 28
+- Validated: 30
 - Unmapped active requirements: 0
