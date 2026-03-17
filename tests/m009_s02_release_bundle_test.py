@@ -7,6 +7,7 @@ Checks:
   - POST /api/v1/releases/bundles persists bundle + artifact rows.
   - Artifact digest mismatches return structured 400 errors.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -17,6 +18,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Generator
 
 import httpx
 import pytest
@@ -193,8 +195,14 @@ def _hash_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def _write_temp_manifest(tmp_path: Path, *, bad_hash: bool = False) -> tuple[Path, Path]:
-    artifact_path = tmp_path / "artifact.yaml"
+def _write_temp_manifest(
+    tmp_path: Path,
+    *,
+    bad_hash: bool = False,
+    root_dir: Path | None = None,
+) -> tuple[Path, Path]:
+    root_dir = root_dir or tmp_path
+    artifact_path = root_dir / "artifact.yaml"
     artifact_path.write_text(
         """---\nartifact_metadata:\n  artifact_id: ART-TEST-001\n---\nname: test\n""",
         encoding="utf-8",
@@ -206,14 +214,26 @@ def _write_temp_manifest(tmp_path: Path, *, bad_hash: bool = False) -> tuple[Pat
     manifest_payload = [
         {"path": artifact_path.name, "sha256": sha, "bytes": len(content)},
     ]
-    manifest_path = tmp_path / "PACKAGE-MANIFEST.json"
+    manifest_path = root_dir / "PACKAGE-MANIFEST.json"
     manifest_path.write_text(json.dumps(manifest_payload), encoding="utf-8")
-    return manifest_path, tmp_path
+    return manifest_path, root_dir
 
 
-def _run_release_bundle_cli(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess:
-    cmd = [sys.executable, "scripts/generate_release_bundle.py", *args]
-    return subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=Path.cwd())
+def _run_release_bundle_cli(
+    args: list[str],
+    env: dict[str, str],
+    *,
+    cwd: Path | None = None,
+) -> subprocess.CompletedProcess:
+    repo_root = Path(__file__).resolve().parents[1]
+    cmd = [sys.executable, str(repo_root / "scripts/generate_release_bundle.py"), *args]
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=cwd or repo_root,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +242,7 @@ def _run_release_bundle_cli(args: list[str], env: dict[str, str]) -> subprocess.
 
 
 @pytest.fixture(autouse=True)
-def _db_lifecycle() -> None:  # type: ignore[return]
+def _db_lifecycle() -> Generator[None, None, None]:
     _wait_for_postgres_ready()
     _migrate_db()
     _reset_db()
@@ -418,6 +438,38 @@ def test_release_bundle_cli_success(tmp_path: Path) -> None:
     SessionLocal = get_sessionmaker()
     with SessionLocal() as session:
         bundle_row = session.get(ReleaseBundle, "REL-CLI-OK")
+        assert bundle_row is not None
+
+
+def test_release_bundle_cli_manifest_path_includes_root(tmp_path: Path) -> None:
+    settings = get_settings()
+    root_dir = tmp_path / "sps_full_spec_package"
+    root_dir.mkdir()
+    _write_temp_manifest(tmp_path, root_dir=root_dir)
+
+    env = os.environ.copy()
+    env["API_BASE"] = "http://test"
+    env["SPS_REVIEWER_API_KEY"] = settings.reviewer_api_key
+    env["SPS_RELEASE_BUNDLE_HTTP_MODE"] = "asgi"
+
+    result = _run_release_bundle_cli(
+        [
+            "--manifest",
+            "sps_full_spec_package/PACKAGE-MANIFEST.json",
+            "--root",
+            "sps_full_spec_package",
+            "--release-id",
+            "REL-CLI-ROOTPATH",
+        ],
+        env,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+    SessionLocal = get_sessionmaker()
+    with SessionLocal() as session:
+        bundle_row = session.get(ReleaseBundle, "REL-CLI-ROOTPATH")
         assert bundle_row is not None
 
 
