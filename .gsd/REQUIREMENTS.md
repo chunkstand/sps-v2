@@ -26,16 +26,6 @@
 - Validation: proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook)
 - Notes: ApprovalRecord and InspectionMilestone artifacts persisted via idempotent activities with case/submission_attempt validation; API list endpoints proven via integration test; status map fixtures extended for APPROVAL_* and INSPECTION_* statuses. S02 extended validation with operational docker-compose runbook proving approval_records and inspection_milestones artifacts are created and queryable via Postgres after status event ingestion.
 
-### R035 — Admin policy/config governance (spec section 5.5)
-- Class: governance
-- Status: active
-- Description: Admin changes to portal support metadata, source rules, and incentive programs require intent, review, and audit trails.
-- Why it matters: Prevents hidden authority drift from admin changes.
-- Source: spec (section 5.5)
-- Primary owning slice: M013/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Portal support metadata intent/review/apply integration tests pass (S01). Governed mutation paths for source rules + incentive programs and docker-compose runbook remain pending (S02).
 
 ## Validated
 
@@ -49,6 +39,17 @@
 - Supporting slices: none
 - Validation: proved (pytest tests/m012_s01_override_guard_test.py -v + pytest tests/m012_s01_emergency_hold_test.py -v + scripts/verify_m012_s01.sh runbook)
 - Notes: Guard enforcement validated with OVERRIDE_DENIED ledger entries and EMERGENCY_HOLD lifecycle runbook proof.
+
+### R035 — Admin policy/config governance (spec section 5.5)
+- Class: governance
+- Status: validated
+- Description: Admin changes to portal support metadata, source rules, and incentive programs require intent, review, and audit trails.
+- Why it matters: Prevents hidden authority drift from admin changes.
+- Source: spec (section 5.5)
+- Primary owning slice: M013/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m013_s01_admin_portal_support_governance_test.py + pytest tests/m013_s02_admin_source_rules_governance_test.py + pytest tests/m013_s02_admin_incentive_programs_governance_test.py + scripts/verify_m013_s02.sh runbook)
+- Notes: Governed mutation paths for portal support metadata, source rules, and incentive programs are enforced via intent→review→apply endpoints with reviewer-only approvals and audit event emission.
 
 ### R027 — Authenticated identities on interactive and service APIs (SEC-001)
 - Class: security
@@ -435,12 +436,12 @@
 | R032 | integration | validated | M011/S01 | M011/S02 | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + workflow state transitions + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook) |
 | R033 | integration | validated | M011/S01 | M011/S02 | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook) |
 | R034 | governance | validated | M012/S01 | none | proved (pytest tests/m012_s01_override_guard_test.py -v + pytest tests/m012_s01_emergency_hold_test.py -v + scripts/verify_m012_s01.sh runbook) |
-| R035 | governance | active | M013/S01 | none | pending (integration tests + runbook) |
+| R035 | governance | validated | M013/S01 | none | proved (pytest tests/m013_s01_admin_portal_support_governance_test.py + pytest tests/m013_s02_admin_source_rules_governance_test.py + pytest tests/m013_s02_admin_incentive_programs_governance_test.py + scripts/verify_m013_s02.sh) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 3
+- Active requirements: 2
 - Mapped to slices: 34
-- Validated: 31
+- Validated: 32
 - Unmapped active requirements: 0

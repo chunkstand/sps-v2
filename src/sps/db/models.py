@@ -789,6 +789,144 @@ class PortalSupportMetadata(Base):
     )
 
 
+class SourceRule(Base):
+    __tablename__ = "source_rules"
+
+    source_rule_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    rule_scope: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    rule_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("rule_scope", name="uq_source_rules_scope"),
+        sa.Index("ix_source_rules_scope", "rule_scope"),
+    )
+
+
+class IncentiveProgram(Base):
+    __tablename__ = "incentive_programs"
+
+    incentive_program_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    program_key: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    program_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("program_key", name="uq_incentive_programs_key"),
+        sa.Index("ix_incentive_programs_key", "program_key"),
+    )
+
+
+class AdminIncentiveProgramIntent(Base):
+    __tablename__ = "admin_incentive_program_intents"
+
+    intent_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    program_key: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    program_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(
+        sa.Text, nullable=False, server_default=sa.text("'PENDING_REVIEW'")
+    )
+    requested_by: Mapped[str] = mapped_column(sa.Text, nullable=False)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.Index("ix_admin_incentive_program_intents_key", "program_key"),
+        sa.Index("ix_admin_incentive_program_intents_status", "status"),
+    )
+
+
+class AdminIncentiveProgramReview(Base):
+    __tablename__ = "admin_incentive_program_reviews"
+
+    review_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    intent_id: Mapped[str] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("admin_incentive_program_intents.intent_id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    reviewer_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    decision_outcome: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    review_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    idempotency_key: Mapped[str] = mapped_column(sa.Text, nullable=False, unique=True)
+
+    reviewed_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.Index("ix_admin_incentive_program_reviews_intent", "intent_id"),
+    )
+
+
+class AdminSourceRuleIntent(Base):
+    __tablename__ = "admin_source_rule_intents"
+
+    intent_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    rule_scope: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    rule_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(
+        sa.Text, nullable=False, server_default=sa.text("'PENDING_REVIEW'")
+    )
+    requested_by: Mapped[str] = mapped_column(sa.Text, nullable=False)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.Index("ix_admin_source_rule_intents_scope", "rule_scope"),
+        sa.Index("ix_admin_source_rule_intents_status", "status"),
+    )
+
+
+class AdminSourceRuleReview(Base):
+    __tablename__ = "admin_source_rule_reviews"
+
+    review_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    intent_id: Mapped[str] = mapped_column(
+        sa.Text,
+        sa.ForeignKey("admin_source_rule_intents.intent_id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    reviewer_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    decision_outcome: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    review_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    idempotency_key: Mapped[str] = mapped_column(sa.Text, nullable=False, unique=True)
+
+    reviewed_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.Index("ix_admin_source_rule_reviews_intent", "intent_id"),
+    )
+
+
 class AdminPortalSupportIntent(Base):
     __tablename__ = "admin_portal_support_intents"
 

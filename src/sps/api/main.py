@@ -17,6 +17,8 @@ from sps.api.routes.evidence import router as evidence_router
 from sps.api.routes.overrides import router as overrides_router
 from sps.api.routes.reviews import router as reviews_router
 from sps.api.routes.admin_portal_support import router as admin_portal_support_router
+from sps.api.routes.admin_source_rules import router as admin_source_rules_router
+from sps.api.routes.admin_incentive_programs import router as admin_incentive_programs_router
 from sps.api.routes.reviewer_console import router as reviewer_console_router
 from sps.api.routes.releases import router as releases_router
 from sps.api.routes.ops import page_router as ops_page_router
@@ -50,6 +52,8 @@ app.include_router(reviews_router, prefix="/api/v1/reviews")
 app.include_router(reviewer_console_router)
 app.include_router(contradictions_router, prefix="/api/v1/contradictions")
 app.include_router(admin_portal_support_router, prefix="/api/v1/admin/portal-support")
+app.include_router(admin_source_rules_router, prefix="/api/v1/admin/source-rules")
+app.include_router(admin_incentive_programs_router, prefix="/api/v1/admin/incentive-programs")
 app.include_router(dissents_router, prefix="/api/v1/dissents")
 app.include_router(releases_router, prefix="/api/v1/releases")
 app.include_router(emergencies_router, prefix="/api/v1/emergencies")

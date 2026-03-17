@@ -39,7 +39,7 @@ This milestone is complete only when all are true:
 ## Slices
 - [x] **S01: Admin intent/review/apply for portal support metadata** `risk:high` `depends:[]`
   > After this: An admin can create a portal support change intent in the admin console/API, a reviewer can approve it, and the governed apply endpoint updates portal support metadata with audit events (proved by integration tests).
-- [ ] **S02: Governed admin changes for source rules + incentive programs with live runbook** `risk:medium` `depends:[S01]`
+- [x] **S02: Governed admin changes for source rules + incentive programs with live runbook** `risk:medium` `depends:[S01]`
   > After this: The same governed workflow applies to source rules and incentive programs, and a docker-compose runbook proves intent → review → apply → audit across all three change types.
 
 ## Boundary Map

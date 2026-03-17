@@ -134,6 +134,10 @@ A governed workflow system that can produce and submit permit packages with revi
   - Portal support metadata intent/review/apply workflow with audit events and RBAC enforcement
   - Admin portal support API routes under `/api/v1/admin/portal-support`
   - Integration tests: `tests/m013_s01_admin_portal_support_governance_test.py`
+- **Phase 13 governed admin config changes (M013/S02) complete:**
+  - Source rule + incentive program intent/review/apply endpoints with reviewer-only approvals and fail-closed apply
+  - Authoritative source_rules/incentive_programs tables with audit event emission
+  - Docker-compose runbook (`scripts/verify_m013_s02.sh`) proving portal support, source rule, and incentive program governance
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
@@ -188,7 +192,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
 - [x] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking
 - [x] M012-v8s3qn: Phase 12 — emergency and override governance
-- [ ] M013-n6p1tg: Phase 13 — admin policy/config governance
+- [x] M013-n6p1tg: Phase 13 — admin policy/config governance
 
 ## Milestone ID Mapping
 
