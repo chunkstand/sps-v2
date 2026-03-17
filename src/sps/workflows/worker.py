@@ -23,6 +23,7 @@ from sps.workflows.permit_case.activities import (
 )
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import try_get_pydantic_data_converter
+from sps.logging.redaction import attach_redaction_filter
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ async def _run_worker() -> None:
         level=settings.log_level.upper(),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    attach_redaction_filter()
 
     logger.info(
         "temporal.worker.start temporal_address=%s namespace=%s task_queue=%s",

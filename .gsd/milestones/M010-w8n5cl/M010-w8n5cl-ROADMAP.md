@@ -43,7 +43,7 @@ This milestone is complete only when all are true:
   > After this: API endpoints (cases, evidence, reviews, ops, releases) deny missing/invalid identities and enforce role-based access via real requests/tests.
 - [x] **S02: Service principal authentication with baseline mTLS signal** `risk:medium` `depends:[S01]`
   > After this: service-to-service calls using signed principals (and required mTLS signal) succeed while invalid/absent principals or mTLS signals are denied.
-- [ ] **S03: Redaction + read-only observability with end-to-end proof** `risk:low` `depends:[S02]`
+- [x] **S03: Redaction + read-only observability with end-to-end proof** `risk:low` `depends:[S02]`
   > After this: logs redact sensitive fields, observability endpoints remain read-only, and a live runbook proves auth/RBAC/mTLS/redaction together.
 
 ## Boundary Map

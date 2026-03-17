@@ -3,17 +3,6 @@
 ## Active
 
 
-### R029 — Sensitive field redaction + read-only observability (SEC-003/OBS-004)
-- Class: security
-- Status: active
-- Description: Sensitive fields are redacted from logs and observability is enforced read-only.
-- Why it matters: Prevents data leakage and unauthorized mutation via observability paths.
-- Source: spec (sections 6.3 SEC-003 and 6.4 OBS-004)
-- Primary owning slice: M010/S01
-- Supporting slices: none
-- Validation: pending (log inspection + negative tests)
-- Notes: Ensure no secrets in structured logs.
-
 
 ### R032 — Comment resolution and resubmission loops (F-008)
 - Class: integration
@@ -82,6 +71,17 @@
 - Supporting slices: none
 - Validation: proved (pytest tests/m010_s01_auth_rbac_test.py -v)
 - Notes: Focus on key role separations first.
+
+### R029 — Sensitive field redaction + read-only observability (SEC-003/OBS-004)
+- Class: security
+- Status: validated
+- Description: Sensitive fields are redacted from logs and observability is enforced read-only.
+- Why it matters: Prevents data leakage and unauthorized mutation via observability paths.
+- Source: spec (sections 6.3 SEC-003 and 6.4 OBS-004)
+- Primary owning slice: M010/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m010_s03_redaction_test.py -v, pytest tests/m010_s03_observability_readonly_test.py -v, scripts/verify_m010_s03.sh)
+- Notes: Redaction filter attached to API/worker/CLI logging handlers; ops/release endpoints remain GET-only.
 
 ### R031 — Service-to-service mTLS and signed principals (SEC-005)
 - Class: security

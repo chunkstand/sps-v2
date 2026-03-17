@@ -105,6 +105,7 @@ A governed workflow system that can produce and submit permit packages with revi
 - **Phase 9 milestone M009-ct4p0u complete:** release, rollback rehearsal, and observability gates are validated end-to-end.
 - **Phase 10 auth/RBAC gate (M010/S01) complete:** JWT identity validation and RBAC role checks are enforced across all routers with structured auth-denied logs and integration tests.
 - **Phase 10 service principal + mTLS gate (M010/S02) complete:** Service-to-service routes require service principal JWTs with principal_type claims and a configurable mTLS signal header, with allow/deny integration tests proving enforcement.
+- **Phase 10 redaction + read-only observability (M010/S03) complete:** Central log redaction filter scrubs sensitive fields across API/worker/CLI logging, ops/release routes remain GET-only with mutation denials, and the M010/S03 runbook proves redacted log output with service-principal+mTLS requests.
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
@@ -156,7 +157,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M007-b2t1rz: Phase 7 — submission, tracking, and manual fallback
 - [x] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds
 - [x] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
-- [ ] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
+- [x] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
 - [ ] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking
 - [ ] M012-v8s3qn: Phase 12 — emergency and override governance
 - [ ] M013-n6p1tg: Phase 13 — admin policy/config governance

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import logging
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from sps.config import get_settings
+from sps.logging.redaction import attach_redaction_filter
 
 from sps.api.routes.cases import router as cases_router
 from sps.api.routes.contradictions import router as contradictions_router
@@ -18,6 +20,18 @@ from sps.api.routes.ops import page_router as ops_page_router
 from sps.api.routes.ops import router as ops_router
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+
+def _configure_logging() -> None:
+    settings = get_settings()
+    logging.basicConfig(
+        level=settings.log_level.upper(),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+    attach_redaction_filter()
+
+
+_configure_logging()
 
 app = FastAPI(
     title="SPS API",
