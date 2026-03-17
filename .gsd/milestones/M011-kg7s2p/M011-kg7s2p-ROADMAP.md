@@ -39,18 +39,25 @@ This milestone is complete only when all are true:
 ## Slices
 - [x] **S01: Post-submission artifacts + workflow wiring** `risk:high` `depends:[]`
   > After this: Status ingestion and workflow runs (via tests) create correction/resubmission/approval/inspection artifacts with deterministic persistence and guarded transitions.
-- [ ] **S02: Live docker-compose post-submission runbook** `risk:medium` `depends:[S01]`
-  > After this: A real API + worker + Postgres + Temporal runbook proves the end-to-end comment → resubmission → approval/inspection lifecycle.
+- [ ] **S02: Status event workflow wiring + live docker-compose runbook** `risk:medium` `depends:[S01]`
+  > After this: Normalized status events trigger workflow continuations that call persist_correction_task/persist_resubmission_package/persist_approval_record/persist_inspection_milestone activities; a live API + worker + Postgres + Temporal runbook proves the end-to-end comment → resubmission → approval/inspection lifecycle with Postgres evidence; deferred S01 integration tests pass in provisioned Temporal environment.
 
 ## Boundary Map
 ### S01 → S02
 Produces:
-- New ORM models + migrations for ReviewComment (if needed), CorrectionTask, ResubmissionPackage, ApprovalRecord, InspectionMilestone.
+- New ORM models + migrations for CorrectionTask, ResubmissionPackage, ApprovalRecord, InspectionMilestone.
 - Activities for persisting correction/resubmission/approval/inspection artifacts with idempotency guards and case/submission validation.
 - Extended status mapping fixtures covering COMMENT_ISSUED, RESUBMISSION_REQUESTED, APPROVAL_*, INSPECTION_*.
-- Workflow branch wiring in `PermitCaseWorkflow` for comment/resubmission/approval transitions via `apply_state_transition`.
+- Workflow state branches for comment/resubmission/approval transitions (COMMENT_REVIEW_PENDING, CORRECTION_PENDING, RESUBMISSION_PENDING states exist in workflow).
 - API read surfaces for new artifacts (following existing case read patterns).
+- Deferred integration tests (tests/m011_s01_status_event_artifacts_test.py, tests/m011_s01_resubmission_workflow_test.py) proven structurally correct but blocked on infrastructure.
 
 Consumes:
 - ExternalStatusEvent normalization + persistence activity.
 - SubmissionAttempt linkage and existing PermitCase state transition guard.
+
+S02 must deliver:
+- Wire normalized ExternalStatusEvent → workflow continuation (signal or activity invocation).
+- Call persist_correction_task/persist_resubmission_package/persist_approval_record/persist_inspection_milestone from workflow when status events arrive.
+- Provision Temporal development environment to execute deferred S01 integration tests.
+- End-to-end docker-compose runbook proving submit → comment → resubmit → approve/inspect lifecycle with Postgres evidence.
