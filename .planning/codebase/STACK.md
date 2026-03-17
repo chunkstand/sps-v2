@@ -5,73 +5,71 @@
 ## Languages
 
 **Primary:**
-- Python >=3.11 - application and tooling in `pyproject.toml`, runtime code in `src/sps/api/main.py`
+- Python >=3.11 - application code and tooling (`pyproject.toml`, `src/sps/api/main.py`)
 
 **Secondary:**
-- YAML - spec/package assets in `specs/sps/build-approved/surface-policy.yaml` and `sps_full_spec_package/specs/sps/build-approved/surface-policy.yaml`
+- Not detected
 
 ## Runtime
 
 **Environment:**
-- Python 3.11+ (project requirement) in `pyproject.toml`
-- Python 3.12 (CI) in `.github/workflows/ci.yml`
+- Python >=3.11 (`pyproject.toml`)
 
 **Package Manager:**
-- pip (CI install path) in `.github/workflows/ci.yml`
+- uv (version not detected) (`uv.lock`)
 - Lockfile: present (`uv.lock`)
 
 ## Frameworks
 
 **Core:**
-- FastAPI - API server and routing in `src/sps/api/main.py`
-- SQLAlchemy - ORM and DB access in `src/sps/db/models.py` and `src/sps/db/session.py`
-- Pydantic - settings and validation in `src/sps/config.py`
-- Jinja2 - HTML templating via FastAPI templates in `src/sps/api/routes/reviewer_console.py`
+- FastAPI >=0.115.0 - API framework (`pyproject.toml`, `src/sps/api/main.py`)
+- SQLAlchemy >=2.0.0 - ORM/data access (`pyproject.toml`, `src/sps/db/session.py`)
+- Pydantic >=2.7.0 - settings/validation (`pyproject.toml`, `src/sps/config.py`)
 
 **Testing:**
-- pytest - test runner configured in `pyproject.toml` with tests in `tests/`
+- Pytest >=8.0.0 - test runner (`pyproject.toml`, `tests/m009_s01_dashboard_test.py`)
 
 **Build/Dev:**
-- hatchling - build backend in `pyproject.toml`
-- ruff - linting/format settings in `pyproject.toml`
-- Alembic - migrations configured in `alembic.ini`
+- Uvicorn >=0.30.0 - ASGI server (`pyproject.toml`, `src/sps/api/main.py`)
+- Alembic >=1.13.0 - database migrations (`pyproject.toml`, `alembic.ini`)
+- Ruff >=0.6.0 - linting (`pyproject.toml`)
+- Hatchling >=1.24 - build backend (`pyproject.toml`)
 
 ## Key Dependencies
 
 **Critical:**
-- fastapi >=0.115.0 - API runtime in `pyproject.toml` and `src/sps/api/main.py`
-- uvicorn[standard] >=0.30.0 - ASGI server in `pyproject.toml`
-- sqlalchemy >=2.0.0 - DB layer in `pyproject.toml` and `src/sps/db/session.py`
-- alembic >=1.13.0 - schema migrations in `pyproject.toml` and `alembic.ini`
-- psycopg[binary] >=3.2.0 - PostgreSQL driver in `pyproject.toml`
-- temporalio >=1.6.0 - workflow orchestration in `pyproject.toml` and `src/sps/workflows/temporal.py`
-- boto3 >=1.34.0 - S3-compatible storage client in `pyproject.toml` and `src/sps/storage/s3.py`
-- pyjwt >=2.8.0 - JWT validation in `pyproject.toml` and `src/sps/auth/identity.py`
+- temporalio >=1.6.0 - workflow orchestration (`pyproject.toml`, `src/sps/workflows/temporal.py`)
+- boto3 >=1.34.0 - S3-compatible object storage (`pyproject.toml`, `src/sps/storage/s3.py`)
+- psycopg >=3.2.0 - Postgres driver (`pyproject.toml`, `src/sps/config.py`)
 
 **Infrastructure:**
-- pydantic-settings >=2.3.0 - env-based config in `pyproject.toml` and `src/sps/config.py`
-- jinja2 >=3.1.4 - HTML templates in `pyproject.toml` and `src/sps/api/routes/reviewer_console.py`
-- ulid-py >=1.1.0 - stable identifiers in `pyproject.toml`
+- PyJWT >=2.8.0 - JWT validation (`pyproject.toml`, `src/sps/auth/identity.py`)
+- Jinja2 >=3.1.4 - server-side templates (`pyproject.toml`, `src/sps/api/routes/ops.py`)
+- ulid-py >=1.1.0 - stable IDs (`pyproject.toml`, `src/sps/evidence/ids.py`)
 
 ## Configuration
 
 **Environment:**
-- Settings via environment variables in `src/sps/config.py`
-- Example env file present: `.env.example`
+- Pydantic Settings with env var aliases (`src/sps/config.py`)
+- `.env.example` present for reference (contents not read) (`.env.example`)
 
 **Build:**
-- Build config in `pyproject.toml`
-- CI config in `.github/workflows/ci.yml`
-- Local dependency stack defined (file exists) in `docker-compose.yml`
+- Project config and deps (`pyproject.toml`)
+- Dependency lockfile (`uv.lock`)
+- Alembic migrations config (`alembic.ini`)
+- Local infra orchestration file present (contents not read) (`docker-compose.yml`)
+- CI policy artifact (`ci/sps/merge-authorization.yaml`)
 
 ## Platform Requirements
 
 **Development:**
-- Python 3.11+ per `pyproject.toml`
-- Postgres, Temporal, and S3-compatible storage expected by defaults in `src/sps/config.py`
+- Python >=3.11 (`pyproject.toml`)
+- PostgreSQL (via SQLAlchemy/psycopg) (`src/sps/db/session.py`, `src/sps/config.py`)
+- Temporal server (workflow runtime) (`src/sps/workflows/temporal.py`, `src/sps/config.py`)
+- S3-compatible object storage (MinIO in local defaults) (`src/sps/storage/s3.py`, `src/sps/config.py`)
 
 **Production:**
-- Not specified; configure via environment variables in `src/sps/config.py`
+- Not detected
 
 ---
 
