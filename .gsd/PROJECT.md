@@ -130,6 +130,10 @@ A governed workflow system that can produce and submit permit packages with revi
   - Override guard enforcement (OVERRIDE_DENIED with guard assertion INV-SPS-EMERG-001) and EMERGENCY_HOLD entry/exit transitions
   - Proof surfaces: `tests/m012_s01_override_guard_test.py`, `tests/m012_s01_emergency_hold_test.py`, and `scripts/verify_m012_s01.sh`
   - R034 marked validated in the requirements registry based on integration tests + runbook proof
+- **Phase 13 admin portal support governance (M013/S01) complete:**
+  - Portal support metadata intent/review/apply workflow with audit events and RBAC enforcement
+  - Admin portal support API routes under `/api/v1/admin/portal-support`
+  - Integration tests: `tests/m013_s01_admin_portal_support_governance_test.py`
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.

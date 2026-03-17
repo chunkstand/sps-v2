@@ -35,7 +35,7 @@
 - Primary owning slice: M013/S01
 - Supporting slices: none
 - Validation: pending (integration tests + runbook)
-- Notes: Governed mutation paths only.
+- Notes: Portal support metadata intent/review/apply integration tests pass (S01). Governed mutation paths for source rules + incentive programs and docker-compose runbook remain pending (S02).
 
 ## Validated
 
