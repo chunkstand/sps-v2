@@ -106,6 +106,7 @@ A governed workflow system that can produce and submit permit packages with revi
 - **Phase 10 auth/RBAC gate (M010/S01) complete:** JWT identity validation and RBAC role checks are enforced across all routers with structured auth-denied logs and integration tests.
 - **Phase 10 service principal + mTLS gate (M010/S02) complete:** Service-to-service routes require service principal JWTs with principal_type claims and a configurable mTLS signal header, with allow/deny integration tests proving enforcement.
 - **Phase 10 redaction + read-only observability (M010/S03) complete:** Central log redaction filter scrubs sensitive fields across API/worker/CLI logging, ops/release routes remain GET-only with mutation denials, and the M010/S03 runbook proves redacted log output with service-principal+mTLS requests.
+- **Phase 10 milestone M010-w8n5cl verified:** security tests and the S03 runbook confirm auth/RBAC enforcement, service-principal+mTLS validation, and log redaction/read-only observability in a live API.
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
