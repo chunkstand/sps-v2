@@ -138,6 +138,7 @@ A governed workflow system that can produce and submit permit packages with revi
   - Source rule + incentive program intent/review/apply endpoints with reviewer-only approvals and fail-closed apply
   - Authoritative source_rules/incentive_programs tables with audit event emission
   - Docker-compose runbook (`scripts/verify_m013_s02.sh`) proving portal support, source rule, and incentive program governance
+  - R035 validated via integration tests and the runbook proof
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
