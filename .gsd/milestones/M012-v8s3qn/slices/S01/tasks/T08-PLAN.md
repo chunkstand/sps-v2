@@ -1,5 +1,5 @@
 ---
-estimated_steps: 10
+estimated_steps: 8
 estimated_files: 1
 ---
 
@@ -14,16 +14,14 @@ Operational proof of end-to-end emergency/override governance with real API + wo
 
 ## Steps
 
-1. Create scripts/verify_m012_s01.sh with provisioning, lifecycle steps, and cleanup
+1. Create scripts/verify_m012_s01.sh with provisioning, lifecycle steps, assertions, and cleanup
 2. Provision docker-compose stack (scripts/start_temporal_dev.sh), start worker (in background), start API (in background)
 3. STEP 1: POST /cases with intake contract → 201 + case_id; start PermitCaseWorkflow for case_id; advance to REVIEW_PENDING state
-4. STEP 2: POST /emergencies with escalation-owner JWT + case_id → 201 + emergency_id; verify emergency_records row exists via psql
-5. STEP 3: POST /overrides with escalation-owner JWT + case_id + affected_surfaces=["REVIEW_PENDING->APPROVED_FOR_SUBMISSION"] → 201 + override_id; verify override_artifacts row exists via psql
-6. STEP 4: Seed blocking contradiction on case; POST /reviews/decisions with override_id → 201 (transition allowed because valid override bypasses contradiction guard); verify case_transition_ledger shows CASE_STATE_CHANGED (not OVERRIDE_DENIED)
-7. STEP 5: UPDATE override_artifacts SET expires_at=NOW()-'1 hour'::interval WHERE override_id=... (simulate expiration); verify updated expires_at via psql
-8. STEP 6: POST /reviews/decisions with expired override_id → 403 + OVERRIDE_DENIED response; verify case_transition_ledger shows OVERRIDE_DENIED event with guard_assertion_id=INV-SPS-EMERG-001
-9. STEP 7: Send EmergencyHoldExit signal with reviewer_confirmation_id → case exits EMERGENCY_HOLD (if entered during lifecycle); verify ledger shows exit transition
-10. Cleanup: docker compose down -v; exit 0 if all assertions pass, exit 1 on any failure
+4. STEP 2-3: POST /emergencies then POST /overrides with escalation-owner JWT + case_id; verify emergency_records + override_artifacts rows via psql
+5. STEP 4: Seed blocking contradiction; POST /reviews/decisions with override_id → 201; verify CASE_STATE_CHANGED (not OVERRIDE_DENIED)
+6. STEP 5-6: Expire override via UPDATE and reattempt decision → 403 OVERRIDE_DENIED; verify guard_assertion_id=INV-SPS-EMERG-001
+7. STEP 7: Send EmergencyHoldExit signal with reviewer_confirmation_id → case exits EMERGENCY_HOLD (if entered); verify ledger shows exit transition
+8. Cleanup: docker compose down -v; exit 0 if all assertions pass, exit 1 on any failure
 
 ## Must-Haves
 

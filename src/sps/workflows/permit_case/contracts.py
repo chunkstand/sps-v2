@@ -108,6 +108,24 @@ class CaseState(str, Enum):
     ROLLED_BACK = "ROLLED_BACK"
 
 
+class EmergencyHoldRequest(BaseModel):
+    """Signal payload contract for entering EMERGENCY_HOLD state."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    emergency_id: str = Field(min_length=1)
+    target_state: CaseState = CaseState.EMERGENCY_HOLD
+
+
+class EmergencyHoldExitRequest(BaseModel):
+    """Signal payload contract for exiting EMERGENCY_HOLD state."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target_state: CaseState
+    reviewer_confirmation_id: str = Field(min_length=1)
+
+
 class ExternalStatusClass(str, Enum):
     """Canonical ExternalStatusEvent.normalized_status enum."""
 

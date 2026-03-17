@@ -13,7 +13,9 @@ from sps.db.models import (
     ComplianceEvaluation,
     ContradictionArtifact,
     CorrectionTask,
+    OverrideArtifact,
     DocumentArtifact,
+    EmergencyRecord,
     EvidenceArtifact,
     ExternalStatusEvent,
     IncentiveAssessment,
@@ -168,6 +170,87 @@ def fetch_permit_case_state(case_id: str) -> PermitCaseStateSnapshot:
             workflow_id,
             run_id,
             case_id,
+            type(exc).__name__,
+        )
+        raise
+
+
+@activity.defn
+def validate_emergency_artifact(emergency_id: str) -> str:
+    """Ensure the EmergencyRecord exists and has not expired."""
+    workflow_id, run_id = _safe_temporal_ids()
+    logger.info(
+        "activity.start name=validate_emergency_artifact workflow_id=%s run_id=%s emergency_id=%s",
+        workflow_id,
+        run_id,
+        emergency_id,
+    )
+
+    SessionLocal = get_sessionmaker()
+    try:
+        with SessionLocal() as session:
+            record = session.get(EmergencyRecord, emergency_id)
+            if record is None:
+                raise LookupError(f"emergency_records row not found for emergency_id={emergency_id}")
+
+            expires_at = record.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=dt.UTC)
+
+            if expires_at <= dt.datetime.now(dt.UTC):
+                raise ValueError(f"emergency_id={emergency_id} expired at {expires_at.isoformat()}")
+
+        logger.info(
+            "activity.ok name=validate_emergency_artifact workflow_id=%s run_id=%s emergency_id=%s",
+            workflow_id,
+            run_id,
+            emergency_id,
+        )
+        return emergency_id
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=validate_emergency_artifact workflow_id=%s run_id=%s emergency_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            emergency_id,
+            type(exc).__name__,
+        )
+        raise
+
+
+@activity.defn
+def validate_reviewer_confirmation(reviewer_confirmation_id: str) -> str:
+    """Ensure the ReviewDecision exists for emergency hold exit confirmation."""
+    workflow_id, run_id = _safe_temporal_ids()
+    logger.info(
+        "activity.start name=validate_reviewer_confirmation workflow_id=%s run_id=%s reviewer_confirmation_id=%s",
+        workflow_id,
+        run_id,
+        reviewer_confirmation_id,
+    )
+
+    SessionLocal = get_sessionmaker()
+    try:
+        with SessionLocal() as session:
+            decision = session.get(ReviewDecision, reviewer_confirmation_id)
+            if decision is None:
+                raise LookupError(
+                    "review_decisions row not found for reviewer_confirmation_id=%s" % reviewer_confirmation_id
+                )
+
+        logger.info(
+            "activity.ok name=validate_reviewer_confirmation workflow_id=%s run_id=%s reviewer_confirmation_id=%s",
+            workflow_id,
+            run_id,
+            reviewer_confirmation_id,
+        )
+        return reviewer_confirmation_id
+    except Exception as exc:
+        logger.exception(
+            "activity.error name=validate_reviewer_confirmation workflow_id=%s run_id=%s reviewer_confirmation_id=%s exc_type=%s",
+            workflow_id,
+            run_id,
+            reviewer_confirmation_id,
             type(exc).__name__,
         )
         raise
@@ -879,6 +962,7 @@ def _safe_temporal_ids() -> tuple[str | None, str | None]:
 _EVENT_CASE_STATE_CHANGED = "CASE_STATE_CHANGED"
 _EVENT_APPROVAL_GATE_DENIED = "APPROVAL_GATE_DENIED"
 _EVENT_CONTRADICTION_ADVANCE_DENIED = "CONTRADICTION_ADVANCE_DENIED"
+_EVENT_OVERRIDE_DENIED = "OVERRIDE_DENIED"
 _EVENT_INTAKE_PROJECT_DENIED = "INTAKE_PROJECT_REQUIRED_DENIED"
 _EVENT_JURISDICTION_REQUIRED_DENIED = "JURISDICTION_REQUIRED_DENIED"
 _EVENT_REQUIREMENTS_REQUIRED_DENIED = "REQUIREMENTS_REQUIRED_DENIED"
@@ -891,6 +975,7 @@ _EVENT_MANUAL_SUBMISSION_REQUIRED_DENIED = "MANUAL_SUBMISSION_REQUIRED_DENIED"
 _EVENT_PROOF_BUNDLE_REQUIRED_DENIED = "PROOF_BUNDLE_REQUIRED_DENIED"
 _GUARD_ASSERTION_REVIEW_GATE = "INV-SPS-STATE-002"
 _GUARD_ASSERTION_CONTRADICTION = "INV-SPS-CONTRA-001"
+_GUARD_ASSERTION_OVERRIDE = "INV-SPS-EMERG-001"
 _GUARD_ASSERTION_REQUIREMENTS_FRESHNESS = "INV-SPS-RULE-001"
 _GUARD_ASSERTION_COMPLIANCE_FRESHNESS = "INV-SPS-COMP-001"
 _GUARD_ASSERTION_INCENTIVES_FRESHNESS = "INV-SPS-INC-001"
@@ -912,6 +997,58 @@ def _deny(
         guard_assertion_id=guard_assertion_id,
         normalized_business_invariants=normalized_business_invariants,
     )
+
+
+def _validate_override(
+    *,
+    session,
+    req: StateTransitionRequest,
+    requested_at: dt.datetime,
+    workflow_id: str | None,
+    run_id: str | None,
+) -> DeniedStateTransitionResult | None:
+    if req.override_id is None:
+        return None
+
+    transition = f"{req.from_state.value}->{req.to_state.value}"
+
+    def _deny_override(reason: str) -> DeniedStateTransitionResult:
+        invariants = get_normalized_business_invariants(_GUARD_ASSERTION_OVERRIDE)
+        logger.warning(
+            "workflow.override_denied workflow_id=%s run_id=%s case_id=%s transition=%s override_id=%s denial_reason=%s guard_assertion_id=%s normalized_business_invariants=%s",
+            workflow_id,
+            run_id,
+            req.case_id,
+            transition,
+            req.override_id,
+            reason,
+            _GUARD_ASSERTION_OVERRIDE,
+            invariants,
+        )
+        return _deny(
+            denied_at=requested_at,
+            event_type=_EVENT_OVERRIDE_DENIED,
+            denial_reason=reason,
+            guard_assertion_id=_GUARD_ASSERTION_OVERRIDE,
+            normalized_business_invariants=invariants,
+        )
+
+    override = session.get(OverrideArtifact, req.override_id)
+    if override is None or override.case_id != req.case_id:
+        return _deny_override("missing")
+
+    override_expires_at = override.expires_at
+    if override_expires_at.tzinfo is None:
+        override_expires_at = override_expires_at.replace(tzinfo=dt.UTC)
+
+    if override_expires_at <= requested_at:
+        return _deny_override("expired")
+
+    affected_surfaces = list(override.affected_surfaces or [])
+    if transition not in affected_surfaces:
+        return _deny_override("out_of_scope")
+
+    return None
 
 
 @activity.defn
@@ -975,31 +1112,35 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                 event_type="STATE_TRANSITION_DENIED",
                                 denial_reason="FROM_STATE_MISMATCH",
                             )
+                        elif req.to_state == CaseState.EMERGENCY_HOLD:
+                            result = AppliedStateTransitionResult(
+                                event_type=_EVENT_CASE_STATE_CHANGED,
+                                applied_at=requested_at,
+                            )
+                            case.case_state = req.to_state.value
+                        elif (
+                            req.from_state == CaseState.EMERGENCY_HOLD
+                            and req.to_state == CaseState.SUBMITTED
+                        ):
+                            result = _deny(
+                                denied_at=requested_at,
+                                event_type="STATE_TRANSITION_DENIED",
+                                denial_reason="FORBIDDEN_TRANSITION",
+                            )
+                        elif (
+                            req.from_state == CaseState.EMERGENCY_HOLD
+                            and req.to_state != CaseState.EMERGENCY_HOLD
+                        ):
+                            result = AppliedStateTransitionResult(
+                                event_type=_EVENT_CASE_STATE_CHANGED,
+                                applied_at=requested_at,
+                            )
+                            case.case_state = req.to_state.value
                         elif (
                             req.from_state == CaseState.REVIEW_PENDING
                             and req.to_state == CaseState.APPROVED_FOR_SUBMISSION
                         ):
-                            # Guard: blocking open contradictions must be resolved before advancement (CTL-14A).
-                            blocking_contradiction = (
-                                session.query(ContradictionArtifact)
-                                .filter(
-                                    ContradictionArtifact.case_id == req.case_id,
-                                    ContradictionArtifact.blocking_effect.is_(True),
-                                    ContradictionArtifact.resolution_status == "OPEN",
-                                )
-                                .first()
-                            )
-                            if blocking_contradiction is not None:
-                                result = _deny(
-                                    denied_at=requested_at,
-                                    event_type=_EVENT_CONTRADICTION_ADVANCE_DENIED,
-                                    denial_reason="BLOCKING_CONTRADICTION_UNRESOLVED",
-                                    guard_assertion_id=_GUARD_ASSERTION_CONTRADICTION,
-                                    normalized_business_invariants=get_normalized_business_invariants(
-                                        _GUARD_ASSERTION_CONTRADICTION
-                                    ),
-                                )
-                            else:
+                            def _apply_review_gate() -> StateTransitionResult:
                                 # Canonical protected transition: requires a valid ReviewDecision.
                                 invariants = get_normalized_business_invariants(_GUARD_ASSERTION_REVIEW_GATE)
 
@@ -1014,19 +1155,58 @@ def apply_state_transition(request: StateTransitionRequest | dict) -> StateTrans
                                     or review.case_id != req.case_id
                                     or review.decision_outcome not in _ALLOWED_REVIEW_OUTCOMES
                                 ):
-                                    result = _deny(
+                                    return _deny(
                                         denied_at=requested_at,
                                         event_type=_EVENT_APPROVAL_GATE_DENIED,
                                         denial_reason="REVIEW_DECISION_REQUIRED",
                                         guard_assertion_id=_GUARD_ASSERTION_REVIEW_GATE,
                                         normalized_business_invariants=invariants,
                                     )
+
+                                case.case_state = req.to_state.value
+                                return AppliedStateTransitionResult(
+                                    event_type=_EVENT_CASE_STATE_CHANGED,
+                                    applied_at=requested_at,
+                                )
+
+                            if req.override_id is not None:
+                                # Override validation is evaluated before contradiction checks so overrides can
+                                # explicitly bypass contradiction blocks when authorized.
+                                override_denial = _validate_override(
+                                    session=session,
+                                    req=req,
+                                    requested_at=requested_at,
+                                    workflow_id=workflow_id,
+                                    run_id=run_id,
+                                )
+
+                                if override_denial is not None:
+                                    result = override_denial
                                 else:
-                                    result = AppliedStateTransitionResult(
-                                        event_type=_EVENT_CASE_STATE_CHANGED,
-                                        applied_at=requested_at,
+                                    result = _apply_review_gate()
+                            else:
+                                # Guard: blocking open contradictions must be resolved before advancement (CTL-14A).
+                                blocking_contradiction = (
+                                    session.query(ContradictionArtifact)
+                                    .filter(
+                                        ContradictionArtifact.case_id == req.case_id,
+                                        ContradictionArtifact.blocking_effect.is_(True),
+                                        ContradictionArtifact.resolution_status == "OPEN",
                                     )
-                                    case.case_state = req.to_state.value
+                                    .first()
+                                )
+                                if blocking_contradiction is not None:
+                                    result = _deny(
+                                        denied_at=requested_at,
+                                        event_type=_EVENT_CONTRADICTION_ADVANCE_DENIED,
+                                        denial_reason="BLOCKING_CONTRADICTION_UNRESOLVED",
+                                        guard_assertion_id=_GUARD_ASSERTION_CONTRADICTION,
+                                        normalized_business_invariants=get_normalized_business_invariants(
+                                            _GUARD_ASSERTION_CONTRADICTION
+                                        ),
+                                    )
+                                else:
+                                    result = _apply_review_gate()
                         elif (
                             req.from_state == CaseState.INTAKE_PENDING
                             and req.to_state == CaseState.INTAKE_COMPLETE

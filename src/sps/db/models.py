@@ -710,3 +710,59 @@ class InspectionMilestone(Base):
     updated_at: Mapped[dt.datetime] = mapped_column(
         sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
     )
+
+
+class EmergencyRecord(Base):
+    __tablename__ = "emergency_records"
+
+    emergency_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    incident_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    scope: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    declared_by: Mapped[str] = mapped_column(sa.Text, nullable=False)
+
+    started_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+
+    allowed_bypasses: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    forbidden_bypasses: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+
+    cleanup_due_at: Mapped[dt.datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.Index("ix_emergency_records_case_expires", "case_id", "expires_at"),
+    )
+
+
+class OverrideArtifact(Base):
+    __tablename__ = "override_artifacts"
+
+    override_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        sa.Text, sa.ForeignKey("permit_cases.case_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+
+    scope: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    justification: Mapped[str] = mapped_column(sa.Text, nullable=False)
+
+    start_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[dt.datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+
+    affected_surfaces: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    approver_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    cleanup_required: Mapped[bool] = mapped_column(sa.Boolean, nullable=False)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+    )
+
+    __table_args__ = (
+        sa.Index("ix_override_artifacts_case_expires", "case_id", "expires_at"),
+    )

@@ -45,7 +45,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Emergency/override artifacts + guard enforcement + lifecycle proof** `risk:high` `depends:[]`
+- [x] **S01: Emergency/override artifacts + guard enforcement + lifecycle proof** `risk:high` `depends:[]`
   > After this: Emergency can be declared via API, overrides can be created with time bounds, protected transitions are denied without valid override and allowed with active override, expired overrides deny transitions, EMERGENCY_HOLD entry/exit proven via docker-compose, full lifecycle runbook exercises declare → bypass → expire → cleanup with real API + worker + Postgres
 
 <!--

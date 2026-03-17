@@ -35,6 +35,26 @@ Add ORM models for EmergencyRecord and OverrideArtifact with time-bounded fields
 - `docker compose exec postgres psql -U sps -d sps -c '\d emergency_records'` shows FK constraint on case_id
 - `docker compose exec postgres psql -U sps -d sps -c '\d override_artifacts'` shows FK constraint on case_id and affected_surfaces column type jsonb
 
+## Observability Impact
+
+**What signals change:**
+- Database schema now includes emergency_records and override_artifacts tables visible via `\dt` and `\d <table_name>`
+- Migration history in alembic_version table updated with emergency_override_artifacts revision
+- FK constraints on emergency_records.case_id and override_artifacts.case_id enforce referential integrity (visible in `\d` output as FOREIGN KEY constraints)
+
+**How a future agent inspects this task:**
+- `docker compose exec postgres psql -U sps -d sps -c '\dt emergency_records'` — verify table exists
+- `docker compose exec postgres psql -U sps -d sps -c '\d emergency_records'` — inspect schema, FK constraints, indexes
+- `docker compose exec postgres psql -U sps -d sps -c '\d override_artifacts'` — inspect schema, FK constraints, JSONB columns
+- `alembic history` — verify migration in revision chain
+- `grep -A20 'class EmergencyRecord' src/sps/db/models.py` — verify ORM model definition
+
+**What failure state becomes visible:**
+- Migration failure: `alembic upgrade head` exits non-zero with stack trace in stdout
+- Missing FK constraints: `\d emergency_records` output lacks "FOREIGN KEY (case_id) REFERENCES permit_cases"
+- Wrong column types: `\d override_artifacts` shows affected_surfaces as text instead of jsonb
+- Missing indexes: `\d emergency_records` lacks index on (case_id, expires_at) for query performance
+
 ## Inputs
 
 - Existing permit_cases table (FK target)

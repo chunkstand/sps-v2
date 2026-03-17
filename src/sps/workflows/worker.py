@@ -24,6 +24,8 @@ from sps.workflows.permit_case.activities import (
     persist_resubmission_package,
     persist_review_decision,
     persist_submission_package,
+    validate_emergency_artifact,
+    validate_reviewer_confirmation,
 )
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import try_get_pydantic_data_converter
@@ -72,6 +74,8 @@ async def _run_worker() -> None:
         activities=[
             ensure_permit_case_exists,
             fetch_permit_case_state,
+            validate_emergency_artifact,
+            validate_reviewer_confirmation,
             persist_jurisdiction_resolutions,
             persist_requirement_sets,
             persist_compliance_evaluation,
@@ -97,6 +101,8 @@ async def _run_worker() -> None:
         [
             ensure_permit_case_exists.__name__,
             fetch_permit_case_state.__name__,
+            validate_emergency_artifact.__name__,
+            validate_reviewer_confirmation.__name__,
             persist_jurisdiction_resolutions.__name__,
             persist_requirement_sets.__name__,
             persist_compliance_evaluation.__name__,

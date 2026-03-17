@@ -44,3 +44,9 @@ Prove override guard denies transitions without valid override, allows with acti
 ## Expected Output
 
 - `tests/m012_s01_override_guard_test.py` — 4 integration test cases proving override guard enforcement with guard assertion IDs and normalized invariants
+
+## Observability Impact
+
+- **Signals exercised:** case_transition_ledger OVERRIDE_DENIED events include details.guard_assertion_id and details.normalized_business_invariants; workflow.override_denied warning log remains the runtime signal for missing/expired/out-of-scope overrides.
+- **Inspection path:** run the integration test and query `case_transition_ledger` for OVERRIDE_DENIED rows to confirm guard metadata; use workflow logs to trace denial reasons during Temporal execution.
+- **Failure visibility:** regressions surface as missing OVERRIDE_DENIED events, absent guard_assertion_id/normalized invariants in ledger details, or workflow.override_denied logs without expected guard metadata.

@@ -26,17 +26,6 @@
 - Validation: proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook)
 - Notes: ApprovalRecord and InspectionMilestone artifacts persisted via idempotent activities with case/submission_attempt validation; API list endpoints proven via integration test; status map fixtures extended for APPROVAL_* and INSPECTION_* statuses. S02 extended validation with operational docker-compose runbook proving approval_records and inspection_milestones artifacts are created and queryable via Postgres after status event ingestion.
 
-### R034 — Emergency and override workflows (GOV-005)
-- Class: governance
-- Status: active
-- Description: Emergency and override workflows are explicit, time-bounded, and enforced without silent normalization.
-- Why it matters: Exceptions must remain exceptional and auditable under Tier 3 compliance.
-- Source: spec (section 6.2 GOV-005)
-- Primary owning slice: M012/S01
-- Supporting slices: none
-- Validation: pending (integration tests + runbook)
-- Notes: Must fail closed when no valid emergency/override artifact exists.
-
 ### R035 — Admin policy/config governance (spec section 5.5)
 - Class: governance
 - Status: active
@@ -49,6 +38,17 @@
 - Notes: Governed mutation paths only.
 
 ## Validated
+
+### R034 — Emergency and override workflows (GOV-005)
+- Class: governance
+- Status: validated
+- Description: Emergency and override workflows are explicit, time-bounded, and enforced without silent normalization.
+- Why it matters: Exceptions must remain exceptional and auditable under Tier 3 compliance.
+- Source: spec (section 6.2 GOV-005)
+- Primary owning slice: M012/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m012_s01_override_guard_test.py -v + pytest tests/m012_s01_emergency_hold_test.py -v + scripts/verify_m012_s01.sh runbook)
+- Notes: Guard enforcement validated with OVERRIDE_DENIED ledger entries and EMERGENCY_HOLD lifecycle runbook proof.
 
 ### R027 — Authenticated identities on interactive and service APIs (SEC-001)
 - Class: security
@@ -442,5 +442,5 @@
 
 - Active requirements: 3
 - Mapped to slices: 34
-- Validated: 30
+- Validated: 31
 - Unmapped active requirements: 0

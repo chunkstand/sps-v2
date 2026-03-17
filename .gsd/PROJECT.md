@@ -124,6 +124,11 @@ A governed workflow system that can produce and submit permit packages with revi
   - Proof surfaces: operational docker-compose runbook + StatusEventSignal integration test structure
   - R032/R033 extended validation: operational docker-compose proof with live API + worker + Postgres + Temporal
 - **Phase 11 milestone M011-kg7s2p complete:** post-submission artifact persistence, status event workflow wiring, and comment → resubmission → approval/inspection lifecycle proven via API integration tests and live docker-compose runbook.
+- **Phase 12 emergency/override governance (M012/S01) complete:**
+  - EmergencyRecord + OverrideArtifact persistence with guarded time bounds
+  - POST /api/v1/emergencies and /api/v1/overrides endpoints gated by escalation-owner RBAC
+  - Override guard enforcement (OVERRIDE_DENIED with guard assertion INV-SPS-EMERG-001) and EMERGENCY_HOLD entry/exit transitions
+  - Proof surfaces: `tests/m012_s01_override_guard_test.py`, `tests/m012_s01_emergency_hold_test.py`, and `scripts/verify_m012_s01.sh`
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
@@ -177,7 +182,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
 - [x] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
 - [x] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking
-- [ ] M012-v8s3qn: Phase 12 — emergency and override governance
+- [x] M012-v8s3qn: Phase 12 — emergency and override governance
 - [ ] M013-n6p1tg: Phase 13 — admin policy/config governance
 
 ## Milestone ID Mapping

@@ -42,3 +42,9 @@ Prove EMERGENCY_HOLD entry/exit transitions require valid artifacts (emergency_i
 ## Expected Output
 
 - `tests/m012_s01_emergency_hold_test.py` — 3 integration test cases proving EMERGENCY_HOLD lifecycle with signal-based entry/exit and forbidden direct transitions
+
+## Observability Impact
+
+- Signals touched: `workflow.emergency_hold_entered`, `workflow.emergency_hold_exited` logs and `CASE_STATE_CHANGED` transition ledger events are asserted indirectly in integration tests.
+- Inspection path: use `docker compose exec postgres psql -U sps -d sps -c "SELECT event_type, from_state, to_state, workflow_id FROM case_transition_ledger WHERE to_state='EMERGENCY_HOLD' OR from_state='EMERGENCY_HOLD' ORDER BY occurred_at DESC;"` to validate entry/exit events, and check Temporal worker logs for the workflow log signals above.
+- Failure visibility: missing/invalid artifacts should surface as denied transitions (no CASE_STATE_CHANGED rows), and forbidden EMERGENCY_HOLD → SUBMITTED attempts should leave the ledger without a SUBMITTED transition.

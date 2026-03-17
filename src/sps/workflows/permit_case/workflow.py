@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from datetime import timedelta
 import datetime as dt
+import logging
 
 from temporalio import workflow
+from temporalio.common import RetryPolicy
+
+logger = logging.getLogger(__name__)
 
 from sps.workflows.permit_case.contracts import (
     ActorType,
     CaseState,
+    EmergencyHoldExitRequest,
+    EmergencyHoldRequest,
     ExternalStatusClass,
     PermitCaseStateSnapshot,
     PermitCaseWorkflowInput,
@@ -50,6 +56,8 @@ with workflow.unsafe.imports_passed_through():
         persist_requirement_sets,
         persist_resubmission_package,
         persist_submission_package,
+        validate_emergency_artifact,
+        validate_reviewer_confirmation,
     )
 
 
@@ -68,6 +76,12 @@ def _activity_request_id(*, workflow_id: str, run_id: str, activity_name: str, a
     return f"{workflow_id}/{run_id}/{activity_name}/attempt-{attempt}"
 
 
+def _case_id_from_workflow_id(workflow_id: str) -> str:
+    if workflow_id.startswith("permit-case/"):
+        return workflow_id.split("/", 1)[1]
+    raise RuntimeError(f"unexpected workflow_id format: {workflow_id}")
+
+
 @workflow.defn
 class PermitCaseWorkflow:
     """Guarded transition proof workflow.
@@ -84,6 +98,8 @@ class PermitCaseWorkflow:
         self._case_id: str | None = None
         self._review_decision: ReviewDecisionSignal | None = None
         self._status_event_signal: StatusEventSignal | None = None
+        self._emergency_hold_entry_attempt: int = 0
+        self._emergency_hold_exit_attempt: int = 0
 
     @workflow.run
     async def run(self, input: PermitCaseWorkflowInput) -> PermitCaseWorkflowResult:
@@ -1443,4 +1459,179 @@ class PermitCaseWorkflow:
                 self._case_id,
                 signal.event_id,
             )
+
+    @workflow.signal(name="EmergencyHoldEntry")
+    async def emergency_hold_entry(self, signal: EmergencyHoldRequest) -> None:
+        payload = EmergencyHoldRequest.model_validate(signal)
+        info = workflow.info()
+        if self._case_id is None:
+            self._case_id = _case_id_from_workflow_id(info.workflow_id)
+
+        await workflow.execute_activity(
+            validate_emergency_artifact,
+            payload.emergency_id,
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=RetryPolicy(maximum_attempts=1),
+        )
+
+        raw_snapshot = await workflow.execute_activity(
+            fetch_permit_case_state,
+            self._case_id,
+            start_to_close_timeout=timedelta(seconds=30),
+        )
+        if isinstance(raw_snapshot, PermitCaseStateSnapshot):
+            snapshot = raw_snapshot
+        elif hasattr(raw_snapshot, "model_dump"):
+            snapshot = PermitCaseStateSnapshot.model_validate(raw_snapshot.model_dump())
+        else:
+            snapshot = PermitCaseStateSnapshot.model_validate(raw_snapshot)
+
+        self._emergency_hold_entry_attempt += 1
+        request_id = _transition_request_id(
+            workflow_id=info.workflow_id,
+            run_id=info.run_id,
+            transition="emergency_hold_entry",
+            attempt=self._emergency_hold_entry_attempt,
+        )
+        requested_at = _utc(workflow.now())
+        correlation_id = f"{info.workflow_id}:{info.run_id}"
+
+        workflow.logger.info(
+            "workflow.transition_attempt workflow_id=%s run_id=%s case_id=%s request_id=%s from_state=%s to_state=%s attempt=%s",
+            info.workflow_id,
+            info.run_id,
+            self._case_id,
+            request_id,
+            snapshot.case_state,
+            payload.target_state,
+            self._emergency_hold_entry_attempt,
+        )
+
+        raw_transition = await workflow.execute_activity(
+            apply_state_transition,
+            StateTransitionRequest(
+                request_id=request_id,
+                case_id=self._case_id,
+                from_state=snapshot.case_state,
+                to_state=payload.target_state,
+                actor_type=ActorType.system_guard,
+                actor_id="system-guard",
+                correlation_id=correlation_id,
+                causation_id=None,
+                required_review_id=None,
+                required_evidence_ids=[],
+                override_id=None,
+                requested_at=requested_at,
+                notes=None,
+            ),
+            start_to_close_timeout=timedelta(seconds=30),
+        )
+        transition_result = parse_state_transition_result(
+            raw_transition.model_dump() if hasattr(raw_transition, "model_dump") else raw_transition
+        )
+
+        if transition_result.result != "applied":
+            workflow.logger.info(
+                "workflow.transition_denied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s denial_reason=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                request_id,
+                transition_result.event_type,
+                getattr(transition_result, "denial_reason", None),
+            )
+            raise RuntimeError(
+                "emergency hold entry transition did not apply "
+                f"(event_type={transition_result.event_type})"
+            )
+
+        logger.info(
+            "workflow.emergency_hold_entered workflow_id=%s run_id=%s case_id=%s emergency_id=%s",
+            info.workflow_id,
+            info.run_id,
+            self._case_id,
+            payload.emergency_id,
+        )
+
+    @workflow.signal(name="EmergencyHoldExit")
+    async def emergency_hold_exit(self, signal: EmergencyHoldExitRequest) -> None:
+        payload = EmergencyHoldExitRequest.model_validate(signal)
+        info = workflow.info()
+        if self._case_id is None:
+            self._case_id = _case_id_from_workflow_id(info.workflow_id)
+
+        await workflow.execute_activity(
+            validate_reviewer_confirmation,
+            payload.reviewer_confirmation_id,
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=RetryPolicy(maximum_attempts=1),
+        )
+
+        self._emergency_hold_exit_attempt += 1
+        request_id = _transition_request_id(
+            workflow_id=info.workflow_id,
+            run_id=info.run_id,
+            transition="emergency_hold_exit",
+            attempt=self._emergency_hold_exit_attempt,
+        )
+        requested_at = _utc(workflow.now())
+        correlation_id = f"{info.workflow_id}:{info.run_id}"
+
+        workflow.logger.info(
+            "workflow.transition_attempt workflow_id=%s run_id=%s case_id=%s request_id=%s from_state=%s to_state=%s attempt=%s",
+            info.workflow_id,
+            info.run_id,
+            self._case_id,
+            request_id,
+            CaseState.EMERGENCY_HOLD,
+            payload.target_state,
+            self._emergency_hold_exit_attempt,
+        )
+
+        raw_transition = await workflow.execute_activity(
+            apply_state_transition,
+            StateTransitionRequest(
+                request_id=request_id,
+                case_id=self._case_id,
+                from_state=CaseState.EMERGENCY_HOLD,
+                to_state=payload.target_state,
+                actor_type=ActorType.system_guard,
+                actor_id="system-guard",
+                correlation_id=correlation_id,
+                causation_id=None,
+                required_review_id=None,
+                required_evidence_ids=[],
+                override_id=None,
+                requested_at=requested_at,
+                notes=None,
+            ),
+            start_to_close_timeout=timedelta(seconds=30),
+        )
+        transition_result = parse_state_transition_result(
+            raw_transition.model_dump() if hasattr(raw_transition, "model_dump") else raw_transition
+        )
+
+        if transition_result.result != "applied":
+            workflow.logger.info(
+                "workflow.transition_denied workflow_id=%s run_id=%s case_id=%s request_id=%s event_type=%s denial_reason=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                request_id,
+                transition_result.event_type,
+                getattr(transition_result, "denial_reason", None),
+            )
+            raise RuntimeError(
+                "emergency hold exit transition did not apply "
+                f"(event_type={transition_result.event_type})"
+            )
+
+        logger.info(
+            "workflow.emergency_hold_exited workflow_id=%s run_id=%s case_id=%s target_state=%s reviewer_confirmation_id=%s",
+            info.workflow_id,
+            info.run_id,
+            self._case_id,
+            payload.target_state,
+            payload.reviewer_confirmation_id,
+        )
 

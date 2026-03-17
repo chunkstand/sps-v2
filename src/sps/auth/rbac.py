@@ -17,6 +17,7 @@ class Role(StrEnum):
     REVIEWER = "reviewer"
     OPS = "ops"
     RELEASE = "release"
+    ESCALATION_OWNER = "escalation-owner"
     ADMIN = "admin"
 
 
