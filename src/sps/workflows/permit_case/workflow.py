@@ -8,15 +8,21 @@ from temporalio import workflow
 from sps.workflows.permit_case.contracts import (
     ActorType,
     CaseState,
+    ExternalStatusClass,
     PermitCaseStateSnapshot,
     PermitCaseWorkflowInput,
     PermitCaseWorkflowResult,
+    PersistApprovalRecordRequest,
     PersistComplianceEvaluationRequest,
+    PersistCorrectionTaskRequest,
     PersistIncentiveAssessmentRequest,
+    PersistInspectionMilestoneRequest,
     PersistJurisdictionResolutionRequest,
     PersistRequirementSetRequest,
+    PersistResubmissionPackageRequest,
     PersistSubmissionPackageRequest,
     ReviewDecisionSignal,
+    StatusEventSignal,
     SubmissionAdapterOutcome,
     SubmissionAdapterRequest,
     SubmissionAdapterResult,
@@ -77,6 +83,7 @@ class PermitCaseWorkflow:
     def __init__(self) -> None:
         self._case_id: str | None = None
         self._review_decision: ReviewDecisionSignal | None = None
+        self._status_event_signal: StatusEventSignal | None = None
 
     @workflow.run
     async def run(self, input: PermitCaseWorkflowInput) -> PermitCaseWorkflowResult:
@@ -1306,3 +1313,134 @@ class PermitCaseWorkflow:
             info.run_id,
             self._case_id,
         )
+
+    @workflow.signal(name="StatusEvent")
+    async def status_event(self, signal: StatusEventSignal) -> None:
+        """Handle external status event signals that trigger post-submission artifact persistence.
+        
+        Branches on normalized_status to call the appropriate persistence activity:
+        - COMMENT_ISSUED → persist_correction_task
+        - RESUBMISSION_REQUESTED → persist_resubmission_package
+        - APPROVAL_* → persist_approval_record
+        - INSPECTION_* → persist_inspection_milestone
+        """
+        # Store signal for workflow state tracking
+        self._status_event_signal = signal
+
+        info = workflow.info()
+        workflow.logger.info(
+            "workflow.signal name=PermitCaseWorkflow workflow_id=%s run_id=%s case_id=%s signal=StatusEvent event_id=%s normalized_status=%s",
+            info.workflow_id,
+            info.run_id,
+            self._case_id,
+            signal.event_id,
+            signal.normalized_status,
+        )
+
+        # Branch on normalized_status and call appropriate persistence activity
+        if signal.normalized_status == ExternalStatusClass.COMMENT_ISSUED:
+            # Persist correction task artifact
+            correction_request = PersistCorrectionTaskRequest(
+                correction_task_id=f"CORRECTION-{signal.event_id}",
+                case_id=signal.case_id,
+                submission_attempt_id=signal.submission_attempt_id,
+                status="PENDING",
+                summary=None,
+                requested_at=None,
+                due_at=None,
+            )
+            await workflow.execute_activity(
+                persist_correction_task,
+                correction_request,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            workflow.logger.info(
+                "workflow.artifact_persisted workflow_id=%s run_id=%s case_id=%s artifact_type=correction_task event_id=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                signal.event_id,
+            )
+
+        elif signal.normalized_status == ExternalStatusClass.RESUBMISSION_REQUESTED:
+            # Persist resubmission package artifact
+            resubmission_request = PersistResubmissionPackageRequest(
+                resubmission_package_id=f"RESUBMISSION-{signal.event_id}",
+                case_id=signal.case_id,
+                submission_attempt_id=signal.submission_attempt_id,
+                package_id="PKG-PLACEHOLDER",
+                package_version="1.0.0",
+                status="REQUESTED",
+                submitted_at=None,
+            )
+            await workflow.execute_activity(
+                persist_resubmission_package,
+                resubmission_request,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            workflow.logger.info(
+                "workflow.artifact_persisted workflow_id=%s run_id=%s case_id=%s artifact_type=resubmission_package event_id=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                signal.event_id,
+            )
+
+        elif signal.normalized_status in (
+            ExternalStatusClass.APPROVAL_REPORTED,
+            ExternalStatusClass.APPROVAL_CONFIRMED,
+            ExternalStatusClass.APPROVAL_PENDING_INSPECTION,
+            ExternalStatusClass.APPROVAL_FINAL,
+        ):
+            # Persist approval record artifact
+            approval_request = PersistApprovalRecordRequest(
+                approval_record_id=f"APPROVAL-{signal.event_id}",
+                case_id=signal.case_id,
+                submission_attempt_id=signal.submission_attempt_id,
+                decision="APPROVED",
+                authority=None,
+                decided_at=None,
+            )
+            await workflow.execute_activity(
+                persist_approval_record,
+                approval_request,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            workflow.logger.info(
+                "workflow.artifact_persisted workflow_id=%s run_id=%s case_id=%s artifact_type=approval_record event_id=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                signal.event_id,
+            )
+
+        elif signal.normalized_status in (
+            ExternalStatusClass.INSPECTION_SCHEDULED,
+            ExternalStatusClass.INSPECTION_PASSED,
+            ExternalStatusClass.INSPECTION_FAILED,
+        ):
+            # Persist inspection milestone artifact
+            milestone_type = "FINAL" if signal.normalized_status == ExternalStatusClass.INSPECTION_PASSED else "SCHEDULED"
+            milestone_status = signal.normalized_status.value
+            inspection_request = PersistInspectionMilestoneRequest(
+                inspection_milestone_id=f"INSPECTION-{signal.event_id}",
+                case_id=signal.case_id,
+                submission_attempt_id=signal.submission_attempt_id,
+                milestone_type=milestone_type,
+                status=milestone_status,
+                scheduled_for=None,
+                completed_at=None,
+            )
+            await workflow.execute_activity(
+                persist_inspection_milestone,
+                inspection_request,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            workflow.logger.info(
+                "workflow.artifact_persisted workflow_id=%s run_id=%s case_id=%s artifact_type=inspection_milestone event_id=%s",
+                info.workflow_id,
+                info.run_id,
+                self._case_id,
+                signal.event_id,
+            )
+

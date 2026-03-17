@@ -11,9 +11,9 @@
 - Why it matters: Real-world permitting requires iterative corrections; this must be governed and auditable.
 - Source: spec (section 6.1 F-008)
 - Primary owning slice: M011/S01
-- Supporting slices: none
-- Validation: proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + workflow state transitions + artifact persistence activities)
-- Notes: Workflow wired for COMMENT_REVIEW_PENDING → CORRECTION_PENDING → RESUBMISSION_PENDING → DOCUMENT_COMPLETE loop; CorrectionTask and ResubmissionPackage artifacts persisted via idempotent activities; API list endpoints proven via integration test.
+- Supporting slices: M011/S02
+- Validation: proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + workflow state transitions + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook)
+- Notes: Workflow wired for COMMENT_REVIEW_PENDING → CORRECTION_PENDING → RESUBMISSION_PENDING → DOCUMENT_COMPLETE loop; CorrectionTask and ResubmissionPackage artifacts persisted via idempotent activities; API list endpoints proven via integration test. S02 extended validation with operational docker-compose runbook proving end-to-end API + worker + Postgres integration for comment → resubmission lifecycle.
 
 ### R033 — Approval and inspection milestone tracking (F-009)
 - Class: integration
@@ -22,9 +22,9 @@
 - Why it matters: Permit lifecycle completion requires durable approval/inspection records.
 - Source: spec (section 6.1 F-009)
 - Primary owning slice: M011/S01
-- Supporting slices: none
-- Validation: proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifact persistence activities)
-- Notes: ApprovalRecord and InspectionMilestone artifacts persisted via idempotent activities with case/submission_attempt validation; API list endpoints proven via integration test; status map fixtures extended for APPROVAL_* and INSPECTION_* statuses.
+- Supporting slices: M011/S02
+- Validation: proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook)
+- Notes: ApprovalRecord and InspectionMilestone artifacts persisted via idempotent activities with case/submission_attempt validation; API list endpoints proven via integration test; status map fixtures extended for APPROVAL_* and INSPECTION_* statuses. S02 extended validation with operational docker-compose runbook proving approval_records and inspection_milestones artifacts are created and queryable via Postgres after status event ingestion.
 
 ### R034 — Emergency and override workflows (GOV-005)
 - Class: governance
@@ -432,8 +432,8 @@
 | R028 | security | validated | M010/S01 | none | proved (pytest tests/m010_s01_auth_rbac_test.py -v) |
 | R029 | security | validated | M010/S01 | none | proved (pytest tests/m010_s03_redaction_test.py -v, pytest tests/m010_s03_observability_readonly_test.py -v, scripts/verify_m010_s03.sh) |
 | R031 | security | validated | M010/S02 | none | proved (pytest tests/m010_s02_service_principal_auth_test.py -v) |
-| R032 | integration | validated | M011/S01 | none | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + workflow wiring + artifacts) |
-| R033 | integration | validated | M011/S01 | none | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifacts) |
+| R032 | integration | validated | M011/S01 | M011/S02 | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + workflow state transitions + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook) |
+| R033 | integration | validated | M011/S01 | M011/S02 | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook) |
 | R034 | governance | active | M012/S01 | none | pending (integration tests + runbook) |
 | R035 | governance | active | M013/S01 | none | pending (integration tests + runbook) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |

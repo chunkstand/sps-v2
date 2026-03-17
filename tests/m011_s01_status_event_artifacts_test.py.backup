@@ -93,7 +93,7 @@ def db_session() -> Session:
 
 
 @pytest.mark.integration
-def test_persist_correction_task_creates_artifact(db_session, seed_fixtures):
+def test_persist_correction_task_creates_artifact(db_session):
     """Persist correction task artifact with case/submission_attempt linkage validation."""
     
     case_id = "case-correction-001"
@@ -113,7 +113,15 @@ def test_persist_correction_task_creates_artifact(db_session, seed_fixtures):
             legal_hold=False,
         )
     )
-    seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
+    db_session.add(
+        SubmissionAttempt(
+            submission_attempt_id=attempt_id,
+            case_id=case_id,
+            attempt_number=1,
+            status="SUBMITTED",
+            submission_mode="AUTOMATED",
+        )
+    )
     db_session.commit()
     
     # Act: Persist correction task
@@ -141,7 +149,7 @@ def test_persist_correction_task_creates_artifact(db_session, seed_fixtures):
 
 
 @pytest.mark.integration
-def test_persist_correction_task_idempotent(db_session, seed_fixtures):
+def test_persist_correction_task_idempotent(db_session):
     """Persist correction task is idempotent on replay."""
     
     case_id = "case-correction-002"
@@ -160,7 +168,15 @@ def test_persist_correction_task_idempotent(db_session, seed_fixtures):
             legal_hold=False,
         )
     )
-    seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
+    db_session.add(
+        SubmissionAttempt(
+            submission_attempt_id=attempt_id,
+            case_id=case_id,
+            attempt_number=1,
+            status="SUBMITTED",
+            submission_mode="AUTOMATED",
+        )
+    )
     db_session.commit()
     
     request = PersistCorrectionTaskRequest(
@@ -185,7 +201,7 @@ def test_persist_correction_task_idempotent(db_session, seed_fixtures):
 
 
 @pytest.mark.integration
-def test_persist_correction_task_validates_case_attempt_linkage(db_session, seed_fixtures):
+def test_persist_correction_task_validates_case_attempt_linkage(db_session):
     """Persist correction task rejects mismatched case/attempt."""
     
     case_id = "case-correction-003"
@@ -240,7 +256,7 @@ def test_persist_correction_task_validates_case_attempt_linkage(db_session, seed
 
 
 @pytest.mark.integration
-def test_persist_resubmission_package_creates_artifact(db_session, seed_fixtures):
+def test_persist_resubmission_package_creates_artifact(db_session):
     """Persist resubmission package artifact."""
     
     case_id = "case-resub-001"
@@ -259,7 +275,15 @@ def test_persist_resubmission_package_creates_artifact(db_session, seed_fixtures
             legal_hold=False,
         )
     )
-    seed_fixtures(case_id, attempt_id, attempt_number=2, status="PENDING")
+    db_session.add(
+        SubmissionAttempt(
+            submission_attempt_id=attempt_id,
+            case_id=case_id,
+            attempt_number=2,
+            status="PENDING",
+            submission_mode="AUTOMATED",
+        )
+    )
     db_session.commit()
     
     request = PersistResubmissionPackageRequest(
@@ -285,7 +309,7 @@ def test_persist_resubmission_package_creates_artifact(db_session, seed_fixtures
 
 
 @pytest.mark.integration
-def test_persist_approval_record_creates_artifact(db_session, seed_fixtures):
+def test_persist_approval_record_creates_artifact(db_session):
     """Persist approval record artifact."""
     
     case_id = "case-approval-001"
@@ -304,7 +328,15 @@ def test_persist_approval_record_creates_artifact(db_session, seed_fixtures):
             legal_hold=False,
         )
     )
-    seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
+    db_session.add(
+        SubmissionAttempt(
+            submission_attempt_id=attempt_id,
+            case_id=case_id,
+            attempt_number=1,
+            status="SUBMITTED",
+            submission_mode="AUTOMATED",
+        )
+    )
     db_session.commit()
     
     request = PersistApprovalRecordRequest(
@@ -328,7 +360,7 @@ def test_persist_approval_record_creates_artifact(db_session, seed_fixtures):
 
 
 @pytest.mark.integration
-def test_persist_inspection_milestone_creates_artifact(db_session, seed_fixtures):
+def test_persist_inspection_milestone_creates_artifact(db_session):
     """Persist inspection milestone artifact."""
     
     case_id = "case-inspection-001"
@@ -347,7 +379,15 @@ def test_persist_inspection_milestone_creates_artifact(db_session, seed_fixtures
             legal_hold=False,
         )
     )
-    seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
+    db_session.add(
+        SubmissionAttempt(
+            submission_attempt_id=attempt_id,
+            case_id=case_id,
+            attempt_number=1,
+            status="SUBMITTED",
+            submission_mode="AUTOMATED",
+        )
+    )
     db_session.commit()
     
     request = PersistInspectionMilestoneRequest(
@@ -371,7 +411,7 @@ def test_persist_inspection_milestone_creates_artifact(db_session, seed_fixtures
 
 
 @pytest.mark.integration
-def test_external_status_normalization_with_new_statuses(db_session, seed_fixtures):
+def test_external_status_normalization_with_new_statuses(db_session):
     """External status event normalization handles new post-submission statuses."""
     
     case_id = "case-7-new-statuses"
@@ -391,7 +431,15 @@ def test_external_status_normalization_with_new_statuses(db_session, seed_fixtur
             legal_hold=False,
         )
     )
-    seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
+    db_session.add(
+        SubmissionAttempt(
+            submission_attempt_id=attempt_id,
+            case_id=case_id,
+            attempt_number=1,
+            status="SUBMITTED",
+            submission_mode="AUTOMATED",
+        )
+    )
     db_session.commit()
     
     # Act: Normalize COMMENT_ISSUED status
@@ -418,7 +466,7 @@ def test_external_status_normalization_with_new_statuses(db_session, seed_fixtur
 
 
 @pytest.mark.integration
-def test_approval_and_inspection_status_normalization(db_session, seed_fixtures):
+def test_approval_and_inspection_status_normalization(db_session):
     """Approval and inspection statuses normalize correctly."""
     
     case_id = "case-7-approval-inspect"
@@ -436,7 +484,15 @@ def test_approval_and_inspection_status_normalization(db_session, seed_fixtures)
             legal_hold=False,
         )
     )
-    seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
+    db_session.add(
+        SubmissionAttempt(
+            submission_attempt_id=attempt_id,
+            case_id=case_id,
+            attempt_number=1,
+            status="SUBMITTED",
+            submission_mode="AUTOMATED",
+        )
+    )
     db_session.commit()
     
     # Test APPROVAL_FINAL

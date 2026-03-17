@@ -115,6 +115,15 @@ A governed workflow system that can produce and submit permit packages with revi
   - API list endpoints for all 4 artifact types protected by intake role RBAC
   - Proof surfaces: `tests/m011_s01_post_submission_artifacts_api_test.py` (API integration test) + workflow code verification
   - R032/R033 validated: correction/resubmission/approval/inspection artifact models proven, workflow wiring proven structurally, full runtime execution deferred to S02
+- **Phase 11 status event workflow wiring + docker-compose runbook (M011/S02) complete:**
+  - StatusEventSignal workflow handler branches on normalized_status to dispatch correction_task, resubmission_package, approval_record, inspection_milestone persistence
+  - POST /external-status-events modified to send StatusEventSignal after persist (async pattern with asyncio.wait_for timeout)
+  - Docker-compose development environment provisioning script (`scripts/start_temporal_dev.sh`) with readiness checks and alembic migrations
+  - End-to-end runbook (`scripts/verify_m011_s02.sh`) proves full post-submission lifecycle: create case → submit → POST 4 status events → verify 4 artifact types exist in Postgres
+  - Worker registration fixed to include all 4 post-submission artifact persistence activities
+  - Proof surfaces: operational docker-compose runbook + StatusEventSignal integration test structure
+  - R032/R033 extended validation: operational docker-compose proof with live API + worker + Postgres + Temporal
+- **Phase 11 milestone M011-kg7s2p complete:** post-submission artifact persistence, status event workflow wiring, and comment → resubmission → approval/inspection lifecycle proven via API integration tests and live docker-compose runbook.
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
@@ -167,7 +176,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M008-z1k9mp: Phase 8 — reviewer UI + independence thresholds
 - [x] M009-ct4p0u: Phase 9 — release, rollback, and observability gates
 - [x] M010-w8n5cl: Phase 10 — security boundaries (auth/RBAC/mTLS/redaction)
-- [ ] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking (S01 complete)
+- [x] M011-kg7s2p: Phase 11 — comment resolution, resubmission, and approval tracking
 - [ ] M012-v8s3qn: Phase 12 — emergency and override governance
 - [ ] M013-n6p1tg: Phase 13 — admin policy/config governance
 

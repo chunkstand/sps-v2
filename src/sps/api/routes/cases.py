@@ -63,6 +63,7 @@ from sps.workflows.permit_case.contracts import (
     CaseState,
     ExternalStatusNormalizationRequest,
     PermitCaseWorkflowInput,
+    StatusEventSignal,
 )
 from sps.workflows.permit_case.ids import permit_case_workflow_id
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
@@ -345,6 +346,41 @@ async def _start_workflow(case_id: str) -> None:
             "intake_api.workflow_start_failed case_id=%s workflow_id=%s exc_type=%s",
             case_id,
             workflow_id,
+            type(exc).__name__,
+            exc_info=True,
+        )
+
+
+async def _send_status_event_signal(
+    *,
+    case_id: str,
+    signal: StatusEventSignal,
+) -> None:
+    """Deliver StatusEvent signal to the waiting PermitCaseWorkflow.
+
+    Failures are logged but must not bubble up to the caller — the Postgres
+    write is the authoritative event; signal delivery is best-effort.
+    """
+    try:
+        client = await asyncio.wait_for(connect_client(), timeout=10.0)
+        workflow_id = permit_case_workflow_id(case_id)
+        handle = client.get_workflow_handle(workflow_id)
+        await asyncio.wait_for(
+            handle.signal("StatusEvent", signal),
+            timeout=10.0,
+        )
+        logger.info(
+            "reviewer_api.signal_sent workflow_id=%s case_id=%s signal_type=StatusEvent event_id=%s",
+            workflow_id,
+            case_id,
+            signal.event_id,
+        )
+    except Exception as exc:
+        logger.warning(
+            "reviewer_api.signal_failed workflow_id=%s case_id=%s signal_type=StatusEvent event_id=%s error=%s",
+            permit_case_workflow_id(case_id),
+            case_id,
+            signal.event_id,
             type(exc).__name__,
             exc_info=True,
         )
@@ -871,7 +907,7 @@ def get_case_submission_attempts(
     response_model=ExternalStatusEventResponse,
     status_code=201,
 )
-def ingest_external_status_event(
+async def ingest_external_status_event(
     case_id: str,
     req: ExternalStatusEventIngestRequest,
     db: Session = Depends(get_db),
@@ -972,6 +1008,19 @@ def ingest_external_status_event(
         result.event_id,
         result.normalized_status,
     )
+
+    # Signal delivery — best-effort, must not affect HTTP response
+    signal_payload = StatusEventSignal(
+        event_id=result.event_id,
+        case_id=result.case_id,
+        submission_attempt_id=result.submission_attempt_id,
+        normalized_status=result.normalized_status,
+    )
+    await _send_status_event_signal(
+        case_id=case_id,
+        signal=signal_payload,
+    )
+
     return ExternalStatusEventResponse(
         event_id=result.event_id,
         case_id=result.case_id,

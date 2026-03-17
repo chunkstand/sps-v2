@@ -65,6 +65,17 @@ class ReviewDecisionSignal(BaseModel):
     decision_id: str | None = None
 
 
+class StatusEventSignal(BaseModel):
+    """Signal payload contract for external status event workflow continuations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str = Field(min_length=1)
+    case_id: str = Field(min_length=1)
+    submission_attempt_id: str = Field(min_length=1)
+    normalized_status: ExternalStatusClass
+
+
 class CaseState(str, Enum):
     """Authoritative PermitCase.case_state enum (contract-aligned)."""
 

@@ -39,7 +39,7 @@ This milestone is complete only when all are true:
 ## Slices
 - [x] **S01: Post-submission artifacts + workflow wiring** `risk:high` `depends:[]`
   > After this: Status ingestion and workflow runs (via tests) create correction/resubmission/approval/inspection artifacts with deterministic persistence and guarded transitions.
-- [ ] **S02: Status event workflow wiring + live docker-compose runbook** `risk:medium` `depends:[S01]`
+- [x] **S02: Status event workflow wiring + live docker-compose runbook** `risk:medium` `depends:[S01]`
   > After this: Normalized status events trigger workflow continuations that call persist_correction_task/persist_resubmission_package/persist_approval_record/persist_inspection_milestone activities; a live API + worker + Postgres + Temporal runbook proves the end-to-end comment → resubmission → approval/inspection lifecycle with Postgres evidence; deferred S01 integration tests pass in provisioned Temporal environment.
 
 ## Boundary Map

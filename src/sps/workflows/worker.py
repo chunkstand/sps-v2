@@ -13,11 +13,15 @@ from sps.workflows.permit_case.activities import (
     deterministic_submission_adapter,
     ensure_permit_case_exists,
     fetch_permit_case_state,
+    persist_approval_record,
     persist_compliance_evaluation,
+    persist_correction_task,
     persist_external_status_event,
     persist_incentive_assessment,
+    persist_inspection_milestone,
     persist_jurisdiction_resolutions,
     persist_requirement_sets,
+    persist_resubmission_package,
     persist_review_decision,
     persist_submission_package,
 )
@@ -77,6 +81,10 @@ async def _run_worker() -> None:
             deterministic_submission_adapter,
             apply_state_transition,
             persist_review_decision,
+            persist_correction_task,
+            persist_resubmission_package,
+            persist_approval_record,
+            persist_inspection_milestone,
         ],
         activity_executor=ThreadPoolExecutor(max_workers=10),
     )
@@ -97,6 +105,10 @@ async def _run_worker() -> None:
             deterministic_submission_adapter.__name__,
             apply_state_transition.__name__,
             persist_review_decision.__name__,
+            persist_correction_task.__name__,
+            persist_resubmission_package.__name__,
+            persist_approval_record.__name__,
+            persist_inspection_milestone.__name__,
         ],
     )
 
