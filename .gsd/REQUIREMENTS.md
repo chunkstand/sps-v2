@@ -434,7 +434,7 @@
 | R031 | security | validated | M010/S02 | none | proved (pytest tests/m010_s02_service_principal_auth_test.py -v) |
 | R032 | integration | validated | M011/S01 | M011/S02 | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + workflow state transitions + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook) |
 | R033 | integration | validated | M011/S01 | M011/S02 | proved (pytest tests/m011_s01_post_submission_artifacts_api_test.py + artifact persistence activities + scripts/verify_m011_s02.sh docker-compose runbook) |
-| R034 | governance | active | M012/S01 | none | pending (integration tests + runbook) |
+| R034 | governance | validated | M012/S01 | none | proved (pytest tests/m012_s01_override_guard_test.py -v + pytest tests/m012_s01_emergency_hold_test.py -v + scripts/verify_m012_s01.sh runbook) |
 | R035 | governance | active | M013/S01 | none | pending (integration tests + runbook) |
 | R900 | anti-feature | out-of-scope | none | none | n/a |
 

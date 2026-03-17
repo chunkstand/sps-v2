@@ -129,6 +129,7 @@ A governed workflow system that can produce and submit permit packages with revi
   - POST /api/v1/emergencies and /api/v1/overrides endpoints gated by escalation-owner RBAC
   - Override guard enforcement (OVERRIDE_DENIED with guard assertion INV-SPS-EMERG-001) and EMERGENCY_HOLD entry/exit transitions
   - Proof surfaces: `tests/m012_s01_override_guard_test.py`, `tests/m012_s01_emergency_hold_test.py`, and `scripts/verify_m012_s01.sh`
+  - R034 marked validated in the requirements registry based on integration tests + runbook proof
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.
