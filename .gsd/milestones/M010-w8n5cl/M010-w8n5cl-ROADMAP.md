@@ -39,7 +39,7 @@ This milestone is complete only when all are true:
 - Orphan risks: none
 
 ## Slices
-- [ ] **S01: Authenticated identity + RBAC gate for all API routers** `risk:high` `depends:[]`
+- [x] **S01: Authenticated identity + RBAC gate for all API routers** `risk:high` `depends:[]`
   > After this: API endpoints (cases, evidence, reviews, ops, releases) deny missing/invalid identities and enforce role-based access via real requests/tests.
 - [ ] **S02: Service principal authentication with baseline mTLS signal** `risk:medium` `depends:[S01]`
   > After this: service-to-service calls using signed principals (and required mTLS signal) succeed while invalid/absent principals or mTLS signals are denied.

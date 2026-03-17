@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from sps.auth.rbac import Role, require_roles
 from sps.config import get_settings
 from sps.db.models import EvidenceArtifact as EvidenceArtifactRow
 from sps.db.session import get_db
@@ -18,7 +19,7 @@ from sps.retention.guard import InvariantDenied, assert_not_on_legal_hold
 from sps.storage.s3 import IntegrityError as StorageIntegrityError
 from sps.storage.s3 import S3Storage, StorageError
 
-router = APIRouter(tags=["evidence"])
+router = APIRouter(tags=["evidence"], dependencies=[Depends(require_roles(Role.INTAKE))])
 
 
 def _get_storage() -> S3Storage:

@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from sps.api.routes.reviews import require_reviewer_api_key
+from sps.auth.rbac import Role, require_roles
 from sps.config import get_settings
 from sps.db.models import EvidenceArtifact as EvidenceArtifactRow
 from sps.db.models import ReleaseArtifact, ReleaseBundle
@@ -23,7 +23,7 @@ from sps.storage.s3 import S3Storage, StorageError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["releases"], dependencies=[Depends(require_reviewer_api_key)])
+router = APIRouter(tags=["releases"], dependencies=[Depends(require_roles(Role.RELEASE))])
 
 
 class ReleaseArtifactRequest(BaseModel):

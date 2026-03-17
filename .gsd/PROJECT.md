@@ -103,6 +103,7 @@ A governed workflow system that can produce and submit permit packages with revi
   - Runbook template at `runbooks/sps/post-release-validation.md` defines stage-gated validation steps
   - Proof surfaces: `tests/m009_s03_rollback_rehearsal_test.py` + `scripts/verify_m009_s03.sh`
 - **Phase 9 milestone M009-ct4p0u complete:** release, rollback rehearsal, and observability gates are validated end-to-end.
+- **Phase 10 auth/RBAC gate (M010/S01) complete:** JWT identity validation and RBAC role checks are enforced across all routers with structured auth-denied logs and integration tests.
 
 - **Phase 4 milestone M004-lp1flz complete:**
   - Intake, jurisdiction, and requirements workers are wired end-to-end with fixture-backed artifacts and live runbook proof.

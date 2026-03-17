@@ -8,13 +8,16 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from sps.api.routes.reviews import require_reviewer_api_key
+from sps.auth.rbac import Role, require_roles
 from sps.db.models import ContradictionArtifact
 from sps.db.session import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["contradictions"])
+router = APIRouter(
+    tags=["contradictions"],
+    dependencies=[Depends(require_roles(Role.REVIEWER))],
+)
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +98,6 @@ def _row_to_response(row: ContradictionArtifact) -> ContradictionResponse:
 @router.post(
     "/",
     status_code=201,
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 def create_contradiction(
     req: CreateContradictionRequest,
@@ -145,7 +147,6 @@ def create_contradiction(
 @router.post(
     "/{contradiction_id}/resolve",
     status_code=200,
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 def resolve_contradiction(
     contradiction_id: str,
@@ -192,7 +193,6 @@ def resolve_contradiction(
 @router.get(
     "/{contradiction_id}",
     status_code=200,
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 def get_contradiction(
     contradiction_id: str,

@@ -4,10 +4,9 @@ import asyncio
 import datetime as dt
 import logging
 from dataclasses import dataclass
-from typing import Annotated
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
@@ -19,7 +18,7 @@ from sps.api.contracts.reviews import (
     ReviewerQueueResponse,
 )
 from sps.audit.events import emit_audit_event
-from sps.config import get_settings
+from sps.auth.rbac import Role, require_roles
 from sps.db.models import (
     DissentArtifact,
     EvidenceArtifact,
@@ -40,7 +39,7 @@ from sps.workflows.permit_case.contracts import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["reviews"])
+router = APIRouter(tags=["reviews"], dependencies=[Depends(require_roles(Role.REVIEWER))])
 
 
 # ---------------------------------------------------------------------------
@@ -98,36 +97,6 @@ class ReviewDecisionResponse(BaseModel):
     idempotency_key: str
     created: dt.datetime
     dissent_artifact_id: str | None = None
-
-
-# ---------------------------------------------------------------------------
-# Auth dependency
-# ---------------------------------------------------------------------------
-
-
-def require_reviewer_api_key(
-    x_reviewer_api_key: Annotated[str | None, Header(alias="X-Reviewer-Api-Key")] = None,
-) -> None:
-    """FastAPI dependency that gates reviewer endpoints behind the configured API key.
-
-    Raises HTTP 401 for missing header or key mismatch.
-    The configured key is compared but never echoed in the response body or logs.
-
-    Observability: failures are visible in API access logs as 401 responses on
-    /api/v1/reviews/* paths.  No structured event is emitted here because the
-    auth decision predates any request context worth logging.
-    """
-    if x_reviewer_api_key is None:
-        raise HTTPException(
-            status_code=401,
-            detail={"error": "missing_api_key", "hint": "Supply X-Reviewer-Api-Key header"},
-        )
-    settings = get_settings()
-    if x_reviewer_api_key != settings.reviewer_api_key:
-        raise HTTPException(
-            status_code=401,
-            detail={"error": "invalid_api_key"},
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -462,7 +431,6 @@ async def _send_review_signal(
 @router.post(
     "/decisions",
     status_code=201,
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 async def create_review_decision(
     req: CreateReviewDecisionRequest,
@@ -611,7 +579,6 @@ async def create_review_decision(
 
 @router.get(
     "/decisions/{decision_id}",
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 def get_review_decision(decision_id: str, db: Session = Depends(get_db)) -> ReviewDecisionResponse:
     """Read-only inspection surface for a persisted ReviewDecision.
@@ -629,7 +596,6 @@ def get_review_decision(decision_id: str, db: Session = Depends(get_db)) -> Revi
 
 @router.get(
     "/queue",
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 def get_review_queue(db: Session = Depends(get_db)) -> ReviewerQueueResponse:
     """Return the pending reviewer queue ordered by oldest cases first."""
@@ -647,7 +613,6 @@ def get_review_queue(db: Session = Depends(get_db)) -> ReviewerQueueResponse:
 
 @router.get(
     "/cases/{case_id}/evidence-summary",
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 def get_evidence_summary(case_id: str, db: Session = Depends(get_db)) -> EvidenceSummaryResponse:
     """Aggregate evidence IDs and artifact metadata for a case."""

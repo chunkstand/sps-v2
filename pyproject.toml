@@ -22,6 +22,7 @@ dependencies = [
   # Typed config + validation
   "pydantic>=2.7.0",
   "pydantic-settings>=2.3.0",
+  "pyjwt>=2.8.0",
 
   # Postgres persistence + migrations
   "sqlalchemy>=2.0.0",

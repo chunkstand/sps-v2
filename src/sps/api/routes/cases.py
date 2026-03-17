@@ -31,6 +31,7 @@ from sps.api.contracts.cases import (
     SubmissionPackageResponse,
 )
 from sps.api.contracts.intake import CreateCaseRequest, CreateCaseResponse, SiteAddress
+from sps.auth.rbac import Role, require_roles
 from sps.config import get_settings
 from sps.db.models import (
     ComplianceEvaluation,
@@ -57,7 +58,7 @@ from sps.workflows.temporal import connect_client
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["cases"])
+router = APIRouter(tags=["cases"], dependencies=[Depends(require_roles(Role.INTAKE))])
 
 _CASE_ID_PREFIX = "CASE-"
 _PROJECT_ID_PREFIX = "PROJ-"

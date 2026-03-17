@@ -3,28 +3,6 @@
 ## Active
 
 
-### R027 — Authenticated identities on interactive and service APIs (SEC-001)
-- Class: security
-- Status: active
-- Description: All interactive and service APIs require authenticated identities.
-- Why it matters: Authority-bearing actions must be attributable and access-controlled.
-- Source: spec (section 6.3 SEC-001)
-- Primary owning slice: M010/S01
-- Supporting slices: none
-- Validation: pending (auth integration tests)
-- Notes: Baseline identity provider selection in Phase 10.
-
-### R028 — RBAC separation across roles (SEC-002)
-- Class: security
-- Status: active
-- Description: Role-based access control separates user/reviewer/operator/admin/release-manager/escalation-owner capabilities.
-- Why it matters: Prevents cross-role authority drift and improper mutation.
-- Source: spec (section 6.3 SEC-002)
-- Primary owning slice: M010/S01
-- Supporting slices: none
-- Validation: pending (authorization tests)
-- Notes: Focus on key role separations first.
-
 ### R029 — Sensitive field redaction + read-only observability (SEC-003/OBS-004)
 - Class: security
 - Status: active
@@ -92,6 +70,28 @@
 - Notes: Governed mutation paths only.
 
 ## Validated
+
+### R027 — Authenticated identities on interactive and service APIs (SEC-001)
+- Class: security
+- Status: validated
+- Description: All interactive and service APIs require authenticated identities.
+- Why it matters: Authority-bearing actions must be attributable and access-controlled.
+- Source: spec (section 6.3 SEC-001)
+- Primary owning slice: M010/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m010_s01_auth_rbac_test.py -v)
+- Notes: Baseline identity provider selection in Phase 10.
+
+### R028 — RBAC separation across roles (SEC-002)
+- Class: security
+- Status: validated
+- Description: Role-based access control separates user/reviewer/operator/admin/release-manager/escalation-owner capabilities.
+- Why it matters: Prevents cross-role authority drift and improper mutation.
+- Source: spec (section 6.3 SEC-002)
+- Primary owning slice: M010/S01
+- Supporting slices: none
+- Validation: proved (pytest tests/m010_s01_auth_rbac_test.py -v)
+- Notes: Focus on key role separations first.
 
 ### R020 — Reviewer UI queue/evidence view/decision capture (E-001)
 - Class: governance
@@ -427,8 +427,8 @@
 | R024 | release | validated | M009/S01 | none | proved (pytest tests/m009_s02_release_bundle_test.py + scripts/verify_m009_s02.sh) |
 | R025 | release | validated | M009/S01 | none | proved (pytest tests/m009_s03_rollback_rehearsal_test.py + scripts/verify_m009_s03.sh) |
 | R026 | release | validated | M009/S01 | none | proved (runbooks/sps/post-release-validation.md + scripts/verify_m009_s03.sh) |
-| R027 | security | active | M010/S01 | none | pending (auth integration tests) |
-| R028 | security | active | M010/S01 | none | pending (authorization tests) |
+| R027 | security | validated | M010/S01 | none | proved (pytest tests/m010_s01_auth_rbac_test.py -v) |
+| R028 | security | validated | M010/S01 | none | proved (pytest tests/m010_s01_auth_rbac_test.py -v) |
 | R029 | security | active | M010/S01 | none | pending (log inspection + negative tests) |
 | R031 | security | active | M010/S01 | none | pending (integration tests) |
 | R032 | integration | active | M011/S01 | none | pending (integration tests + runbook) |
@@ -439,7 +439,7 @@
 
 ## Coverage Summary
 
-- Active requirements: 8
+- Active requirements: 6
 - Mapped to slices: 34
-- Validated: 25
+- Validated: 27
 - Unmapped active requirements: 0

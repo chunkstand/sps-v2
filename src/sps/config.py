@@ -74,7 +74,14 @@ class Settings(BaseSettings):
 
     s3_presign_expires_seconds: int = Field(default=600, validation_alias="SPS_S3_PRESIGN_EXPIRES_SECONDS")
 
-    # Reviewer API
+    # Auth (JWT)
+    # IMPORTANT: secrets must never be logged.
+    auth_jwt_issuer: str = Field(default="sps.local", validation_alias="SPS_AUTH_JWT_ISSUER")
+    auth_jwt_audience: str = Field(default="sps.api", validation_alias="SPS_AUTH_JWT_AUDIENCE")
+    auth_jwt_secret: str = Field(default="dev-secret", validation_alias="SPS_AUTH_JWT_SECRET")
+    auth_jwt_algorithm: str = Field(default="HS256", validation_alias="SPS_AUTH_JWT_ALGORITHM")
+
+    # Reviewer API (deprecated in M010 S01; retained for compatibility until removal).
     # IMPORTANT: this value must never be logged — treat it as a credential.
     reviewer_api_key: str = Field(default="dev-reviewer-key", validation_alias="SPS_REVIEWER_API_KEY")
 
