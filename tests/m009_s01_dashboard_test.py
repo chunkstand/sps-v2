@@ -5,6 +5,7 @@ Guard: set SPS_RUN_TEMPORAL_INTEGRATION=1 to run this file.
 Checks:
   - /api/v1/ops/dashboard/metrics returns expected counts and timestamps.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -67,11 +68,7 @@ def _migrate_db() -> None:
 def _reset_db() -> None:
     engine = get_engine()
     with engine.begin() as conn:
-        conn.execute(
-            sa.text(
-                "TRUNCATE TABLE contradiction_artifacts, permit_cases CASCADE"
-            )
-        )
+        conn.execute(sa.text("TRUNCATE TABLE contradiction_artifacts, permit_cases CASCADE"))
 
 
 def _seed_case(
@@ -146,11 +143,12 @@ async def test_ops_dashboard_page_renders() -> None:
     )
     assert "Queue Health" in response.text
     assert "/static/ops.js" in response.text
-    assert "data-metrics-endpoint=\"/api/v1/ops/dashboard/metrics\"" in response.text
+    assert 'data-metrics-endpoint="/api/v1/ops/dashboard/metrics"' in response.text
 
     assert static_response.status_code == 200
     assert "/api/v1/ops/dashboard/metrics" in static_response.text
     assert "metrics_fetch_failed" in static_response.text
+    assert "X-Reviewer-Api-Key" in static_response.text
 
 
 @pytest.mark.anyio
