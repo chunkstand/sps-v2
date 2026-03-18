@@ -6,12 +6,15 @@ transitions with durable artifact persistence and state transitions.
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import os
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+import pytest_asyncio
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
@@ -26,11 +29,11 @@ from sps.db.models import (
     InspectionMilestone,
     PermitCase,
     ResubmissionPackage,
-    SubmissionAttempt,
 )
 from sps.db.session import get_engine, get_sessionmaker
 from sps.workflows.permit_case.activities import (
     apply_state_transition,
+    deterministic_submission_adapter,
     ensure_permit_case_exists,
     fetch_permit_case_state,
     persist_approval_record,
@@ -59,6 +62,25 @@ if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
         "Temporal integration tests are opt-in (set SPS_RUN_TEMPORAL_INTEGRATION=1)",
         allow_module_level=True,
     )
+
+
+@pytest.fixture(autouse=True)
+def _configure_runtime_fixture_overrides() -> None:
+    original_phase6 = os.environ.get("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE")
+    original_phase7 = os.environ.get("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE")
+    os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = "CASE-EXAMPLE-001"
+    os.environ["SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE"] = "CASE-EXAMPLE-001"
+    try:
+        yield
+    finally:
+        if original_phase6 is not None:
+            os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = original_phase6
+        else:
+            os.environ.pop("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE", None)
+        if original_phase7 is not None:
+            os.environ["SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE"] = original_phase7
+        else:
+            os.environ.pop("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
 def _wait_for_postgres_ready(timeout_s: float = 30.0) -> None:
@@ -105,20 +127,18 @@ def db_session() -> Session:
         session.close()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def temporal_client():
     """Connect to local Temporal server for integration tests."""
     client = await Client.connect("localhost:7233")
-    try:
-        yield client
-    finally:
-        await client.close()
+    yield client
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def temporal_worker(temporal_client):
     """Start Temporal worker with permit case workflow + activities."""
-    
+
+    executor = ThreadPoolExecutor(max_workers=10)
     worker = Worker(
         temporal_client,
         task_queue="permit-case-test",
@@ -127,6 +147,7 @@ async def temporal_worker(temporal_client):
             ensure_permit_case_exists,
             fetch_permit_case_state,
             apply_state_transition,
+            deterministic_submission_adapter,
             persist_jurisdiction_resolutions,
             persist_requirement_sets,
             persist_compliance_evaluation,
@@ -137,10 +158,14 @@ async def temporal_worker(temporal_client):
             persist_approval_record,
             persist_inspection_milestone,
         ],
+        activity_executor=executor,
     )
-    
-    async with worker:
-        yield worker
+
+    try:
+        async with worker:
+            yield worker
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)
 
 
 @pytest.mark.integration
@@ -163,7 +188,10 @@ async def test_comment_review_to_correction_pending_transition(
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     db_session.commit()
@@ -176,7 +204,7 @@ async def test_comment_review_to_correction_pending_transition(
         task_queue="permit-case-test",
     )
     
-    result = await handle.result()
+    result = await asyncio.wait_for(handle.result(), timeout=30.0)
     
     # Assert: Workflow transitioned to CORRECTION_PENDING
     assert result.case_id == case_id
@@ -218,7 +246,10 @@ async def test_resubmission_pending_to_document_complete_transition(
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     db_session.commit()
@@ -231,7 +262,7 @@ async def test_resubmission_pending_to_document_complete_transition(
         task_queue="permit-case-test",
     )
     
-    result = await handle.result()
+    result = await asyncio.wait_for(handle.result(), timeout=30.0)
     
     # Assert: Workflow transitioned to DOCUMENT_COMPLETE, created package, and submitted
     assert result.case_id == case_id
@@ -264,7 +295,7 @@ async def test_resubmission_pending_to_document_complete_transition(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_correction_task_persistence_from_workflow(
-    db_session, temporal_client, temporal_worker
+    db_session, seed_fixtures
 ):
     """Correction task artifacts are persisted and queryable."""
     
@@ -282,18 +313,13 @@ async def test_correction_task_persistence_from_workflow(
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
-    db_session.add(
-        SubmissionAttempt(
-            submission_attempt_id=attempt_id,
-            case_id=case_id,
-            attempt_number=1,
-            status="SUBMITTED",
-            submission_mode="AUTOMATED",
-        )
-    )
+    seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
     db_session.commit()
     
     # Act: Persist correction task via activity directly
@@ -323,7 +349,7 @@ async def test_correction_task_persistence_from_workflow(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_resubmission_package_persistence_from_workflow(
-    db_session, temporal_client, temporal_worker
+    db_session, seed_fixtures
 ):
     """Resubmission package artifacts are persisted and queryable."""
     
@@ -341,18 +367,13 @@ async def test_resubmission_package_persistence_from_workflow(
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
-    db_session.add(
-        SubmissionAttempt(
-            submission_attempt_id=attempt_id,
-            case_id=case_id,
-            attempt_number=2,
-            status="PENDING",
-            submission_mode="AUTOMATED",
-        )
-    )
+    seed_fixtures(case_id, attempt_id, attempt_number=2, status="PENDING")
     db_session.commit()
     
     # Act: Persist resubmission package
@@ -382,7 +403,7 @@ async def test_resubmission_package_persistence_from_workflow(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_approval_record_persistence_from_workflow(
-    db_session, temporal_client, temporal_worker
+    db_session, seed_fixtures
 ):
     """Approval record artifacts are persisted and queryable."""
     
@@ -400,18 +421,13 @@ async def test_approval_record_persistence_from_workflow(
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
-    db_session.add(
-        SubmissionAttempt(
-            submission_attempt_id=attempt_id,
-            case_id=case_id,
-            attempt_number=1,
-            status="SUBMITTED",
-            submission_mode="AUTOMATED",
-        )
-    )
+    seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
     db_session.commit()
     
     # Act: Persist approval record
@@ -439,7 +455,7 @@ async def test_approval_record_persistence_from_workflow(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_inspection_milestone_persistence_from_workflow(
-    db_session, temporal_client, temporal_worker
+    db_session, seed_fixtures
 ):
     """Inspection milestone artifacts are persisted and queryable."""
     
@@ -457,18 +473,13 @@ async def test_inspection_milestone_persistence_from_workflow(
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
-    db_session.add(
-        SubmissionAttempt(
-            submission_attempt_id=attempt_id,
-            case_id=case_id,
-            attempt_number=1,
-            status="SUBMITTED",
-            submission_mode="AUTOMATED",
-        )
-    )
+    seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
     db_session.commit()
     
     # Act: Persist inspection milestone

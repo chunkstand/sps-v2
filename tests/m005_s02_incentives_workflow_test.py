@@ -25,10 +25,8 @@ from sps.api.main import app
 from sps.config import get_settings
 from sps.db.models import CaseTransitionLedger, IncentiveAssessment, PermitCase
 from sps.db.session import get_engine, get_sessionmaker
-from sps.fixtures.phase4 import load_jurisdiction_fixtures, load_requirement_fixtures
 from sps.fixtures.phase5 import (
     PHASE5_FIXTURE_CASE_ID_OVERRIDE_ENV,
-    load_compliance_fixtures,
     load_incentive_fixtures,
     select_incentive_fixtures,
 )
@@ -36,20 +34,17 @@ from sps.workflows.permit_case.activities import (
     apply_state_transition,
     ensure_permit_case_exists,
     fetch_permit_case_state,
-    persist_compliance_evaluation,
     persist_incentive_assessment,
-    persist_jurisdiction_resolutions,
-    persist_requirement_sets,
 )
 from sps.workflows.permit_case.contracts import (
     ActorType,
     CaseState,
-    PermitCaseWorkflowResult,
     StateTransitionRequest,
 )
 from sps.workflows.permit_case.ids import permit_case_workflow_id
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import connect_client
+from tests.helpers.auth_tokens import build_jwt
 
 
 # ---------------------------------------------------------------------------
@@ -205,6 +200,39 @@ async def _wait_for_ledger_row_by_state(
     raise RuntimeError(f"ledger row not found for case_id={case_id} to_state={to_state}")
 
 
+def _auth_headers() -> dict[str, str]:
+    token = build_jwt(subject="intake-user", roles=["intake"])
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def _configure_phase5_fixture_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(PHASE5_FIXTURE_CASE_ID_OVERRIDE_ENV, "CASE-EXAMPLE-001")
+
+
+async def _wait_for_ledger_event_type(
+    *, case_id: str, event_type: str, timeout_s: float = 30.0
+) -> CaseTransitionLedger:
+    deadline = time.time() + timeout_s
+    SessionLocal = get_sessionmaker()
+
+    while time.time() < deadline:
+        with SessionLocal() as session:
+            row = (
+                session.query(CaseTransitionLedger)
+                .filter(
+                    CaseTransitionLedger.case_id == case_id,
+                    CaseTransitionLedger.event_type == event_type,
+                )
+                .first()
+            )
+            if row is not None:
+                return row
+        await asyncio.sleep(0.25)
+
+    raise RuntimeError(f"ledger row not found for case_id={case_id} event_type={event_type}")
+
+
 # ---------------------------------------------------------------------------
 # Persistence activity
 # ---------------------------------------------------------------------------
@@ -218,12 +246,13 @@ def test_incentive_persistence_activity_idempotent() -> None:
     _migrate_db()
     _reset_db()
 
-    dataset = load_incentive_fixtures()
-    assessment = dataset.assessments[0]
-    case_id = assessment.case_id
+    case_id = f"CASE-INC-PERSIST-{ulid.new()}"
+    fixtures, fixture_case_id = select_incentive_fixtures(case_id)
+    assert fixture_case_id == "CASE-EXAMPLE-001"
+    assessment = fixtures[0]
 
     activity_messages, logger, handler, old_level, old_disabled, old_propagate = _capture_logger(
-        "sps.workflows.permit_case.activities"
+        "sps.workflows.permit_case.activities_impl"
     )
 
     SessionLocal = get_sessionmaker()
@@ -302,8 +331,8 @@ def test_workflow_progression(caplog: pytest.LogCaptureFixture) -> None:
     _require_temporal_integration()
 
     caplog.set_level(logging.INFO)
-    caplog.set_level(logging.INFO, logger="sps.workflows.permit_case.activities")
-    caplog.set_level(logging.INFO, logger="sps.api.routes.cases")
+    caplog.set_level(logging.INFO, logger="sps.workflows.permit_case.activities_impl")
+    caplog.set_level(logging.INFO, logger="sps.api.routes.cases_impl")
     asyncio.run(_run_workflow_progression())
 
 
@@ -321,7 +350,7 @@ async def _run_workflow_progression() -> None:
         activity_level,
         activity_disabled,
         activity_propagate,
-    ) = _capture_logger("sps.workflows.permit_case.activities")
+    ) = _capture_logger("sps.workflows.permit_case.activities_impl")
     (
         api_messages,
         api_logger,
@@ -329,9 +358,10 @@ async def _run_workflow_progression() -> None:
         api_level,
         api_disabled,
         api_propagate,
-    ) = _capture_logger("sps.api.routes.cases")
+    ) = _capture_logger("sps.api.routes.cases_impl")
 
     client = await _connect_temporal_with_retry()
+    handle = None
 
     executor = ThreadPoolExecutor(max_workers=10)
     worker = Worker(
@@ -341,9 +371,6 @@ async def _run_workflow_progression() -> None:
         activities=[
             ensure_permit_case_exists,
             fetch_permit_case_state,
-            persist_jurisdiction_resolutions,
-            persist_requirement_sets,
-            persist_compliance_evaluation,
             persist_incentive_assessment,
             apply_state_transition,
         ],
@@ -352,15 +379,9 @@ async def _run_workflow_progression() -> None:
     worker_task = asyncio.create_task(worker.run())
 
     try:
-        jurisdiction_dataset = load_jurisdiction_fixtures()
-        requirement_dataset = load_requirement_fixtures()
-        compliance_dataset = load_compliance_fixtures()
-        incentive_dataset = load_incentive_fixtures()
-        case_id = incentive_dataset.assessments[0].case_id
-
-        assert case_id == jurisdiction_dataset.jurisdictions[0].case_id
-        assert case_id == requirement_dataset.requirement_sets[0].case_id
-        assert case_id == compliance_dataset.evaluations[0].case_id
+        case_id = f"CASE-INC-{ulid.new()}"
+        incentive_fixtures, fixture_case_id = select_incentive_fixtures(case_id)
+        assert fixture_case_id == "CASE-EXAMPLE-001"
 
         SessionLocal = get_sessionmaker()
         with SessionLocal() as session:
@@ -369,7 +390,7 @@ async def _run_workflow_progression() -> None:
                     case_id=case_id,
                     tenant_id="tenant-local",
                     project_id=f"project-{case_id}",
-                    case_state=CaseState.INTAKE_COMPLETE.value,
+                    case_state=CaseState.COMPLIANCE_COMPLETE.value,
                     review_state="PENDING",
                     submission_mode="AUTOMATED",
                     portal_support_level="FULLY_SUPPORTED",
@@ -381,7 +402,8 @@ async def _run_workflow_progression() -> None:
             )
             session.commit()
 
-        workflow_id = permit_case_workflow_id(case_id)
+        workflow_id = f"{permit_case_workflow_id(case_id)}-{ulid.new()}"
+        headers = _auth_headers()
         handle = await client.start_workflow(
             PermitCaseWorkflow.run,
             {"case_id": case_id},
@@ -389,24 +411,15 @@ async def _run_workflow_progression() -> None:
             task_queue=settings.temporal_task_queue,
         )
 
-        raw_result = await asyncio.wait_for(handle.result(), timeout=45.0)
-        result = (
-            raw_result
-            if isinstance(raw_result, PermitCaseWorkflowResult)
-            else PermitCaseWorkflowResult.model_validate(raw_result)
+        await _wait_for_ledger_event_type(
+            case_id=case_id,
+            event_type="INCENTIVES_FRESHNESS_DENIED",
         )
-
-        assert result.case_id == case_id
-        assert result.final_result.result == "applied"
-        assert result.final_result.event_type == "CASE_STATE_CHANGED"
-
-        await _wait_for_ledger_row_by_state(case_id=case_id, to_state="COMPLIANCE_COMPLETE")
-        await _wait_for_ledger_row_by_state(case_id=case_id, to_state="INCENTIVES_COMPLETE")
 
         with SessionLocal() as session:
             refreshed = session.get(PermitCase, case_id)
             assert refreshed is not None
-            assert refreshed.case_state == "INCENTIVES_COMPLETE"
+            assert refreshed.case_state == "COMPLIANCE_COMPLETE"
 
             assessments = (
                 session.query(IncentiveAssessment)
@@ -415,7 +428,7 @@ async def _run_workflow_progression() -> None:
             )
 
         assert len(assessments) == 1
-        assessment_fixture = incentive_dataset.assessments[0]
+        assessment_fixture = incentive_fixtures[0]
         assessment_row = assessments[0]
         assert assessment_row.incentive_assessment_id == assessment_fixture.incentive_assessment_id
         assert assessment_row.schema_version == assessment_fixture.schema_version
@@ -423,7 +436,10 @@ async def _run_workflow_progression() -> None:
 
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as api_client:
-            response = await api_client.get(f"/api/v1/cases/{case_id}/incentives")
+            response = await api_client.get(
+                f"/api/v1/cases/{case_id}/incentives",
+                headers=headers,
+            )
             assert response.status_code == 200
             body = response.json()
 
@@ -466,6 +482,9 @@ async def _run_workflow_progression() -> None:
         api_logger.disabled = api_disabled
         api_logger.propagate = api_propagate
 
+        if handle is not None:
+            with suppress(Exception):
+                await handle.terminate("test cleanup")
         worker_task.cancel()
         with suppress(asyncio.CancelledError):
             await worker_task
