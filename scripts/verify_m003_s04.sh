@@ -196,8 +196,8 @@ echo "runbook: applying_migrations" >&2
 # Phase 3: Start FastAPI server
 # ---------------------------------------------------------------------------
 
-mkdir -p "$ROOT_DIR/.gsd/runbook"
-API_LOG="$ROOT_DIR/.gsd/runbook/m003_s04_api_$(date +%Y%m%d_%H%M%S)_$$.log"
+mkdir -p "$ROOT_DIR/artifacts/runbook"
+API_LOG="$ROOT_DIR/artifacts/runbook/m003_s04_api_$(date +%Y%m%d_%H%M%S)_$$.log"
 
 echo "runbook: starting_api log=$API_LOG port=$API_PORT" >&2
 "$PYTHON" -m uvicorn sps.api.main:app --host 0.0.0.0 --port "$API_PORT" >"$API_LOG" 2>&1 &

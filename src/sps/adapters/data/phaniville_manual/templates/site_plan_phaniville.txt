@@ -1,0 +1,5 @@
+PHANIVILLE SITE PLAN CHECKLIST
+Case: {{case_id}}
+Project Address: {{project_address}}
+Parcel ID: {{parcel_id}}
+Utility: {{utility_name}}

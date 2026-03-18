@@ -6,6 +6,7 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from temporalio import activity
 
+from sps.adapters import get_runtime_adapters
 from sps.audit.events import emit_audit_event
 from sps.db.models import (
     ApprovalRecord,
@@ -32,9 +33,7 @@ from sps.db.models import (
 )
 from sps.db.session import get_sessionmaker
 from sps.failpoints import FailpointFired, fail_once
-from sps.fixtures.phase4 import select_jurisdiction_fixtures, select_requirement_fixtures
-from sps.fixtures.phase5 import select_compliance_fixtures, select_incentive_fixtures
-from sps.fixtures.phase7 import select_status_mapping_for_case
+from sps.fixtures.phase5 import select_incentive_fixtures
 from sps.guards.guard_assertions import get_normalized_business_invariants
 from sps.workflows.permit_case.contracts import (
     AppliedStateTransitionResult,
@@ -273,19 +272,22 @@ def persist_jurisdiction_resolutions(
         req.request_id,
     )
 
-    fixtures, fixture_case_id = select_jurisdiction_fixtures(req.case_id)
+    adapter_result = get_runtime_adapters().load_jurisdiction(req.case_id)
+    records = adapter_result.value
+    source_case_id = adapter_result.source_key
     logger.info(
-        "activity.lookup name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s override=%s",
+        "activity.lookup name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s override=%s",
         workflow_id,
         run_id,
         req.case_id,
-        fixture_case_id,
-        1 if fixture_case_id != req.case_id else 0,
+        adapter_result.source_kind,
+        source_case_id,
+        1 if source_case_id != req.case_id else 0,
     )
-    if not fixtures:
+    if not records:
         raise LookupError(
-            "no jurisdiction fixtures found for case_id=%s fixture_case_id=%s"
-            % (req.case_id, fixture_case_id)
+            "no jurisdiction adapter data found for case_id=%s source_case_id=%s"
+            % (req.case_id, source_case_id)
         )
 
     SessionLocal = get_sessionmaker()
@@ -295,36 +297,37 @@ def persist_jurisdiction_resolutions(
         with SessionLocal() as session:
             try:
                 with session.begin():
-                    for fixture in fixtures:
-                        existing = session.get(JurisdictionResolution, fixture.jurisdiction_resolution_id)
+                    for record in records:
+                        existing = session.get(JurisdictionResolution, record.jurisdiction_resolution_id)
                         if existing is None:
                             session.add(
                                 JurisdictionResolution(
-                                    jurisdiction_resolution_id=fixture.jurisdiction_resolution_id,
-                                    case_id=fixture.case_id,
-                                    city_authority_id=fixture.city_authority_id,
-                                    county_authority_id=fixture.county_authority_id,
-                                    state_authority_id=fixture.state_authority_id,
-                                    utility_authority_id=fixture.utility_authority_id,
-                                    zoning_district=fixture.zoning_district,
-                                    overlays=fixture.overlays,
-                                    permitting_portal_family=fixture.permitting_portal_family,
-                                    support_level=str(fixture.support_level),
-                                    manual_requirements=fixture.manual_requirements,
-                                    evidence_ids=fixture.evidence_ids,
-                                    provenance=fixture.provenance,
-                                    evidence_payload=fixture.evidence_payload,
+                                    jurisdiction_resolution_id=record.jurisdiction_resolution_id,
+                                    case_id=record.case_id,
+                                    city_authority_id=record.city_authority_id,
+                                    county_authority_id=record.county_authority_id,
+                                    state_authority_id=record.state_authority_id,
+                                    utility_authority_id=record.utility_authority_id,
+                                    zoning_district=record.zoning_district,
+                                    overlays=record.overlays,
+                                    permitting_portal_family=record.permitting_portal_family,
+                                    support_level=str(record.support_level),
+                                    manual_requirements=record.manual_requirements,
+                                    evidence_ids=record.evidence_ids,
+                                    provenance=record.provenance,
+                                    evidence_payload=record.evidence_payload,
                                 )
                             )
                             created_count += 1
-                        created_ids.append(fixture.jurisdiction_resolution_id)
+                        created_ids.append(record.jurisdiction_resolution_id)
 
                 logger.info(
-                    "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
+                    "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
-                    fixture_case_id,
+                    adapter_result.source_kind,
+                    source_case_id,
                     req.request_id,
                     len(created_ids),
                     created_count,
@@ -332,11 +335,11 @@ def persist_jurisdiction_resolutions(
                 )
 
                 logger.info(
-                    "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s",
+                    "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s source_case_id=%s request_id=%s count=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
-                    fixture_case_id,
+                    source_case_id,
                     req.request_id,
                     len(created_ids),
                 )
@@ -357,20 +360,21 @@ def persist_jurisdiction_resolutions(
                 )
 
             logger.info(
-                "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=0 idempotent=1",
+                "jurisdiction_activity.persisted workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s request_id=%s count=%s created=0 idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
-                fixture_case_id,
+                adapter_result.source_kind,
+                source_case_id,
                 req.request_id,
                 len(existing_ids),
             )
             logger.info(
-                "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s idempotent=1",
+                "activity.ok name=persist_jurisdiction_resolutions workflow_id=%s run_id=%s case_id=%s source_case_id=%s request_id=%s count=%s idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
-                fixture_case_id,
+                source_case_id,
                 req.request_id,
                 len(existing_ids),
             )
@@ -402,19 +406,22 @@ def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> li
         req.request_id,
     )
 
-    fixtures, fixture_case_id = select_requirement_fixtures(req.case_id)
+    adapter_result = get_runtime_adapters().load_requirements(req.case_id)
+    records = adapter_result.value
+    source_case_id = adapter_result.source_key
     logger.info(
-        "activity.lookup name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s override=%s",
+        "activity.lookup name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s override=%s",
         workflow_id,
         run_id,
         req.case_id,
-        fixture_case_id,
-        1 if fixture_case_id != req.case_id else 0,
+        adapter_result.source_kind,
+        source_case_id,
+        1 if source_case_id != req.case_id else 0,
     )
-    if not fixtures:
+    if not records:
         raise LookupError(
-            "no requirement fixtures found for case_id=%s fixture_case_id=%s"
-            % (req.case_id, fixture_case_id)
+            "no requirement adapter data found for case_id=%s source_case_id=%s"
+            % (req.case_id, source_case_id)
         )
 
     SessionLocal = get_sessionmaker()
@@ -424,40 +431,41 @@ def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> li
         with SessionLocal() as session:
             try:
                 with session.begin():
-                    for fixture in fixtures:
-                        existing = session.get(RequirementSet, fixture.requirement_set_id)
+                    for record in records:
+                        existing = session.get(RequirementSet, record.requirement_set_id)
                         if existing is None:
-                            freshness_expires_at = fixture.freshness_expires_at
+                            freshness_expires_at = record.freshness_expires_at
                             if freshness_expires_at.tzinfo is None:
                                 freshness_expires_at = freshness_expires_at.replace(tzinfo=dt.UTC)
 
                             session.add(
                                 RequirementSet(
-                                    requirement_set_id=fixture.requirement_set_id,
-                                    case_id=fixture.case_id,
-                                    jurisdiction_ids=fixture.jurisdiction_ids,
-                                    permit_types=fixture.permit_types,
-                                    forms_required=fixture.forms_required,
-                                    attachments_required=fixture.attachments_required,
-                                    fee_rules=fixture.fee_rules,
-                                    source_rankings=fixture.source_rankings,
-                                    freshness_state=str(fixture.freshness_state),
+                                    requirement_set_id=record.requirement_set_id,
+                                    case_id=record.case_id,
+                                    jurisdiction_ids=record.jurisdiction_ids,
+                                    permit_types=record.permit_types,
+                                    forms_required=record.forms_required,
+                                    attachments_required=record.attachments_required,
+                                    fee_rules=record.fee_rules,
+                                    source_rankings=record.source_rankings,
+                                    freshness_state=str(record.freshness_state),
                                     freshness_expires_at=freshness_expires_at,
-                                    contradiction_state=str(fixture.contradiction_state),
-                                    evidence_ids=fixture.evidence_ids,
-                                    provenance=fixture.provenance,
-                                    evidence_payload=fixture.evidence_payload,
+                                    contradiction_state=str(record.contradiction_state),
+                                    evidence_ids=record.evidence_ids,
+                                    provenance=record.provenance,
+                                    evidence_payload=record.evidence_payload,
                                 )
                             )
                             created_count += 1
-                        created_ids.append(fixture.requirement_set_id)
+                        created_ids.append(record.requirement_set_id)
 
                 logger.info(
-                    "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
+                    "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
-                    fixture_case_id,
+                    adapter_result.source_kind,
+                    source_case_id,
                     req.request_id,
                     len(created_ids),
                     created_count,
@@ -465,11 +473,11 @@ def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> li
                 )
 
                 logger.info(
-                    "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s",
+                    "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s source_case_id=%s request_id=%s count=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
-                    fixture_case_id,
+                    source_case_id,
                     req.request_id,
                     len(created_ids),
                 )
@@ -490,20 +498,21 @@ def persist_requirement_sets(request: PersistRequirementSetRequest | dict) -> li
                 )
 
             logger.info(
-                "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=0 idempotent=1",
+                "requirements_activity.persisted workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s request_id=%s count=%s created=0 idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
-                fixture_case_id,
+                adapter_result.source_kind,
+                source_case_id,
                 req.request_id,
                 len(existing_ids),
             )
             logger.info(
-                "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s idempotent=1",
+                "activity.ok name=persist_requirement_sets workflow_id=%s run_id=%s case_id=%s source_case_id=%s request_id=%s count=%s idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
-                fixture_case_id,
+                source_case_id,
                 req.request_id,
                 len(existing_ids),
             )
@@ -537,69 +546,73 @@ def persist_compliance_evaluation(
         req.request_id,
     )
 
-    fixtures, fixture_case_id = select_compliance_fixtures(req.case_id)
+    adapter_result = get_runtime_adapters().load_compliance(req.case_id)
+    records = adapter_result.value
+    source_case_id = adapter_result.source_key
     logger.info(
-        "activity.lookup name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s override=%s",
+        "activity.lookup name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s override=%s",
         workflow_id,
         run_id,
         req.case_id,
-        fixture_case_id,
-        1 if fixture_case_id != req.case_id else 0,
+        adapter_result.source_kind,
+        source_case_id,
+        1 if source_case_id != req.case_id else 0,
     )
-    if not fixtures:
+    if not records:
         raise LookupError(
-            "no compliance fixtures found for case_id=%s fixture_case_id=%s"
-            % (req.case_id, fixture_case_id)
+            "no compliance adapter data found for case_id=%s source_case_id=%s"
+            % (req.case_id, source_case_id)
         )
 
     SessionLocal = get_sessionmaker()
-    fixture_ids = [fixture.compliance_evaluation_id for fixture in fixtures]
+    fixture_ids = [record.compliance_evaluation_id for record in records]
     try:
         created_ids: list[str] = []
         created_count = 0
         with SessionLocal() as session:
             try:
                 with session.begin():
-                    for fixture in fixtures:
-                        existing = session.get(ComplianceEvaluation, fixture.compliance_evaluation_id)
+                    for record in records:
+                        existing = session.get(ComplianceEvaluation, record.compliance_evaluation_id)
                         if existing is None:
-                            evaluated_at = fixture.evaluated_at
+                            evaluated_at = record.evaluated_at
                             if evaluated_at.tzinfo is None:
                                 evaluated_at = evaluated_at.replace(tzinfo=dt.UTC)
 
                             session.add(
                                 ComplianceEvaluation(
-                                    compliance_evaluation_id=fixture.compliance_evaluation_id,
-                                    case_id=fixture.case_id,
-                                    schema_version=fixture.schema_version,
+                                    compliance_evaluation_id=record.compliance_evaluation_id,
+                                    case_id=record.case_id,
+                                    schema_version=record.schema_version,
                                     evaluated_at=evaluated_at,
-                                    rule_results=[rule.model_dump() for rule in fixture.rule_results],
-                                    blockers=[issue.model_dump() for issue in fixture.blockers],
-                                    warnings=[issue.model_dump() for issue in fixture.warnings],
-                                    provenance=fixture.provenance,
-                                    evidence_payload=fixture.evidence_payload,
+                                    rule_results=record.rule_results,
+                                    blockers=record.blockers,
+                                    warnings=record.warnings,
+                                    provenance=record.provenance,
+                                    evidence_payload=record.evidence_payload,
                                 )
                             )
                             created_count += 1
-                        created_ids.append(fixture.compliance_evaluation_id)
+                        created_ids.append(record.compliance_evaluation_id)
 
                 logger.info(
-                    "compliance_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
+                    "compliance_activity.persisted workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s request_id=%s count=%s created=%s idempotent=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
-                    fixture_case_id,
+                    adapter_result.source_kind,
+                    source_case_id,
                     req.request_id,
                     len(created_ids),
                     created_count,
                     1 if created_count == 0 else 0,
                 )
                 logger.info(
-                    "activity.ok name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s",
+                    "activity.ok name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s source_case_id=%s request_id=%s count=%s",
                     workflow_id,
                     run_id,
                     req.case_id,
-                    fixture_case_id,
+                    source_case_id,
                     req.request_id,
                     len(created_ids),
                 )
@@ -621,20 +634,21 @@ def persist_compliance_evaluation(
                 )
 
             logger.info(
-                "compliance_activity.persisted workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s created=0 idempotent=1",
+                "compliance_activity.persisted workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s request_id=%s count=%s created=0 idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
-                fixture_case_id,
+                adapter_result.source_kind,
+                source_case_id,
                 req.request_id,
                 len(existing_ids),
             )
             logger.info(
-                "activity.ok name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s request_id=%s count=%s idempotent=1",
+                "activity.ok name=persist_compliance_evaluation workflow_id=%s run_id=%s case_id=%s source_case_id=%s request_id=%s count=%s idempotent=1",
                 workflow_id,
                 run_id,
                 req.case_id,
-                fixture_case_id,
+                source_case_id,
                 req.request_id,
                 len(existing_ids),
             )
@@ -813,16 +827,18 @@ def persist_external_status_event(
     )
 
     mapping_version: str | None = None
-    selection, fixture_case_id = select_status_mapping_for_case(req.case_id)
+    adapter_result = get_runtime_adapters().load_status_mapping(req.case_id)
+    selection = adapter_result.value
     mapping_version = selection.mapping_version
     mapping = selection.mappings.get(req.raw_status)
     if mapping is None:
         logger.error(
-            "external_status_event.persist.error workflow_id=%s run_id=%s case_id=%s raw_status=%s mapping_version=%s error=UNKNOWN_RAW_STATUS",
+            "external_status_event.persist.error workflow_id=%s run_id=%s case_id=%s raw_status=%s source_kind=%s mapping_version=%s error=UNKNOWN_RAW_STATUS",
             workflow_id,
             run_id,
             req.case_id,
             req.raw_status,
+            adapter_result.source_kind,
             selection.mapping_version,
         )
         raise ValueError("UNKNOWN_RAW_STATUS")
@@ -1737,7 +1753,7 @@ def persist_submission_package(request: PersistSubmissionPackageRequest | dict) 
     """
     Persist submission package + document artifacts idempotently.
     
-    Generates documents from Phase 6 fixtures, registers them in evidence registry,
+    Generates documents from adapter-backed document specs, registers them in evidence registry,
     stores SubmissionPackage row + DocumentArtifact rows, and updates 
     permit_cases.current_package_id in a single transaction.
     
@@ -1745,11 +1761,12 @@ def persist_submission_package(request: PersistSubmissionPackageRequest | dict) 
     """
     from sps.config import get_settings
     from sps.db.models import EvidenceArtifact
+    from sps.documents.contracts import ManifestDocumentReference, SubmissionManifestPayload
     from sps.documents.generator import generate_submission_package
     from sps.documents.registry import EvidenceRegistry
     from sps.evidence.ids import new_evidence_id
+    from sps.documents.contracts import DocumentType
     from sps.evidence.models import ArtifactClass, RetentionClass
-    from sps.fixtures.phase6 import select_document_fixtures
     from sps.storage.s3 import S3Storage
     
     req = PersistSubmissionPackageRequest.model_validate(request)
@@ -1763,52 +1780,101 @@ def persist_submission_package(request: PersistSubmissionPackageRequest | dict) 
         req.request_id,
     )
     
-    # Load fixture and generate documents
-    fixtures, fixture_case_id = select_document_fixtures(req.case_id)
+    adapter_result = get_runtime_adapters().load_documents(req.case_id)
+    compilation = adapter_result.value
     logger.info(
-        "activity.lookup name=persist_submission_package workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s override=%s",
+        "activity.lookup name=persist_submission_package workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s override=%s",
         workflow_id,
         run_id,
         req.case_id,
-        fixture_case_id,
-        1 if fixture_case_id != req.case_id else 0,
+        adapter_result.source_kind,
+        adapter_result.source_key,
+        1 if adapter_result.source_key != req.case_id else 0,
     )
-    
-    if not fixtures:
+
+    if not compilation.documents:
         raise LookupError(
-            f"no document fixtures found for case_id={req.case_id} fixture_case_id={fixture_case_id}"
+            "no document adapter data found for case_id=%s source_case_id=%s"
+            % (req.case_id, adapter_result.source_key)
         )
-    
-    doc_set = fixtures[0]
-    
+
+    SessionLocal = get_sessionmaker()
+    with SessionLocal() as session:
+        existing_packages = (
+            session.query(SubmissionPackage)
+            .filter(SubmissionPackage.case_id == req.case_id)
+            .order_by(SubmissionPackage.created_at.desc())
+            .all()
+        )
+        for existing in existing_packages:
+            provenance = existing.provenance or {}
+            if provenance.get("request_id") == req.request_id:
+                logger.info(
+                    "activity.ok name=persist_submission_package workflow_id=%s run_id=%s case_id=%s package_id=%s idempotent=1",
+                    workflow_id,
+                    run_id,
+                    req.case_id,
+                    existing.package_id,
+                )
+                return existing.package_id
+
     # Generate submission package with all documents
-    package_payload = generate_submission_package(doc_set, runtime_case_id=req.case_id)
+    package_payload = generate_submission_package(compilation, runtime_case_id=req.case_id)
     package_id = package_payload.package_id
     
     # Initialize evidence registry
     settings = get_settings()
     storage = S3Storage(settings=settings)
     registry = EvidenceRegistry(storage=storage, settings=settings)
-    
-    # Register manifest in evidence registry
-    manifest_json = package_payload.manifest.model_dump_json(exclude_none=True, indent=None)
+
+    registered_documents: list[tuple[object, object]] = []
+    for doc_payload in package_payload.document_artifacts:
+        doc_reg = registry.register_document(
+            content=doc_payload.content_bytes,
+            case_id=req.case_id,
+            document_type=doc_payload.document_type.value,
+            provenance={
+                "document_id": doc_payload.document_id,
+                "template_name": doc_payload.template_name,
+            },
+        )
+        registered_documents.append((doc_payload, doc_reg))
+
+    actual_manifest = SubmissionManifestPayload(
+        manifest_id=package_payload.manifest.manifest_id,
+        case_id=req.case_id,
+        package_version=package_payload.package_version,
+        generated_at=package_payload.manifest.generated_at,
+        document_references=[
+            ManifestDocumentReference(
+                document_id=doc_payload.document_id,
+                document_type=DocumentType(doc_payload.document_type),
+                artifact_id=doc_reg.artifact_id,
+                sha256_digest=doc_reg.sha256_digest,
+            )
+            for doc_payload, doc_reg in registered_documents
+        ],
+        required_attachments=package_payload.manifest.required_attachments,
+        target_portal_family=package_payload.manifest.target_portal_family,
+        provenance=package_payload.manifest.provenance,
+    )
+
+    manifest_json = actual_manifest.model_dump_json(exclude_none=True, indent=None)
     manifest_bytes = manifest_json.encode("utf-8")
     manifest_reg = registry.register_manifest(
         content=manifest_bytes,
         case_id=req.case_id,
         provenance={"package_id": package_id, "request_id": req.request_id},
     )
-    
+
     logger.info(
         "package_activity.manifest_registered case_id=%s manifest_id=%s artifact_id=%s digest=%s bytes=%d",
         req.case_id,
-        package_payload.manifest.manifest_id,
+        actual_manifest.manifest_id,
         manifest_reg.artifact_id,
         manifest_reg.sha256_digest,
         manifest_reg.content_bytes,
     )
-    
-    SessionLocal = get_sessionmaker()
     
     try:
         with SessionLocal() as session:
@@ -1855,27 +1921,20 @@ def persist_submission_package(request: PersistSubmissionPackageRequest | dict) 
                             package_version=package_payload.package_version,
                             manifest_artifact_id=manifest_reg.artifact_id,
                             manifest_sha256_digest=manifest_reg.sha256_digest,
-                            provenance={"request_id": req.request_id, "fixture_set_id": doc_set.document_set_id},
+                            provenance={
+                                "request_id": req.request_id,
+                                "document_set_id": compilation.document_set_id,
+                                "source_kind": adapter_result.source_kind,
+                            },
                         )
                     )
                     
                     # Flush to ensure package exists before document artifacts
                     session.flush()
                     
-                    # Register and persist document artifacts
+                    # Persist document artifacts after their evidence IDs are fixed.
                     doc_count = 0
-                    for doc_payload in package_payload.document_artifacts:
-                        # Register document in evidence registry
-                        doc_reg = registry.register_document(
-                            content=doc_payload.content_bytes,
-                            case_id=req.case_id,
-                            document_type=doc_payload.document_type.value,
-                            provenance={
-                                "document_id": doc_payload.document_id,
-                                "template_name": doc_payload.template_name,
-                            },
-                        )
-                        
+                    for doc_payload, doc_reg in registered_documents:
                         # Evidence artifact for document
                         session.add(
                             EvidenceArtifact(
@@ -1896,7 +1955,7 @@ def persist_submission_package(request: PersistSubmissionPackageRequest | dict) 
                             )
                         )
                         session.flush()
-                        
+
                         # Document artifact row
                         session.add(
                             DocumentArtifact(
@@ -1939,11 +1998,24 @@ def persist_submission_package(request: PersistSubmissionPackageRequest | dict) 
                 
             except IntegrityError as e:
                 session.rollback()
-                # Check if package exists from a race
-                existing = session.get(SubmissionPackage, package_id)
-                if existing is None:
+                existing = (
+                    session.query(SubmissionPackage)
+                    .filter(SubmissionPackage.case_id == req.case_id)
+                    .order_by(SubmissionPackage.created_at.desc())
+                    .all()
+                )
+                raced = next(
+                    (
+                        row
+                        for row in existing
+                        if (row.provenance or {}).get("request_id") == req.request_id
+                    ),
+                    None,
+                )
+                if raced is None:
                     raise RuntimeError(
-                        f"submission_packages insert raced but row not found for package_id={package_id}"
+                        "submission_packages insert raced but row not found for "
+                        f"case_id={req.case_id} request_id={req.request_id}"
                     ) from e
                 
                 logger.info(
@@ -1951,9 +2023,9 @@ def persist_submission_package(request: PersistSubmissionPackageRequest | dict) 
                     workflow_id,
                     run_id,
                     req.case_id,
-                    package_id,
+                    raced.package_id,
                 )
-                return package_id
+                return raced.package_id
                 
     except Exception as exc:
         logger.exception(
@@ -1978,7 +2050,6 @@ def deterministic_submission_adapter(
     from sps.config import get_settings
     from sps.evidence.ids import evidence_object_key, new_evidence_id
     from sps.evidence.models import ArtifactClass, RetentionClass
-    from sps.fixtures.phase7 import select_submission_adapter_fixtures
     from sps.storage.s3 import S3Storage
 
     req = SubmissionAdapterRequest.model_validate(request)
@@ -2093,20 +2164,26 @@ def deterministic_submission_adapter(
                         "PARTIALLY_SUPPORTED_READ_ONLY",
                     }
 
-                    fixtures, fixture_case_id = select_submission_adapter_fixtures(req.case_id)
-                    fixture = fixtures[0] if fixtures else None
-                    if fixture is None:
+                    adapter_plan_result = get_runtime_adapters().load_submission_plan(
+                        req.case_id,
+                        target_portal_family=req.target_portal_family,
+                    )
+                    plan = adapter_plan_result.value
+                    if plan is None:
                         logger.info(
-                            "submission_attempt.fixture_missing workflow_id=%s run_id=%s case_id=%s fixture_case_id=%s",
+                            "submission_attempt.plan_missing workflow_id=%s run_id=%s case_id=%s source_kind=%s source_case_id=%s",
                             workflow_id,
                             run_id,
                             req.case_id,
-                            fixture_case_id,
+                            adapter_plan_result.source_kind,
+                            adapter_plan_result.source_key,
                         )
 
                     if fallback_required:
                         manual_fallback_id = f"MFP-{req.submission_attempt_id}"
-                        attachment_sources = fixture.required_attachment_sources if fixture else ["MANIFEST"]
+                        attachment_sources = (
+                            plan.required_attachment_sources if plan else ["MANIFEST"]
+                        )
                         required_attachments = _resolve_required_attachments(
                             session,
                             package=package,
@@ -2119,14 +2196,14 @@ def deterministic_submission_adapter(
                             submission_attempt_id=attempt.submission_attempt_id,
                             package_version=package.package_version,
                             package_hash=package.manifest_sha256_digest,
-                            reason=fixture.reason if fixture and fixture.reason else "UNSUPPORTED_PORTAL_WORKFLOW",
+                            reason=plan.reason if plan and plan.reason else "UNSUPPORTED_PORTAL_WORKFLOW",
                             portal_support_level=support_level,
-                            channel_type=fixture.channel_type if fixture else "official_authority_email",
+                            channel_type=plan.channel_type if plan else "official_authority_email",
                             proof_bundle_state="PENDING_REVIEW",
                             required_attachments=required_attachments,
-                            operator_instructions=fixture.operator_instructions if fixture else [],
-                            required_proof_types=fixture.required_proof_types if fixture else [],
-                            escalation_owner=fixture.escalation_owner if fixture else None,
+                            operator_instructions=plan.operator_instructions if plan else [],
+                            required_proof_types=plan.required_proof_types if plan else [],
+                            escalation_owner=plan.escalation_owner if plan else None,
                             proof_bundle_artifact_id=None,
                         )
                         session.add(manual)
@@ -2148,6 +2225,7 @@ def deterministic_submission_adapter(
                     else:
                         settings = get_settings()
                         storage = S3Storage(settings=settings)
+                        storage.ensure_bucket(settings.s3_bucket_evidence)
                         artifact_id = new_evidence_id()
                         object_key = evidence_object_key(artifact_id)
                         external_tracking_id = f"{req.target_portal_family}-{req.submission_attempt_id}"

@@ -199,6 +199,7 @@ async def _wait_for_ledger_row_by_state(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 def test_workflow_progression(caplog: pytest.LogCaptureFixture) -> None:
     _require_temporal_integration()
 
@@ -372,6 +373,7 @@ async def _run_workflow_progression(caplog: pytest.LogCaptureFixture) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 def test_compliance_guard_denial() -> None:
     _require_temporal_integration()
 

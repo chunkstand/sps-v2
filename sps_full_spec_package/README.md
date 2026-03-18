@@ -17,6 +17,10 @@ failure_if_missing: operator_execution_degraded
 
 This bundle materializes the uploaded SPS v2.0.1 canonical spec and runtime implementation profile into the Standing Framework canonical repository layout.
 
+## Authoritative location
+
+The authoritative spec package lives under `sps_full_spec_package/`. Release tooling and manifests should point here.
+
 ## What is included
 
 - `/specs/sps/build-approved/spec.md` — authoritative SPS execution contract

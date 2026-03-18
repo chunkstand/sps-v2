@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from sps.adapters import get_runtime_adapter_versions
 from sps.config import Settings
 
 
@@ -182,7 +183,11 @@ def build_release_bundle_components(
 ) -> ReleaseBundleComponents:
     entries = load_package_manifest(manifest_path)
     approvals = approvals or []
-    adapter_versions = adapter_versions or settings.adapter_versions
+    adapter_versions = {
+        **get_runtime_adapter_versions(),
+        **settings.adapter_versions,
+        **(adapter_versions or {}),
+    }
     created_at = (now or dt.datetime.now(tz=dt.UTC)).isoformat().replace("+00:00", "Z")
 
     artifact_digests: dict[str, str] = {}

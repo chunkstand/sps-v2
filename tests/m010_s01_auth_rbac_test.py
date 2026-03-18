@@ -11,6 +11,8 @@ from sps.api.main import app
 from sps.config import get_settings
 from tests.helpers.auth_tokens import build_jwt, build_service_principal_jwt
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _migrate_db() -> None:
@@ -35,6 +37,10 @@ def _auth_headers(token: str, *, mtls_header_value: str | None = None) -> dict[s
         settings = get_settings()
         headers[settings.auth_mtls_signal_header] = mtls_header_value
     return headers
+
+
+def _legacy_key_headers() -> dict[str, str]:
+    return {"X-Reviewer-Api-Key": get_settings().reviewer_api_key}
 
 
 def test_auth_required_missing_token(auth_env: None) -> None:
@@ -73,15 +79,39 @@ def test_role_denied(auth_env: None) -> None:
 
 
 @pytest.mark.parametrize(
+    ("method", "path", "payload", "expected"),
+    [
+        ("get", "/api/v1/reviews/queue", None, 200),
+        ("get", "/api/v1/ops/dashboard/metrics", None, 200),
+        ("get", "/api/v1/ops/release-blockers", None, 200),
+        ("post", "/api/v1/releases/bundles", {}, 422),
+    ],
+)
+def test_legacy_reviewer_api_key_access_matrix(
+    auth_env: None,
+    method: str,
+    path: str,
+    payload: dict[str, object] | None,
+    expected: int,
+) -> None:
+    client = TestClient(app)
+    response = client.request(method, path, json=payload, headers=_legacy_key_headers())
+    assert response.status_code == expected, response.text
+    assert response.status_code not in (401, 403)
+
+
+@pytest.mark.parametrize(
     ("method", "path", "roles", "payload", "expected", "service_principal"),
     [
         ("post", "/api/v1/cases", ["intake"], {}, 422, False),
         ("post", "/api/v1/evidence/artifacts", ["intake"], {}, 422, False),
         ("post", "/api/v1/reviews/decisions", ["reviewer"], {}, 422, False),
+        ("post", "/api/v1/reviews/decisions", ["admin"], {}, 422, False),
         ("get", "/reviewer", ["reviewer"], None, 200, False),
         ("post", "/api/v1/contradictions", ["reviewer"], {}, 422, False),
         ("get", "/api/v1/dissents/DISSENT-404", ["reviewer"], None, 404, False),
         ("post", "/api/v1/releases/bundles", ["release"], {}, 422, True),
+        ("get", "/api/v1/ops/release-blockers", ["ops"], None, 200, True),
         ("get", "/api/v1/ops/dashboard/metrics", ["ops"], None, 200, True),
         ("get", "/ops", ["ops"], None, 200, False),
     ],

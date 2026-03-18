@@ -270,8 +270,8 @@ echo "runbook: applying_migrations" >&2
 # Phase 3: Start worker
 # ---------------------------------------------------------------------------
 
-mkdir -p "$ROOT_DIR/.gsd/runbook"
-WORKER_LOG="$ROOT_DIR/.gsd/runbook/m004_s02_worker_${RUNBOOK_TS}_$$.log"
+mkdir -p "$ROOT_DIR/artifacts/runbook"
+WORKER_LOG="$ROOT_DIR/artifacts/runbook/m004_s02_worker_${RUNBOOK_TS}_$$.log"
 
 echo "runbook: starting_worker log=$WORKER_LOG" >&2
 "$PYTHON" -m sps.workflows.worker >"$WORKER_LOG" 2>&1 &
@@ -284,7 +284,7 @@ echo "runbook: worker_ready pid=$WORKER_PID" >&2
 # Phase 4: Start FastAPI server
 # ---------------------------------------------------------------------------
 
-API_LOG="$ROOT_DIR/.gsd/runbook/m004_s02_api_${RUNBOOK_TS}_$$.log"
+API_LOG="$ROOT_DIR/artifacts/runbook/m004_s02_api_${RUNBOOK_TS}_$$.log"
 
 echo "runbook: starting_api log=$API_LOG port=$API_PORT" >&2
 "$PYTHON" -m uvicorn sps.api.main:app --host 0.0.0.0 --port "$API_PORT" >"$API_LOG" 2>&1 &

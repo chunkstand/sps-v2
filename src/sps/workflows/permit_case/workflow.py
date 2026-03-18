@@ -4,11 +4,6 @@ from datetime import timedelta
 import datetime as dt
 import logging
 
-from temporalio import workflow
-from temporalio.common import RetryPolicy
-
-logger = logging.getLogger(__name__)
-
 from sps.workflows.permit_case.contracts import (
     ActorType,
     CaseState,
@@ -28,15 +23,19 @@ from sps.workflows.permit_case.contracts import (
     PersistResubmissionPackageRequest,
     PersistSubmissionPackageRequest,
     ReviewDecisionSignal,
+    StateTransitionRequest,
     StatusEventSignal,
     SubmissionAdapterOutcome,
     SubmissionAdapterRequest,
     SubmissionAdapterResult,
-    StateTransitionRequest,
     parse_state_transition_result,
     submission_attempt_id_for_workflow,
     submission_attempt_idempotency_key,
 )
+from temporalio import workflow
+from temporalio.common import RetryPolicy
+
+logger = logging.getLogger(__name__)
 
 with workflow.unsafe.imports_passed_through():
     # Activity modules typically import non-deterministic libraries (DB drivers, network clients).
@@ -1634,4 +1633,3 @@ class PermitCaseWorkflow:
             payload.target_state,
             payload.reviewer_confirmation_id,
         )
-

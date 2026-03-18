@@ -1,7 +1,7 @@
-"""SPS runtime scaffold.
+"""SPS application package.
 
-This repository is seeded from the SPS v2.0.1 canonical spec package.
-Implementation code will be built to conform to the BUILD_APPROVED contract.
+The repository still carries some legacy spec assets, but the primary focus is
+the runnable application and its supporting services.
 """
 
 __all__ = ["__version__"]

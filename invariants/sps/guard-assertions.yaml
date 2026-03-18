@@ -33,18 +33,6 @@ guard_assertions:
     workflow state.
   normalized_business_invariants:
   - INV-003
-- guard_assertion_id: INV-SPS-COMP-001
-  linked_control: CTL-04A
-  statement: A missing or stale ComplianceEvaluation cannot auto-advance governed
-    workflow state.
-  normalized_business_invariants:
-  - INV-003
-- guard_assertion_id: INV-SPS-INC-001
-  linked_control: CTL-04B
-  statement: A missing or stale IncentiveAssessment cannot auto-advance governed
-    workflow state.
-  normalized_business_invariants:
-  - INV-003
 - guard_assertion_id: INV-SPS-PKG-001
   linked_control: CTL-05A
   statement: Package hash or manifest drift after approval is forbidden at submission

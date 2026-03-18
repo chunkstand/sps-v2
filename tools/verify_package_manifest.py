@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Verify PACKAGE-MANIFEST.json matches on-disk files.
 
-The spec package includes a manifest of authoritative bundle contents with sha256 and byte size.
-This checker is used as a simple, mechanical freshness/integrity gate in CI.
-
-By default this verifies only the files listed in the manifest (it does NOT fail on extra files).
+This is used to validate the legacy bundle source consumed by SPS release-bundle
+generation. By default it verifies only the files listed in the manifest
+(it does NOT fail on extra files).
 """
 
 from __future__ import annotations
@@ -56,7 +55,7 @@ def _load_manifest(manifest_path: Path) -> list[ManifestEntry]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--manifest", default="PACKAGE-MANIFEST.json")
-    ap.add_argument("--root", default=".")
+    ap.add_argument("--root", default="sps_full_spec_package")
     args = ap.parse_args()
 
     root = Path(args.root).resolve()

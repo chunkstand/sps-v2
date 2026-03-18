@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import datetime as dt
 import logging
 
 import ulid
@@ -58,6 +57,9 @@ from sps.db.models import (
     SubmissionAttempt,
 )
 from sps.db.session import get_db
+from sps.documents.contracts import SubmissionManifestPayload
+from sps.documents.registry import EvidenceRegistry
+from sps.storage.s3 import S3Storage, StorageError
 from sps.workflows.permit_case.activities import persist_external_status_event
 from sps.workflows.permit_case.contracts import (
     CaseState,
@@ -88,6 +90,17 @@ def _new_project_id() -> str:
 
 def _new_external_status_event_id() -> str:
     return f"{_EXTERNAL_STATUS_EVENT_PREFIX}{ulid.new()}"
+
+
+def _evidence_registry() -> EvidenceRegistry:
+    settings = get_settings()
+    return EvidenceRegistry(storage=S3Storage(settings=settings), settings=settings)
+
+
+def _load_submission_manifest(manifest_artifact: EvidenceArtifact) -> SubmissionManifestPayload:
+    registry = _evidence_registry()
+    content = registry.read_artifact_bytes(storage_uri=manifest_artifact.storage_uri)
+    return SubmissionManifestPayload.model_validate_json(content)
 
 
 def _format_address(site_address: SiteAddress) -> str:
@@ -715,7 +728,7 @@ def get_case_package(
         manifest_sha256_digest=package.manifest_sha256_digest,
         provenance=package.provenance,
         created_at=package.created_at,
-        updated_at=package.updated_at,
+        updated_at=None,
     )
 
 
@@ -725,8 +738,7 @@ def get_case_manifest(
     db: Session = Depends(get_db),
 ) -> SubmissionManifestResponse:
     """Retrieve the manifest for the current submission package."""
-    from sps.api.contracts.cases import DocumentReferenceResponse, SubmissionManifestResponse
-    from sps.db.models import DocumentArtifact, EvidenceArtifact, SubmissionPackage
+    from sps.db.models import SubmissionPackage
     
     try:
         case = db.get(PermitCase, case_id)
@@ -779,24 +791,6 @@ def get_case_manifest(
                     "artifact_id": package.manifest_artifact_id,
                 },
             )
-        
-        # Fetch document artifacts for this package
-        doc_artifacts = (
-            db.query(DocumentArtifact)
-            .filter(DocumentArtifact.package_id == package.package_id)
-            .all()
-        )
-        
-        document_references = [
-            DocumentReferenceResponse(
-                document_id=doc.document_id,
-                document_type=doc.document_type,
-                artifact_id=doc.evidence_artifact_id,
-                sha256_digest=doc.sha256_digest,
-            )
-            for doc in doc_artifacts
-        ]
-        
     except SQLAlchemyError as exc:
         logger.exception(
             "cases.manifest_fetch_failed case_id=%s exc_type=%s",
@@ -807,25 +801,49 @@ def get_case_manifest(
             status_code=500,
             detail={"error": "manifest_fetch_failed", "case_id": case_id},
         ) from exc
-    
+
+    try:
+        manifest = _load_submission_manifest(manifest_artifact)
+    except (StorageError, ValueError) as exc:
+        logger.exception(
+            "cases.manifest_read_failed case_id=%s artifact_id=%s exc_type=%s",
+            case_id,
+            package.manifest_artifact_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "manifest_read_failed",
+                "case_id": case_id,
+                "artifact_id": package.manifest_artifact_id,
+            },
+        ) from exc
+
     logger.info(
         "cases.manifest_fetched case_id=%s package_id=%s doc_count=%d",
         case_id,
         package.package_id,
-        len(document_references),
+        len(manifest.document_references),
     )
-    
-    # Build synthetic manifest response from package + document artifacts
-    # In production, you might deserialize the actual manifest JSON from S3
+
     return SubmissionManifestResponse(
-        manifest_id=package.manifest_artifact_id,
-        case_id=package.case_id,
-        package_version=package.package_version,
-        generated_at=package.created_at or dt.datetime.now(dt.UTC),
-        document_references=document_references,
-        required_attachments=[],
-        target_portal_family="acela",
-        provenance=package.provenance,
+        manifest_id=manifest.manifest_id,
+        case_id=manifest.case_id,
+        package_version=manifest.package_version,
+        generated_at=manifest.generated_at,
+        document_references=[
+            DocumentReferenceResponse(
+                document_id=reference.document_id,
+                document_type=reference.document_type.value,
+                artifact_id=reference.artifact_id,
+                sha256_digest=reference.sha256_digest,
+            )
+            for reference in manifest.document_references
+        ],
+        required_attachments=manifest.required_attachments,
+        target_portal_family=manifest.target_portal_family,
+        provenance=manifest.provenance,
     )
 
 
@@ -1382,4 +1400,3 @@ def get_case_inspection_milestones(
             _inspection_milestone_row_to_response(milestone) for milestone in milestones
         ],
     )
-

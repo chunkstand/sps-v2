@@ -344,8 +344,8 @@ echo "runbook: seeded_queue_case case_id=$QUEUE_CASE_ID" >&2
 # Phase 4: Start FastAPI server
 # ---------------------------------------------------------------------------
 
-mkdir -p "$ROOT_DIR/.gsd/runbook"
-API_LOG="$ROOT_DIR/.gsd/runbook/m008_s02_api_${RUNBOOK_TS}_$$.log"
+mkdir -p "$ROOT_DIR/artifacts/runbook"
+API_LOG="$ROOT_DIR/artifacts/runbook/m008_s02_api_${RUNBOOK_TS}_$$.log"
 
 echo "runbook: starting_api log=$API_LOG port=$API_PORT" >&2
 "$PYTHON" -m uvicorn sps.api.main:app --host 0.0.0.0 --port "$API_PORT" >"$API_LOG" 2>&1 &

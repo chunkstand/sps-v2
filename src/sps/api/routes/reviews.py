@@ -18,7 +18,7 @@ from sps.api.contracts.reviews import (
     ReviewerQueueResponse,
 )
 from sps.audit.events import emit_audit_event
-from sps.auth.rbac import Role, require_roles
+from sps.auth.rbac import require_reviewer_identity
 from sps.db.models import (
     DissentArtifact,
     EvidenceArtifact,
@@ -39,7 +39,7 @@ from sps.workflows.permit_case.contracts import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["reviews"], dependencies=[Depends(require_roles(Role.REVIEWER))])
+router = APIRouter(tags=["reviews"], dependencies=[Depends(require_reviewer_identity)])
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +176,9 @@ def _decision_row_to_summary(row: ReviewDecision) -> ReviewDecisionSummaryRespon
 
 def _collect_evidence_ids(db: Session, case_id: str) -> list[str]:
     evidence_selects = [
-        sa.select(JurisdictionResolution.evidence_ids).where(JurisdictionResolution.case_id == case_id),
+        sa.select(JurisdictionResolution.evidence_ids).where(
+            JurisdictionResolution.case_id == case_id
+        ),
         sa.select(RequirementSet.evidence_ids).where(RequirementSet.case_id == case_id),
         sa.select(ReviewDecision.evidence_ids).where(ReviewDecision.case_id == case_id),
         sa.select(ExternalStatusEvent.evidence_ids).where(ExternalStatusEvent.case_id == case_id),
@@ -188,7 +190,6 @@ def _collect_evidence_ids(db: Session, case_id: str) -> list[str]:
         if entry:
             aggregated.update(entry)
     return sorted(aggregated)
-
 
 
 @dataclass(frozen=True)
@@ -310,7 +311,9 @@ def _check_reviewer_independence(
             detail={
                 "error": "REVIEW_INDEPENDENCE_DENIED",
                 "guard_assertion_id": "INV-SPS-REV-001",
-                "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+                "normalized_business_invariants": get_normalized_business_invariants(
+                    "INV-SPS-REV-001"
+                ),
                 "blocked_reason": "SELF_APPROVAL",
             },
         )
@@ -335,7 +338,9 @@ def _check_reviewer_independence(
             detail={
                 "error": "REVIEW_INDEPENDENCE_DENIED",
                 "guard_assertion_id": "INV-SPS-REV-001",
-                "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+                "normalized_business_invariants": get_normalized_business_invariants(
+                    "INV-SPS-REV-001"
+                ),
                 "blocked_reason": "METRICS_UNAVAILABLE",
             },
         )
@@ -372,7 +377,9 @@ def _check_reviewer_independence(
             detail={
                 "error": "REVIEW_INDEPENDENCE_DENIED",
                 "guard_assertion_id": "INV-SPS-REV-001",
-                "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+                "normalized_business_invariants": get_normalized_business_invariants(
+                    "INV-SPS-REV-001"
+                ),
                 "blocked_reason": "INDEPENDENCE_THRESHOLD_BLOCKED",
             },
         )
@@ -392,7 +399,9 @@ async def _send_review_signal(
     Failures are logged but must not bubble up to the caller — the Postgres
     write is the authoritative event; signal delivery is best-effort.
     """
-    from sps.workflows.temporal import connect_client  # local import to avoid import-time side effects
+    from sps.workflows.temporal import (
+        connect_client,
+    )  # local import to avoid import-time side effects
 
     try:
         client = await asyncio.wait_for(connect_client(), timeout=10.0)

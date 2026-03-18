@@ -51,7 +51,13 @@ def _extract_bearer_token(authorization: str | None) -> str | None:
     return token
 
 
-def _identity_for_reviewer_api_key(api_key: str | None) -> Identity | None:
+def _identity_for_legacy_reviewer_api_key(api_key: str | None) -> Identity | None:
+    """Resolve the legacy/manual reviewer API key into a synthetic identity.
+
+    This remains intentionally supported for manual reviewer, ops, and release
+    flows. JWT + mTLS is still the preferred machine-to-machine path for
+    service-principal calls.
+    """
     if api_key is None:
         return None
 
@@ -115,7 +121,7 @@ def require_service_principal(
     authorization: str | None = Header(default=None, alias="Authorization"),
     x_reviewer_api_key: str | None = Header(default=None, alias="X-Reviewer-Api-Key"),
 ) -> Identity:
-    api_identity = _identity_for_reviewer_api_key(x_reviewer_api_key)
+    api_identity = _identity_for_legacy_reviewer_api_key(x_reviewer_api_key)
     if api_identity is not None:
         logger.info("auth.legacy_reviewer_api_key_used guard=service_principal")
         return api_identity
@@ -217,7 +223,7 @@ def require_reviewer_identity(
     authorization: str | None = Header(default=None, alias="Authorization"),
     x_reviewer_api_key: str | None = Header(default=None, alias="X-Reviewer-Api-Key"),
 ) -> Identity:
-    api_identity = _identity_for_reviewer_api_key(x_reviewer_api_key)
+    api_identity = _identity_for_legacy_reviewer_api_key(x_reviewer_api_key)
     if api_identity is not None:
         return api_identity
 

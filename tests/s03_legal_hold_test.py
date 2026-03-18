@@ -14,6 +14,8 @@ from sps.db.models import EvidenceArtifact, LegalHold, LegalHoldBinding
 from sps.db.session import get_engine, get_sessionmaker
 from sps.retention.purge import dry_run_purge
 
+pytestmark = pytest.mark.integration
+
 
 def _utcnow() -> dt.datetime:
     return dt.datetime.now(tz=dt.UTC)

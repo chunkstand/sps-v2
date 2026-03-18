@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  spec-package:
+  app-integrity:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,14 +21,76 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Repo wiring (spec section 30)
-        run: |
-          python tools/check_repo_wiring.py
-
-      - name: Package manifest integrity
+      - name: Release manifest integrity
         run: |
           python tools/verify_package_manifest.py
 
       - name: JSON Schema metaschema validation
         run: |
           check-jsonschema --check-metaschema model/sps/contracts/*.schema.json
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install (dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run Ruff
+        run: |
+          ruff check .
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install (dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run unit tests
+        run: |
+          python -m pytest -m "unit"
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install (dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Start integration services
+        run: |
+          docker compose up -d postgres temporal minio minio-init
+
+      - name: Run integration tests
+        env:
+          SPS_RUN_TEMPORAL_INTEGRATION: "1"
+        run: |
+          python -m pytest -m "integration"

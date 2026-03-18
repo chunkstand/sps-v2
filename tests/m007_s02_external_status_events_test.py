@@ -28,6 +28,8 @@ from sps.workflows.permit_case.contracts import (
     submission_attempt_idempotency_key,
 )
 
+pytestmark = pytest.mark.integration
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -120,7 +122,6 @@ def _prepare_submission_attempt(*, case_id: str, request_suffix: str) -> str:
     return result.submission_attempt_id
 
 
-@pytest.mark.integration
 def test_phase7_status_mapping_selection() -> None:
     original_override = os.environ.get("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE")
 
@@ -143,7 +144,6 @@ def test_phase7_status_mapping_selection() -> None:
             os.environ.pop("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
-@pytest.mark.integration
 def test_external_status_event_persistence_known_status() -> None:
     original_phase6 = os.environ.get("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE")
     original_phase7 = os.environ.get("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE")
@@ -194,7 +194,6 @@ def test_external_status_event_persistence_known_status() -> None:
             os.environ.pop("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
-@pytest.mark.integration
 def test_external_status_event_unknown_status_fails_closed() -> None:
     original_phase6 = os.environ.get("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE")
     original_phase7 = os.environ.get("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE")
@@ -236,7 +235,6 @@ def test_external_status_event_unknown_status_fails_closed() -> None:
             os.environ.pop("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
-@pytest.mark.integration
 def test_external_status_api_list_readback() -> None:
     asyncio.run(_run_external_status_api_list_readback())
 

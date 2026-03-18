@@ -31,6 +31,8 @@ from sps.workflows.permit_case.contracts import (
 )
 from tests.helpers.auth_tokens import build_jwt
 
+pytestmark = pytest.mark.integration
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -129,7 +131,6 @@ def _prepare_submission_attempt(*, case_id: str, request_suffix: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.integration
 def test_post_submission_artifact_api_lists() -> None:
     asyncio.run(_run_post_submission_artifact_api_lists())
 

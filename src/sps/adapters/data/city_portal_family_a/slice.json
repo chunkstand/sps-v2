@@ -1,0 +1,218 @@
+{
+  "slice_case_id": "CASE-CITYA-MANUAL-001",
+  "target_portal_family": "CITY_PORTAL_FAMILY_A",
+  "jurisdiction": {
+    "jurisdiction_resolution_id": "JUR-CITYA-001",
+    "case_id": "CASE-CITYA-MANUAL-001",
+    "city_authority_id": "AUTH-CITY-A-001",
+    "county_authority_id": "AUTH-COUNTY-A-001",
+    "state_authority_id": "AUTH-STATE-A-001",
+    "utility_authority_id": "AUTH-UTILITY-A-001",
+    "zoning_district": "R-SOLAR",
+    "overlays": [
+      "HILLSIDE-REVIEW"
+    ],
+    "permitting_portal_family": "CITY_PORTAL_FAMILY_A",
+    "support_level": "UNSUPPORTED",
+    "manual_requirements": [
+      "Wet-signed permit packet",
+      "Authority email confirmation"
+    ],
+    "evidence_ids": [
+      "ART-01KKSMAP4MH6HWGM2RR9J22K79",
+      "ART-01KKSMAP4MH6HWGM2RR9J22K80"
+    ],
+    "provenance": {
+      "resolved_by": "city_portal_family_a.adapter",
+      "resolved_at": "2026-03-17T08:00:00Z",
+      "source_bundle": "CITYA-MANUAL-2026-03"
+    },
+    "evidence_payload": {
+      "sources": [
+        "city_a_manual_requirements",
+        "county_parcel_lookup"
+      ],
+      "notes": "City A requires manual submission for this slice."
+    }
+  },
+  "requirements": {
+    "requirement_set_id": "REQ-CITYA-001",
+    "case_id": "CASE-CITYA-MANUAL-001",
+    "jurisdiction_ids": [
+      "AUTH-CITY-A-001",
+      "AUTH-COUNTY-A-001",
+      "AUTH-STATE-A-001"
+    ],
+    "permit_types": [
+      "solar_building",
+      "electrical"
+    ],
+    "forms_required": [
+      "CityA-Solar-Application",
+      "State-Electrical-Notice"
+    ],
+    "attachments_required": [
+      "SitePlan-CITYA",
+      "SingleLine-CITYA"
+    ],
+    "fee_rules": [
+      {
+        "fee_code": "CITYA_PLAN_REVIEW",
+        "amount": 180.0,
+        "currency": "USD"
+      }
+    ],
+    "source_rankings": [
+      {
+        "source_id": "SRC-CITYA-MANUAL-GUIDE",
+        "rank": 1,
+        "confidence": "HIGH"
+      }
+    ],
+    "freshness_state": "FRESH",
+    "freshness_expires_at": "2026-06-17T00:00:00Z",
+    "contradiction_state": "NONE",
+    "evidence_ids": [
+      "ART-01KKSMAP4MH6HWGM2RR9J22K81",
+      "ART-01KKSMAP4MH6HWGM2RR9J22K82"
+    ],
+    "provenance": {
+      "compiled_by": "city_portal_family_a.adapter",
+      "compiled_at": "2026-03-17T08:05:00Z"
+    },
+    "evidence_payload": {
+      "source_urls": [
+        "https://city-a.example.gov/solar/manual"
+      ]
+    }
+  },
+  "compliance": {
+    "compliance_evaluation_id": "COMP-CITYA-001",
+    "case_id": "CASE-CITYA-MANUAL-001",
+    "schema_version": "1.0.0",
+    "evaluated_at": "2026-03-17T08:10:00Z",
+    "rule_results": [
+      {
+        "rule_id": "RULE-CITYA-FIRE-001",
+        "outcome": "PASS",
+        "summary": "Fire clearance documented on the manual site plan."
+      },
+      {
+        "rule_id": "RULE-CITYA-SETBACK-002",
+        "outcome": "WARNING",
+        "summary": "Array setback is within the advisory review margin."
+      }
+    ],
+    "blockers": [],
+    "warnings": [
+      {
+        "issue_id": "WARN-CITYA-001",
+        "rule_id": "RULE-CITYA-SETBACK-002",
+        "summary": "Confirm hillside overlay setback during review.",
+        "recommendation": "Include the overlay note in the permit narrative."
+      }
+    ],
+    "provenance": {
+      "evaluated_by": "city_portal_family_a.adapter",
+      "run_id": "citya-manual-001"
+    },
+    "evidence_payload": {
+      "inputs": {
+        "jurisdiction_resolution_id": "JUR-CITYA-001",
+        "requirement_set_id": "REQ-CITYA-001"
+      }
+    }
+  },
+  "documents": {
+    "document_set_id": "DOCSET-CITYA-001",
+    "case_id": "CASE-CITYA-MANUAL-001",
+    "package_version": "citya-manual-v1",
+    "target_portal_family": "CITY_PORTAL_FAMILY_A",
+    "required_attachments": [
+      "MANIFEST",
+      "DOCUMENTS"
+    ],
+    "documents": [
+      {
+        "document_id": "DOC-CITYA-APP-001",
+        "document_type": "PERMIT_APPLICATION",
+        "template_name": "permit_application_city_a.txt",
+        "variables": {
+          "applicant_name": "Jordan Solar",
+          "project_address": "101 Solar Way",
+          "system_size_kw": "8.4"
+        }
+      },
+      {
+        "document_id": "DOC-CITYA-SITE-001",
+        "document_type": "SITE_PLAN_CHECKLIST",
+        "template_name": "site_plan_city_a.txt",
+        "variables": {
+          "project_address": "101 Solar Way",
+          "parcel_id": "PARCEL-CITYA-001",
+          "utility_name": "City A Electric"
+        }
+      }
+    ],
+    "provenance": {
+      "compiled_by": "city_portal_family_a.adapter"
+    }
+  },
+  "submission": {
+    "case_id": "CASE-CITYA-MANUAL-001",
+    "target_portal_family": "CITY_PORTAL_FAMILY_A",
+    "channel_type": "official_authority_email",
+    "reason": "UNSUPPORTED_PORTAL_WORKFLOW",
+    "operator_instructions": [
+      "Verify manifest hash before manual submission.",
+      "Email the packet to permits@city-a.example.gov.",
+      "Upload the authority receipt and sent-email evidence bundle."
+    ],
+    "required_proof_types": [
+      "email_receipt",
+      "authority_acknowledgement"
+    ],
+    "required_attachment_sources": [
+      "MANIFEST",
+      "DOCUMENTS"
+    ],
+    "escalation_owner": "OPS-CITY-A"
+  },
+  "status_mapping": {
+    "adapter_family": "CITY_PORTAL_FAMILY_A",
+    "mapping_version": "2026-03-17.1",
+    "mappings": [
+      {
+        "raw_status": "Resubmission Required",
+        "normalized_status": "RESUBMISSION_REQUESTED",
+        "confidence": "HIGH",
+        "allowed_case_states": [
+          "SUBMITTED",
+          "CORRECTION_PENDING"
+        ],
+        "auto_advance": false,
+        "required_evidence": [
+          "resubmission_notice"
+        ],
+        "reviewer_confirmation_required": false,
+        "contradiction_triggers": []
+      },
+      {
+        "raw_status": "Final Approval",
+        "normalized_status": "APPROVAL_FINAL",
+        "confidence": "HIGH",
+        "allowed_case_states": [
+          "SUBMITTED"
+        ],
+        "auto_advance": false,
+        "required_evidence": [
+          "final_approval_letter"
+        ],
+        "reviewer_confirmation_required": true,
+        "contradiction_triggers": [
+          "REJECTION_REPORTED"
+        ]
+      }
+    ]
+  }
+}

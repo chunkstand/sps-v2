@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
-import json
 import logging
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
+from sps.adapters.contracts import DocumentCompilationSpec, DocumentTemplateSpec
 from sps.documents.contracts import (
     DocumentArtifactPayload,
     DocumentType,
@@ -16,7 +17,6 @@ from sps.documents.contracts import (
     SubmissionPackagePayload,
 )
 from sps.evidence.ids import new_evidence_id
-from sps.fixtures.phase6 import DocumentDefinition, DocumentSetFixture, load_template
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,11 @@ def _render_template(template_content: str, variables: dict) -> str:
     return rendered
 
 
-def generate_document(definition: DocumentDefinition, *, case_id: str) -> GeneratedDocument:
+def _load_template(template_path: Path) -> str:
+    return template_path.read_text(encoding="utf-8")
+
+
+def generate_document(definition: DocumentTemplateSpec, *, case_id: str) -> GeneratedDocument:
     """
     Generate a single document from a fixture definition.
     
@@ -69,7 +73,7 @@ def generate_document(definition: DocumentDefinition, *, case_id: str) -> Genera
         GeneratedDocument with rendered bytes and sha256 digest
     """
     # Load template content
-    template_content = load_template(definition.template_name)
+    template_content = _load_template(definition.template_path)
     
     # Merge runtime case_id with fixture variables
     variables = {**definition.variables, "case_id": case_id}
@@ -159,7 +163,7 @@ def build_manifest_payload(
 
 
 def generate_submission_package(
-    fixture: DocumentSetFixture,
+    compilation: DocumentCompilationSpec,
     *,
     runtime_case_id: str,
 ) -> SubmissionPackagePayload:
@@ -181,13 +185,13 @@ def generate_submission_package(
     logger.info(
         "generator.package_start case_id=%s fixture_case_id=%s doc_count=%d",
         runtime_case_id,
-        fixture.case_id,
-        len(fixture.documents),
+        compilation.case_id,
+        len(compilation.documents),
     )
     
     # Generate documents
     generated_docs: list[GeneratedDocument] = []
-    for doc_def in fixture.documents:
+    for doc_def in compilation.documents:
         generated = generate_document(doc_def, case_id=runtime_case_id)
         generated_docs.append(generated)
     
@@ -200,9 +204,9 @@ def generate_submission_package(
     manifest = build_manifest_payload(
         case_id=runtime_case_id,
         generated_documents=docs_with_artifact_ids,
-        package_version=fixture.manifest.package_version,
-        target_portal_family=fixture.manifest.target_portal_family,
-        required_attachments=fixture.manifest.required_attachments,
+        package_version=compilation.package_version,
+        target_portal_family=compilation.target_portal_family,
+        required_attachments=compilation.required_attachments,
     )
     
     # Compute manifest digest from JSON bytes
@@ -231,13 +235,13 @@ def generate_submission_package(
     package = SubmissionPackagePayload(
         package_id=new_evidence_id(),
         case_id=runtime_case_id,
-        package_version=fixture.manifest.package_version,
+        package_version=compilation.package_version,
         manifest=manifest,
         document_artifacts=document_artifacts,
         manifest_sha256_digest=manifest_digest,
         created_at=dt.datetime.now(dt.UTC),
         provenance={
-            "fixture_document_set_id": fixture.document_set_id,
+            "document_set_id": compilation.document_set_id,
             "generator": "sps.documents.generator.generate_submission_package",
         },
     )

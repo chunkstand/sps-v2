@@ -439,6 +439,35 @@ def test_release_bundle_cli_success(tmp_path: Path) -> None:
     with SessionLocal() as session:
         bundle_row = session.get(ReleaseBundle, "REL-CLI-OK")
         assert bundle_row is not None
+        assert bundle_row.adapter_versions["city_portal_family_a"] == "2026-03-17.1"
+        assert bundle_row.adapter_versions["phaniville_manual"] == "2026-03-17.1"
+
+
+def test_release_bundle_cli_dry_run_surfaces_runtime_adapter_versions(tmp_path: Path) -> None:
+    settings = get_settings()
+    manifest_path, root_dir = _write_temp_manifest(tmp_path)
+
+    env = os.environ.copy()
+    env["API_BASE"] = "http://test"
+    env["SPS_REVIEWER_API_KEY"] = settings.reviewer_api_key
+    env["SPS_RELEASE_BUNDLE_HTTP_MODE"] = "asgi"
+
+    result = _run_release_bundle_cli(
+        [
+            "--manifest",
+            str(manifest_path),
+            "--root",
+            str(root_dir),
+            "--release-id",
+            "REL-CLI-DRY-RUN",
+            "--dry-run",
+        ],
+        env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert '"city_portal_family_a": "2026-03-17.1"' in result.stdout
+    assert '"phaniville_manual": "2026-03-17.1"' in result.stdout
 
 
 def test_release_bundle_cli_manifest_path_includes_root(tmp_path: Path) -> None:

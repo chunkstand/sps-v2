@@ -1,20 +1,19 @@
 """Evidence registry for document and manifest artifact storage with sha256 validation."""
 from __future__ import annotations
 
-import datetime as dt
 import hashlib
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 from sps.config import Settings
 from sps.evidence.ids import evidence_object_key, new_evidence_id
-from sps.evidence.models import ArtifactClass, RetentionClass
 from sps.storage.s3 import S3Storage
 
 
 @dataclass(frozen=True)
 class RegisteredArtifact:
     """Result from evidence registration with artifact_id and validated digest."""
-    
+
     artifact_id: str
     sha256_digest: str
     content_bytes: int
@@ -23,11 +22,11 @@ class RegisteredArtifact:
 
 class EvidenceRegistry:
     """Helper for registering evidence artifacts with sha256 validation."""
-    
+
     def __init__(self, storage: S3Storage, settings: Settings):
         self._storage = storage
         self._settings = settings
-    
+
     def register_document(
         self,
         *,
@@ -38,15 +37,16 @@ class EvidenceRegistry:
     ) -> RegisteredArtifact:
         """
         Register a document artifact in the evidence registry.
-        
+
         Uploads content to S3 with sha256 validation and returns artifact ID + digest.
         """
         artifact_id = new_evidence_id()
         object_key = evidence_object_key(artifact_id)
-        
+        self._storage.ensure_bucket(self._settings.s3_bucket_evidence)
+
         # Compute digest before upload
         sha256_digest = hashlib.sha256(content).hexdigest()
-        
+
         # Upload with integrity check
         result = self._storage.put_bytes(
             bucket=self._settings.s3_bucket_evidence,
@@ -55,16 +55,16 @@ class EvidenceRegistry:
             expected_sha256_hex=sha256_digest,
             content_type="text/plain",
         )
-        
+
         storage_uri = f"s3://{result.bucket}/{result.key}"
-        
+
         return RegisteredArtifact(
             artifact_id=artifact_id,
             sha256_digest=result.sha256_hex,
             content_bytes=result.bytes,
             storage_uri=storage_uri,
         )
-    
+
     def register_manifest(
         self,
         *,
@@ -74,11 +74,12 @@ class EvidenceRegistry:
     ) -> RegisteredArtifact:
         """
         Register a manifest artifact in the evidence registry.
-        
+
         Uploads content to S3 with sha256 validation and returns artifact ID + digest.
         """
         artifact_id = new_evidence_id()
         object_key = evidence_object_key(artifact_id)
+        self._storage.ensure_bucket(self._settings.s3_bucket_evidence)
         
         # Compute digest before upload
         sha256_digest = hashlib.sha256(content).hexdigest()
@@ -100,3 +101,14 @@ class EvidenceRegistry:
             content_bytes=result.bytes,
             storage_uri=storage_uri,
         )
+
+    def read_artifact_bytes(self, *, storage_uri: str) -> bytes:
+        bucket, key = parse_s3_storage_uri(storage_uri)
+        return self._storage.get_bytes(bucket=bucket, key=key)
+
+
+def parse_s3_storage_uri(storage_uri: str) -> tuple[str, str]:
+    parsed = urlparse(storage_uri)
+    if parsed.scheme != "s3" or not parsed.netloc or not parsed.path:
+        raise ValueError(f"Unsupported storage URI: {storage_uri}")
+    return parsed.netloc, parsed.path.lstrip("/")

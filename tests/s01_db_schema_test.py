@@ -23,6 +23,8 @@ from sps.db.models import (
 )
 from sps.db.session import get_engine, get_sessionmaker
 
+pytestmark = pytest.mark.integration
+
 
 def _utcnow() -> dt.datetime:
     return dt.datetime.now(tz=dt.UTC)

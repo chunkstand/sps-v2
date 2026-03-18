@@ -210,6 +210,7 @@ async def _wait_for_ledger_row_by_state(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 def test_incentive_persistence_activity_idempotent() -> None:
     _require_temporal_integration()
 
@@ -296,6 +297,7 @@ def test_incentive_persistence_activity_idempotent() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 def test_workflow_progression(caplog: pytest.LogCaptureFixture) -> None:
     _require_temporal_integration()
 
@@ -475,6 +477,7 @@ async def _run_workflow_progression() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 def test_incentive_guard_denial() -> None:
     _require_temporal_integration()
 

@@ -249,20 +249,30 @@ def run_release_bundle(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(description="Generate and submit SPS release bundle")
+    ap = argparse.ArgumentParser(
+        description=(
+            "Generate and submit SPS release bundle "
+            "(manual CLI flow uses the legacy reviewer API key; "
+            "the API also accepts service-principal JWT + mTLS)."
+        )
+    )
     ap.add_argument(
         "--manifest",
-        default="PACKAGE-MANIFEST.json",
-        help="Package manifest path (default: sps_full_spec_package/PACKAGE-MANIFEST.json)",
+        default="sps_full_spec_package/PACKAGE-MANIFEST.json",
+        help="Bundle manifest path (default: sps_full_spec_package/PACKAGE-MANIFEST.json)",
     )
     ap.add_argument(
         "--root",
         default="sps_full_spec_package",
-        help="Authoritative spec package root directory",
+        help="Bundle source root directory",
     )
     ap.add_argument("--release-id", required=True)
     ap.add_argument("--api-base", default=os.environ.get("API_BASE", "http://localhost:8000"))
-    ap.add_argument("--reviewer-api-key", default=os.environ.get("SPS_REVIEWER_API_KEY"))
+    ap.add_argument(
+        "--reviewer-api-key",
+        default=os.environ.get("SPS_REVIEWER_API_KEY"),
+        help="Legacy/manual reviewer API key used by this CLI flow",
+    )
     ap.add_argument("--approvals-file")
     ap.add_argument("--adapter-version", action="append", default=None)
     ap.add_argument("--dry-run", action="store_true")

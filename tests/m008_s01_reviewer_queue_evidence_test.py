@@ -28,6 +28,8 @@ from sps.db.models import (
 )
 from sps.db.session import get_engine, get_sessionmaker
 
+pytestmark = pytest.mark.integration
+
 
 # ---------------------------------------------------------------------------
 # Helpers (self-contained for this slice)

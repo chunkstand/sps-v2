@@ -44,14 +44,12 @@ from sps.workflows.permit_case.activities import (
     persist_submission_package,
 )
 from sps.workflows.permit_case.contracts import (
-    ActorType,
     CaseState,
     PermitCaseWorkflowInput,
     PersistApprovalRecordRequest,
     PersistCorrectionTaskRequest,
     PersistInspectionMilestoneRequest,
     PersistResubmissionPackageRequest,
-    StateTransitionRequest,
 )
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 

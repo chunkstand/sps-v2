@@ -15,6 +15,7 @@ from datetime import datetime
 
 import pytest
 
+from sps.adapters import get_runtime_adapters
 from sps.fixtures.phase6 import (
     DocumentFixtureDataset,
     DocumentSetFixture,
@@ -298,22 +299,18 @@ def test_persist_submission_package():
 def test_document_generation_determinism():
     """Generated documents produce valid sha256 digests and consistent artifact structure."""
     import os
-    from sps.documents.generator import generate_document, generate_submission_package
-    from sps.fixtures.phase6 import select_document_fixtures
-    
+    from sps.documents.generator import generate_submission_package
+
     original = os.environ.get("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE")
     try:
         os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = "CASE-EXAMPLE-001"
         case_id = "CASE-TEST-DETERMINISM-001"
-        
-        # Load fixture
-        fixtures, _ = select_document_fixtures(case_id)
-        assert len(fixtures) > 0
-        
-        doc_set = fixtures[0]
-        
+
+        compilation = get_runtime_adapters().load_documents(case_id).value
+        assert compilation.documents
+
         # Generate package
-        package = generate_submission_package(doc_set, runtime_case_id=case_id)
+        package = generate_submission_package(compilation, runtime_case_id=case_id)
         
         # Verify manifest digest is valid sha256
         assert len(package.manifest_sha256_digest) == 64
@@ -416,34 +413,222 @@ def test_manifest_digest_consistency():
 
 
 @pytest.mark.integration
-@pytest.mark.skip(reason="T03: Workflow wiring not yet implemented")
 def test_workflow_advances_to_document_complete():
-    """Workflow transitions INCENTIVES_COMPLETE → DOCUMENT_COMPLETE after package persisted."""
-    # TODO T03: Start workflow in INCENTIVES_COMPLETE state
-    # TODO T03: Trigger document generation activity
-    # TODO T03: Assert workflow advances to DOCUMENT_COMPLETE
-    # TODO T03: Assert current_package_id set on permit_case
-    pass
+    """Package persistence updates the current package pointer for a workflow-ready case."""
+    from sps.db.models import PermitCase
+    from sps.db.session import get_sessionmaker
+    from sps.workflows.permit_case.activities import persist_submission_package
+    from sps.workflows.permit_case.contracts import PersistSubmissionPackageRequest
+
+    original = os.environ.get("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE")
+    try:
+        os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = "CASE-EXAMPLE-001"
+        case_id = "CASE-TEST-WORKFLOW-PKG-001"
+
+        SessionLocal = get_sessionmaker()
+        with SessionLocal() as session:
+            with session.begin():
+                if session.get(PermitCase, case_id) is None:
+                    session.add(
+                        PermitCase(
+                            case_id=case_id,
+                            tenant_id="tenant-test",
+                            project_id=f"project-{case_id}",
+                            case_state="INCENTIVES_COMPLETE",
+                            review_state="PENDING",
+                            submission_mode="AUTOMATED",
+                            portal_support_level="FULLY_SUPPORTED",
+                            current_package_id=None,
+                            current_release_profile="default",
+                            legal_hold=False,
+                            closure_reason=None,
+                        )
+                    )
+
+        package_id = persist_submission_package(
+            PersistSubmissionPackageRequest(
+                request_id="REQ-WORKFLOW-PKG-001",
+                case_id=case_id,
+            )
+        )
+
+        with SessionLocal() as session:
+            case = session.get(PermitCase, case_id)
+            assert case is not None
+            assert case.current_package_id == package_id
+    finally:
+        if original is not None:
+            os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = original
+        else:
+            os.environ.pop("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
 @pytest.mark.integration
-@pytest.mark.skip(reason="T03: API endpoints not yet implemented")
 def test_api_package_retrieval():
     """API exposes package metadata and manifest readback."""
-    # TODO T03: Persist a package via workflow
-    # TODO T03: GET /cases/{case_id}/package
-    # TODO T03: Assert response includes package_id, manifest_id, document references
-    # TODO T03: GET /cases/{case_id}/manifest
-    # TODO T03: Assert manifest payload includes digest references
-    pass
+    from fastapi.testclient import TestClient
+
+    from sps.api.main import app
+    from sps.db.models import DocumentArtifact, PermitCase
+    from sps.db.session import get_sessionmaker
+    from sps.workflows.permit_case.activities import persist_submission_package
+    from sps.workflows.permit_case.contracts import PersistSubmissionPackageRequest
+    from tests.helpers.auth_tokens import build_jwt
+
+    original = os.environ.get("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE")
+    try:
+        os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = "CASE-EXAMPLE-001"
+        case_id = "CASE-TEST-API-PKG-001"
+
+        SessionLocal = get_sessionmaker()
+        with SessionLocal() as session:
+            with session.begin():
+                if session.get(PermitCase, case_id) is None:
+                    session.add(
+                        PermitCase(
+                            case_id=case_id,
+                            tenant_id="tenant-test",
+                            project_id=f"project-{case_id}",
+                            case_state="INCENTIVES_COMPLETE",
+                            review_state="PENDING",
+                            submission_mode="AUTOMATED",
+                            portal_support_level="FULLY_SUPPORTED",
+                            current_package_id=None,
+                            current_release_profile="default",
+                            legal_hold=False,
+                            closure_reason=None,
+                        )
+                    )
+
+        package_id = persist_submission_package(
+            PersistSubmissionPackageRequest(
+                request_id="REQ-API-PKG-001",
+                case_id=case_id,
+            )
+        )
+
+        with SessionLocal() as session:
+            doc_artifacts = (
+                session.query(DocumentArtifact)
+                .filter(DocumentArtifact.package_id == package_id)
+                .order_by(DocumentArtifact.document_id.asc())
+                .all()
+            )
+            expected_artifact_ids = {row.evidence_artifact_id for row in doc_artifacts}
+            expected_digests = {row.document_id: row.sha256_digest for row in doc_artifacts}
+
+        client = TestClient(app)
+        headers = {"Authorization": f"Bearer {build_jwt(subject='intake-user', roles=['intake'])}"}
+        package_response = client.get(f"/api/v1/cases/{case_id}/package", headers=headers)
+        manifest_response = client.get(f"/api/v1/cases/{case_id}/manifest", headers=headers)
+
+        assert package_response.status_code == 200, package_response.text
+        assert manifest_response.status_code == 200, manifest_response.text
+
+        package_payload = package_response.json()
+        manifest_payload = manifest_response.json()
+
+        assert package_payload["package_id"] == package_id
+        assert package_payload["case_id"] == case_id
+        assert package_payload["manifest_artifact_id"]
+        assert package_payload["manifest_sha256_digest"]
+        assert package_payload["updated_at"] is None
+
+        assert manifest_payload["case_id"] == case_id
+        assert manifest_payload["package_version"] == package_payload["package_version"]
+        assert manifest_payload["required_attachments"]
+        assert manifest_payload["target_portal_family"]
+
+        manifest_artifact_ids = {ref["artifact_id"] for ref in manifest_payload["document_references"]}
+        manifest_digests = {
+            ref["document_id"]: ref["sha256_digest"] for ref in manifest_payload["document_references"]
+        }
+        assert manifest_artifact_ids == expected_artifact_ids
+        assert manifest_digests == expected_digests
+    finally:
+        if original is not None:
+            os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = original
+        else:
+            os.environ.pop("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
 @pytest.mark.integration
-@pytest.mark.skip(reason="T03: Evidence registry query not yet implemented")
 def test_evidence_registry_document_retrieval():
     """Evidence registry returns document artifacts with matching checksums."""
-    # TODO T03: Persist package with document artifacts
-    # TODO T03: Query evidence registry by artifact_id
-    # TODO T03: Assert artifact metadata includes sha256 checksum
-    # TODO T03: Download artifact content and verify checksum matches
-    pass
+    import hashlib
+
+    from fastapi.testclient import TestClient
+
+    from sps.api.main import app
+    from sps.config import get_settings
+    from sps.db.models import DocumentArtifact, PermitCase
+    from sps.db.session import get_sessionmaker
+    from sps.documents.registry import EvidenceRegistry
+    from sps.storage.s3 import S3Storage
+    from sps.workflows.permit_case.activities import persist_submission_package
+    from sps.workflows.permit_case.contracts import PersistSubmissionPackageRequest
+    from tests.helpers.auth_tokens import build_jwt
+
+    original = os.environ.get("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE")
+    try:
+        os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = "CASE-EXAMPLE-001"
+        case_id = "CASE-TEST-EVIDENCE-PKG-001"
+
+        SessionLocal = get_sessionmaker()
+        with SessionLocal() as session:
+            with session.begin():
+                if session.get(PermitCase, case_id) is None:
+                    session.add(
+                        PermitCase(
+                            case_id=case_id,
+                            tenant_id="tenant-test",
+                            project_id=f"project-{case_id}",
+                            case_state="INCENTIVES_COMPLETE",
+                            review_state="PENDING",
+                            submission_mode="AUTOMATED",
+                            portal_support_level="FULLY_SUPPORTED",
+                            current_package_id=None,
+                            current_release_profile="default",
+                            legal_hold=False,
+                            closure_reason=None,
+                        )
+                    )
+
+        package_id = persist_submission_package(
+            PersistSubmissionPackageRequest(
+                request_id="REQ-EVIDENCE-PKG-001",
+                case_id=case_id,
+            )
+        )
+
+        client = TestClient(app)
+        settings = get_settings()
+        registry = EvidenceRegistry(storage=S3Storage(settings=settings), settings=settings)
+        headers = {"Authorization": f"Bearer {build_jwt(subject='intake-user', roles=['intake'])}"}
+
+        with SessionLocal() as session:
+            doc_artifacts = (
+                session.query(DocumentArtifact)
+                .filter(DocumentArtifact.package_id == package_id)
+                .order_by(DocumentArtifact.document_id.asc())
+                .all()
+            )
+
+        assert doc_artifacts
+        for doc_artifact in doc_artifacts:
+            metadata_response = client.get(
+                f"/api/v1/evidence/artifacts/{doc_artifact.evidence_artifact_id}",
+                headers=headers,
+            )
+            assert metadata_response.status_code == 200, metadata_response.text
+            metadata = metadata_response.json()
+            assert metadata["checksum"] == doc_artifact.sha256_digest
+            assert metadata["content_bytes"] > 0
+
+            content = registry.read_artifact_bytes(storage_uri=metadata["storage_uri"])
+            assert hashlib.sha256(content).hexdigest() == doc_artifact.sha256_digest
+    finally:
+        if original is not None:
+            os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = original
+        else:
+            os.environ.pop("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE", None)

@@ -142,6 +142,8 @@ async def test_ops_dashboard_page_renders() -> None:
         f"Expected 200 from /ops, got {response.status_code}: {response.text}"
     )
     assert "Queue Health" in response.text
+    assert "Legacy API Key" in response.text
+    assert "This page renders without protected data." in response.text
     assert "/static/ops.js" in response.text
     assert 'data-metrics-endpoint="/api/v1/ops/dashboard/metrics"' in response.text
 
@@ -149,6 +151,7 @@ async def test_ops_dashboard_page_renders() -> None:
     assert "/api/v1/ops/dashboard/metrics" in static_response.text
     assert "metrics_fetch_failed" in static_response.text
     assert "X-Reviewer-Api-Key" in static_response.text
+    assert "legacy/manual reviewer key" in static_response.text
 
 
 @pytest.mark.anyio

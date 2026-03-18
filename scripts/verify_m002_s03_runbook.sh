@@ -151,8 +151,8 @@ _wait_for_tcp "$TEMPORAL_HOST" "$TEMPORAL_PORT" 30
 echo "runbook: applying_migrations" >&2
 "$ALEMBIC" upgrade head >/dev/null
 
-mkdir -p "$ROOT_DIR/.gsd/runbook"
-WORKER_LOG="$ROOT_DIR/.gsd/runbook/m002_s03_worker_$(date +%Y%m%d_%H%M%S)_$$.log"
+mkdir -p "$ROOT_DIR/artifacts/runbook"
+WORKER_LOG="$ROOT_DIR/artifacts/runbook/m002_s03_worker_$(date +%Y%m%d_%H%M%S)_$$.log"
 
 echo "runbook: starting_worker log=$WORKER_LOG" >&2
 "$PYTHON" -m sps.workflows.worker >"$WORKER_LOG" 2>&1 &

@@ -19,14 +19,12 @@ import pytest
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
-from concurrent.futures import ThreadPoolExecutor
 from temporalio.worker import Worker
 
 from sps.config import get_settings
 from sps.db.models import (
     ApprovalRecord,
     CorrectionTask,
-    ExternalStatusEvent,
     InspectionMilestone,
     PermitCase,
     ResubmissionPackage,
@@ -451,4 +449,3 @@ async def _run_inspection_passed_test() -> None:
         worker_task.cancel()
         with suppress(asyncio.CancelledError):
             await worker_task
-

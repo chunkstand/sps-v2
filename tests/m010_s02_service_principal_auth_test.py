@@ -11,6 +11,8 @@ from sps.api.main import app
 from sps.config import get_settings
 from tests.helpers.auth_tokens import build_jwt, build_service_principal_jwt
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _migrate_db() -> None:
@@ -52,6 +54,33 @@ def test_service_principal_allows_with_mtls_header(auth_env: None) -> None:
         headers=_auth_headers(token, mtls_header_value="cert-present"),
     )
     assert response.status_code == 200, response.text
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "roles", "payload", "expected"),
+    [
+        ("get", "/api/v1/ops/dashboard/metrics", ["ops"], None, 200),
+        ("get", "/api/v1/ops/release-blockers", ["ops"], None, 200),
+        ("post", "/api/v1/releases/bundles", ["release"], {}, 422),
+    ],
+)
+def test_service_principal_access_matrix_with_mtls(
+    auth_env: None,
+    method: str,
+    path: str,
+    roles: list[str],
+    payload: dict[str, object] | None,
+    expected: int,
+) -> None:
+    client = TestClient(app)
+    token = build_service_principal_jwt(subject="svc-principal", roles=roles)
+    response = client.request(
+        method,
+        path,
+        json=payload,
+        headers=_auth_headers(token, mtls_header_value="cert-present"),
+    )
+    assert response.status_code == expected, response.text
 
 
 def test_service_principal_missing_principal_type(auth_env: None) -> None:
@@ -116,6 +145,30 @@ def test_service_principal_missing_mtls_header(
     ]
     assert matching
     assert "missing_mtls_signal" in matching[0].message
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "roles", "payload"),
+    [
+        ("get", "/api/v1/ops/dashboard/metrics", ["ops"], None),
+        ("get", "/api/v1/ops/release-blockers", ["ops"], None),
+        ("post", "/api/v1/releases/bundles", ["release"], {}),
+    ],
+)
+def test_service_principal_requires_mtls_for_protected_routes(
+    auth_env: None,
+    method: str,
+    path: str,
+    roles: list[str],
+    payload: dict[str, object] | None,
+) -> None:
+    client = TestClient(app)
+    token = build_service_principal_jwt(subject="svc-principal", roles=roles)
+    response = client.request(method, path, json=payload, headers=_auth_headers(token))
+    assert response.status_code == 401
+    payload_json = response.json()["detail"]
+    assert payload_json["error"] == "auth_required"
+    assert payload_json["auth_reason"] == "missing_mtls_signal"
 
 
 def test_service_principal_honors_mtls_header_setting(

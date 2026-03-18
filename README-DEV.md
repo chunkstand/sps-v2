@@ -1,6 +1,6 @@
-# SPS local development (scaffold)
+# SPS local development
 
-This repo is seeded from the **SPS v2.0.1 BUILD_APPROVED** canonical spec package.
+This repo is an application codebase for SPS. Some legacy spec-package assets remain in-tree for release validation and policy data, but day-to-day development should center on the app under `src/sps`, its migrations, and its tests.
 
 ## Local infra (Temporal + Postgres + MinIO)
 
@@ -22,6 +22,19 @@ Stop:
 ```bash
 docker compose down
 ```
+
+## Run the application
+
+Start the API:
+
+```bash
+uvicorn sps.api.main:app --reload
+```
+
+Useful endpoints:
+- API docs: http://localhost:8000/docs
+- Health: http://localhost:8000/healthz
+- Reviewer console: http://localhost:8000/reviewer-console
 
 ## Temporal demo (PermitCaseWorkflow)
 
@@ -48,11 +61,38 @@ Integration proof (requires `docker compose up -d`):
 SPS_RUN_TEMPORAL_INTEGRATION=1 pytest -q tests/m002_s01_temporal_permit_case_workflow_test.py
 ```
 
-## CI / integrity checks (local)
+Test marker policy:
+- Infra-backed tests must declare `@pytest.mark.integration` or `pytestmark = pytest.mark.integration`.
+- Unmarked tests default to `unit` and must stay hermetic.
+
+## Local checks
 
 ```bash
 python -m pip install -e ".[dev]"
-python tools/check_repo_wiring.py
-python tools/verify_package_manifest.py
+ruff check .
+python -m pytest -m "unit"
 check-jsonschema --check-metaschema model/sps/contracts/*.schema.json
 ```
+
+Optional release-bundle check:
+
+```bash
+python tools/verify_package_manifest.py
+```
+
+## Confidence pass
+
+Bootstrap a fresh local environment:
+
+```bash
+scripts/bootstrap_dev.sh
+```
+
+Run the targeted confidence checks after local services are up:
+
+```bash
+docker compose up -d
+scripts/run_confidence_checks.sh
+```
+
+Operator checklist: `runbooks/sps/confidence-checklist.md`

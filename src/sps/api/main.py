@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 import logging
+from typing import Any
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from sps.config import get_settings
+from sps.db.session import get_engine
 from sps.logging.redaction import attach_redaction_filter
+from sps.storage.s3 import S3Storage
+from sps.workflows.temporal import connect_client
 
 from sps.api.routes.cases import router as cases_router
 from sps.api.routes.contradictions import router as contradictions_router
@@ -68,8 +75,49 @@ def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/readyz")
-def readyz() -> dict[str, str]:
-    # Readiness: Phase 1 keeps this lightweight; deeper dependency checks land in later tasks/slices.
+def _ok_check() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+def _error_check(exc: Exception) -> dict[str, str]:
+    return {"status": "error", "error": type(exc).__name__}
+
+
+def _check_postgres_ready() -> dict[str, str]:
+    try:
+        with get_engine().connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return _ok_check()
+    except Exception as exc:
+        return _error_check(exc)
+
+
+def _check_temporal_ready() -> dict[str, str]:
+    try:
+        asyncio.run(connect_client())
+        return _ok_check()
+    except Exception as exc:
+        return _error_check(exc)
+
+
+def _check_storage_ready() -> dict[str, str]:
     settings = get_settings()
-    return {"status": "ok", "env": settings.env}
+    try:
+        storage = S3Storage(settings=settings)
+        storage.head_bucket(settings.s3_bucket_evidence)
+        return _ok_check()
+    except Exception as exc:
+        return _error_check(exc)
+
+
+@app.get("/readyz")
+def readyz() -> JSONResponse:
+    settings = get_settings()
+    checks: dict[str, dict[str, str]] = {
+        "postgres": _check_postgres_ready(),
+        "temporal": _check_temporal_ready(),
+        "storage": _check_storage_ready(),
+    }
+    status = "ok" if all(item["status"] == "ok" for item in checks.values()) else "error"
+    payload: dict[str, Any] = {"status": status, "env": settings.env, "checks": checks}
+    return JSONResponse(status_code=200 if status == "ok" else 503, content=payload)
