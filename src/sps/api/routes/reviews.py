@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
@@ -40,6 +40,8 @@ from sps.workflows.permit_case.contracts import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["reviews"], dependencies=[Depends(require_reviewer_identity)])
+_DEFAULT_QUEUE_LIMIT = 20
+_MAX_QUEUE_LIMIT = 100
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +108,10 @@ class ReviewDecisionResponse(BaseModel):
 
 def _utcnow() -> dt.datetime:
     return dt.datetime.now(tz=dt.UTC)
+
+
+def _clamp_queue_limit(limit: int) -> int:
+    return min(limit, _MAX_QUEUE_LIMIT)
 
 
 def _row_to_response(row: ReviewDecision) -> ReviewDecisionResponse:
@@ -606,13 +612,18 @@ def get_review_decision(decision_id: str, db: Session = Depends(get_db)) -> Revi
 @router.get(
     "/queue",
 )
-def get_review_queue(db: Session = Depends(get_db)) -> ReviewerQueueResponse:
+def get_review_queue(
+    limit: int = Query(default=_DEFAULT_QUEUE_LIMIT, ge=1),
+    db: Session = Depends(get_db),
+) -> ReviewerQueueResponse:
     """Return the pending reviewer queue ordered by oldest cases first."""
+    bounded_limit = _clamp_queue_limit(limit)
     rows = (
         db.query(PermitCase, Project)
         .join(Project, Project.case_id == PermitCase.case_id)
         .filter(PermitCase.case_state == "REVIEW_PENDING")
         .order_by(PermitCase.created_at.asc(), PermitCase.case_id.asc())
+        .limit(bounded_limit)
         .all()
     )
     cases = [_queue_row_to_response(case, project) for case, project in rows]

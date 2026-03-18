@@ -119,13 +119,7 @@ def require_identity(
 def require_service_principal(
     request: Request,
     authorization: str | None = Header(default=None, alias="Authorization"),
-    x_reviewer_api_key: str | None = Header(default=None, alias="X-Reviewer-Api-Key"),
 ) -> Identity:
-    api_identity = _identity_for_legacy_reviewer_api_key(x_reviewer_api_key)
-    if api_identity is not None:
-        logger.info("auth.legacy_reviewer_api_key_used guard=service_principal")
-        return api_identity
-
     token = _extract_bearer_token(authorization)
     if token is None:
         _emit_denied_log(

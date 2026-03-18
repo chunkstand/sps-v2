@@ -37,6 +37,10 @@ from sps.db.models import (
     ReviewDecision,
 )
 from sps.db.session import get_engine, get_sessionmaker
+from sps.services.release_bundle_manifest import (
+    ReleaseBundleManifestError,
+    build_release_bundle_components,
+)
 
 
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
@@ -441,6 +445,54 @@ def test_release_bundle_cli_success(tmp_path: Path) -> None:
         assert bundle_row is not None
         assert bundle_row.adapter_versions["city_portal_family_a"] == "2026-03-17.1"
         assert bundle_row.adapter_versions["phaniville_manual"] == "2026-03-17.1"
+
+
+def test_release_bundle_manifest_missing_file_raises(tmp_path: Path) -> None:
+    settings = get_settings()
+    manifest_path = tmp_path / "PACKAGE-MANIFEST.json"
+    manifest_path.write_text(
+        json.dumps([{"path": "missing.yaml", "sha256": "0" * 64, "bytes": 1}]),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ReleaseBundleManifestError, match="path does not exist"):
+        build_release_bundle_components(
+            manifest_path=manifest_path,
+            root_dir=tmp_path,
+            release_id="REL-MISSING-FILE",
+            settings=settings,
+            schema_path=Path(__file__).resolve().parents[1]
+            / "model/sps/contracts/release-bundle-manifest.schema.json",
+        )
+
+
+def test_release_bundle_manifest_missing_artifact_id_raises(tmp_path: Path) -> None:
+    settings = get_settings()
+    artifact_path = tmp_path / "artifact.yaml"
+    artifact_path.write_text("name: no artifact id\n", encoding="utf-8")
+    manifest_path = tmp_path / "PACKAGE-MANIFEST.json"
+    manifest_path.write_text(
+        json.dumps(
+            [
+                {
+                    "path": artifact_path.name,
+                    "sha256": _hash_bytes(artifact_path.read_bytes()),
+                    "bytes": len(artifact_path.read_bytes()),
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ReleaseBundleManifestError, match="missing artifact_id"):
+        build_release_bundle_components(
+            manifest_path=manifest_path,
+            root_dir=tmp_path,
+            release_id="REL-MISSING-ARTIFACT-ID",
+            settings=settings,
+            schema_path=Path(__file__).resolve().parents[1]
+            / "model/sps/contracts/release-bundle-manifest.schema.json",
+        )
 
 
 def test_release_bundle_cli_dry_run_surfaces_runtime_adapter_versions(tmp_path: Path) -> None:

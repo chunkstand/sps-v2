@@ -82,9 +82,9 @@ def test_role_denied(auth_env: None) -> None:
     ("method", "path", "payload", "expected"),
     [
         ("get", "/api/v1/reviews/queue", None, 200),
-        ("get", "/api/v1/ops/dashboard/metrics", None, 200),
-        ("get", "/api/v1/ops/release-blockers", None, 200),
-        ("post", "/api/v1/releases/bundles", {}, 422),
+        ("get", "/api/v1/ops/dashboard/metrics", None, 401),
+        ("get", "/api/v1/ops/release-blockers", None, 401),
+        ("post", "/api/v1/releases/bundles", {}, 401),
     ],
 )
 def test_legacy_reviewer_api_key_access_matrix(
@@ -97,7 +97,12 @@ def test_legacy_reviewer_api_key_access_matrix(
     client = TestClient(app)
     response = client.request(method, path, json=payload, headers=_legacy_key_headers())
     assert response.status_code == expected, response.text
-    assert response.status_code not in (401, 403)
+    if path.startswith("/api/v1/reviews"):
+        assert response.status_code not in (401, 403)
+    else:
+        payload = response.json()["detail"]
+        assert payload["error"] == "auth_required"
+        assert payload["auth_reason"] == "missing_or_invalid_authorization"
 
 
 @pytest.mark.parametrize(

@@ -456,6 +456,7 @@ def test_workflow_advances_to_document_complete():
             case = session.get(PermitCase, case_id)
             assert case is not None
             assert case.current_package_id == package_id
+            assert case.case_state == "DOCUMENT_COMPLETE"
     finally:
         if original is not None:
             os.environ["SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE"] = original
