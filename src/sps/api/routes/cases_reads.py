@@ -10,7 +10,7 @@ from sps.api.contracts.cases import (
     SubmissionManifestResponse,
     SubmissionPackageResponse,
 )
-from sps.api.routes.cases_impl import (
+from sps.api.routes.cases_read_impl import (
     get_case_compliance,
     get_case_incentives,
     get_case_jurisdiction,
@@ -56,4 +56,3 @@ router.add_api_route(
     methods=["GET"],
     response_model=SubmissionManifestResponse,
 )
-

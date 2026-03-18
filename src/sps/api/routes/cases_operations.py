@@ -12,7 +12,7 @@ from sps.api.contracts.cases import (
     ResubmissionPackageListResponse,
     SubmissionAttemptListResponse,
 )
-from sps.api.routes.cases_impl import (
+from sps.api.routes.cases_operations_impl import (
     get_case_approval_records,
     get_case_correction_tasks,
     get_case_external_status_events,
@@ -73,4 +73,3 @@ router.add_api_route(
     methods=["GET"],
     response_model=InspectionMilestoneListResponse,
 )
-

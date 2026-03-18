@@ -9,7 +9,10 @@ logger = logging.getLogger("sps.tests.redaction")
 
 
 def _prepare(caplog) -> None:
-    caplog.set_level(logging.INFO)
+    logger.disabled = False
+    logger.propagate = True
+    logger.setLevel(logging.INFO)
+    caplog.set_level(logging.INFO, logger=logger.name)
     attach_redaction_filter()
 
 

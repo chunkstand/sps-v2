@@ -28,9 +28,9 @@ The repo still contains legacy spec-package material under `sps_full_spec_packag
 
 ## Getting started
 
-1. Create a virtual environment and install dependencies: `python -m pip install -e ".[dev]"`
+1. Install the locked dev environment: `uv sync --extra dev --frozen`
 2. Start local services: `docker compose up -d`
-3. Run the API: `uvicorn sps.api.main:app --reload`
-4. Run unit tests: `python -m pytest -m "unit"`
+3. Run the API: `uv run uvicorn sps.api.main:app --reload`
+4. Run unit tests: `uv run pytest -m "unit"`
 
 More local workflow detail lives in `README-DEV.md`.

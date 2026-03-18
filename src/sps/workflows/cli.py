@@ -7,6 +7,7 @@ import logging
 from temporalio.client import WorkflowHandle
 
 from sps.config import get_settings
+from sps.logging.setup import configure_logging
 from sps.workflows.permit_case.contracts import (
     PermitCaseWorkflowInput,
     ReviewDecisionOutcome,
@@ -15,7 +16,6 @@ from sps.workflows.permit_case.contracts import (
 from sps.workflows.permit_case.ids import permit_case_workflow_id
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import connect_client
-from sps.logging.redaction import attach_redaction_filter
 
 logger = logging.getLogger(__name__)
 
@@ -53,12 +53,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _configure_logging() -> None:
-    settings = get_settings()
-    logging.basicConfig(
-        level=settings.log_level.upper(),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
-    attach_redaction_filter()
+    configure_logging()
 
 
 async def _cmd_start(case_id: str) -> WorkflowHandle:

@@ -30,6 +30,10 @@ _KEY_VALUE_PATTERN = re.compile(
     r"(?i)\b(?P<key>api_key|reviewer_api_key|jwt_secret|password|token|access_token|dsn)\b\s*[:=]\s*(?P<value>[^\s,;]+)"
 )
 _DSN_PATTERN = re.compile(r"(?i)\b(postgres(?:ql)?(?:\+\w+)?://[^\s'\"<>]+)")
+_REDACTION_FILTER = "sps_redaction_filter"
+_REDACTION_FACTORY = "sps_redaction_factory"
+
+_record_factory = logging.getLogRecordFactory()
 
 
 def _is_secret_key(key: str) -> bool:
@@ -65,30 +69,56 @@ def redact_value(value: Any) -> Any:
     return value
 
 
+def _redact_record(record: logging.LogRecord) -> logging.LogRecord:
+    record.msg = redact_string(record.getMessage())
+    record.args = ()
+
+    for key, value in list(record.__dict__.items()):
+        if key in _BASE_RECORD_ATTRS:
+            continue
+        if _is_secret_key(str(key)):
+            record.__dict__[key] = REDACTION_TOKEN
+        else:
+            record.__dict__[key] = redact_value(value)
+    return record
+
+
+def _redacting_record_factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
+    return _redact_record(_record_factory(*args, **kwargs))
+
+
+def _ensure_logger_bubbles(logger: logging.Logger) -> None:
+    logger.disabled = False
+    logger.propagate = True
+
+
 class RedactionFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        record.msg = redact_string(record.getMessage())
-        record.args = ()
-
-        for key, value in list(record.__dict__.items()):
-            if key in _BASE_RECORD_ATTRS:
-                continue
-            if _is_secret_key(str(key)):
-                record.__dict__[key] = REDACTION_TOKEN
-            else:
-                record.__dict__[key] = redact_value(value)
+        _redact_record(record)
         return True
 
 
 def attach_redaction_filter(logger: logging.Logger | None = None) -> None:
     target = logger or logging.getLogger()
+    sps_logger = logging.getLogger("sps")
 
-    filter_instance = next((f for f in target.filters if isinstance(f, RedactionFilter)), None)
+    active_factory = logging.getLogRecordFactory()
+    if getattr(active_factory, _REDACTION_FACTORY, False) is not True:
+        setattr(_redacting_record_factory, _REDACTION_FACTORY, True)
+        logging.setLogRecordFactory(_redacting_record_factory)
+
+    _ensure_logger_bubbles(sps_logger)
+    if target is not sps_logger:
+        _ensure_logger_bubbles(target)
+
+    filter_instance = next((f for f in target.filters if getattr(f, _REDACTION_FILTER, False)), None)
     if filter_instance is None:
         filter_instance = RedactionFilter()
+        setattr(filter_instance, _REDACTION_FILTER, True)
         target.addFilter(filter_instance)
 
-    for handler in target.handlers:
-        if any(isinstance(f, RedactionFilter) for f in handler.filters):
-            continue
-        handler.addFilter(filter_instance)
+    for logger_target in (target, sps_logger):
+        for handler in logger_target.handlers:
+            if any(getattr(f, _REDACTION_FILTER, False) for f in handler.filters):
+                continue
+            handler.addFilter(filter_instance)

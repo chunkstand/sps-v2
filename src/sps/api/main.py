@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-import logging
 from typing import Any
 
 from fastapi import FastAPI
@@ -12,7 +11,7 @@ from sqlalchemy import text
 
 from sps.config import get_settings
 from sps.db.session import get_engine
-from sps.logging.redaction import attach_redaction_filter
+from sps.logging.setup import configure_logging
 from sps.storage.s3 import S3Storage
 from sps.workflows.temporal import connect_client
 
@@ -35,12 +34,7 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 def _configure_logging() -> None:
-    settings = get_settings()
-    logging.basicConfig(
-        level=settings.log_level.upper(),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
-    attach_redaction_filter()
+    configure_logging()
 
 
 _configure_logging()

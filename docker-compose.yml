@@ -10,7 +10,7 @@ services:
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
 
   temporal:
-    image: temporalio/auto-setup:latest
+    image: temporalio/auto-setup:1.29.4
     depends_on:
       - postgres
     environment:
@@ -27,7 +27,7 @@ services:
       - "7233:7233"
 
   temporal-ui:
-    image: temporalio/ui:latest
+    image: temporalio/ui:2.47.3
     depends_on:
       - temporal
     environment:
@@ -36,7 +36,7 @@ services:
       - "8080:8080"
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
@@ -48,7 +48,7 @@ services:
       - minio_data:/data
 
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
       - minio
     environment:

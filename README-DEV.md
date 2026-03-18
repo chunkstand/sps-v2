@@ -28,7 +28,7 @@ docker compose down
 Start the API:
 
 ```bash
-uvicorn sps.api.main:app --reload
+uv run uvicorn sps.api.main:app --reload
 ```
 
 Useful endpoints:
@@ -68,9 +68,9 @@ Test marker policy:
 ## Local checks
 
 ```bash
-python -m pip install -e ".[dev]"
-ruff check .
-python -m pytest -m "unit"
+uv sync --extra dev --frozen
+uv run ruff check .
+uv run pytest -m "unit"
 check-jsonschema --check-metaschema model/sps/contracts/*.schema.json
 ```
 
