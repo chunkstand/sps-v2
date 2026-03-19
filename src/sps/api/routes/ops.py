@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from sps.auth.rbac import Role, require_roles_for, require_service_principal
+from sps.config import get_settings
 from sps.db.session import get_db
 from sps.services.ops_metrics import OpsMetricsResponse, build_ops_metrics_response
 from sps.services.release_blockers import ReleaseBlockersResponse, build_release_blockers_response
@@ -28,10 +29,15 @@ page_router = APIRouter(tags=["ops"])
 
 @page_router.get("/ops", response_class=HTMLResponse)
 def ops_dashboard(request: Request) -> HTMLResponse:
+    settings = get_settings()
     return templates.TemplateResponse(
         request,
         "ops/index.html",
-        {"request": request, "metrics_endpoint": "/api/v1/ops/dashboard/metrics"},
+        {
+            "request": request,
+            "metrics_endpoint": "/api/v1/ops/dashboard/metrics",
+            "mtls_header_name": settings.auth_mtls_signal_header,
+        },
     )
 
 

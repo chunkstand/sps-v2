@@ -23,10 +23,12 @@ from alembic.config import Config
 
 import sps.api.routes.releases as releases
 from sps.api.main import app
-from sps.config import get_settings
 from sps.db.models import EvidenceArtifact
 from sps.db.session import get_engine, get_sessionmaker
+from tests.helpers.auth_tokens import build_jwt, build_service_principal_headers
 
+
+pytestmark = pytest.mark.integration
 
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
@@ -101,8 +103,6 @@ def _db_lifecycle() -> None:  # type: ignore[return]
 async def test_rollback_rehearsal_persists_evidence_artifact(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = get_settings()
-
     log_calls: list[str] = []
 
     def _info(msg: str, *_args, **_kwargs) -> None:
@@ -136,7 +136,10 @@ async def test_rollback_rehearsal_persists_evidence_artifact(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/api/v1/releases/rollbacks/rehearsals",
-            headers={"X-Reviewer-Api-Key": settings.reviewer_api_key},
+            headers=build_service_principal_headers(
+                roles=["release"],
+                subject="svc-rollback-rehearsal",
+            ),
             json=request_body,
         )
 
@@ -156,7 +159,10 @@ async def test_rollback_rehearsal_persists_evidence_artifact(
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        evidence_resp = await client.get(f"/api/v1/evidence/artifacts/{artifact_id}")
+        evidence_resp = await client.get(
+            f"/api/v1/evidence/artifacts/{artifact_id}",
+            headers={"Authorization": f"Bearer {build_jwt(subject='intake-user', roles=['intake'])}"},
+        )
 
     assert evidence_resp.status_code == 200, evidence_resp.text
     evidence_payload = evidence_resp.json()
@@ -179,8 +185,6 @@ async def test_rollback_rehearsal_persists_evidence_artifact(
 async def test_rollback_rehearsal_failure_rejects_checksum_mismatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = get_settings()
-
     log_calls: list[str] = []
 
     def _warning(msg: str, *_args, **_kwargs) -> None:
@@ -209,7 +213,10 @@ async def test_rollback_rehearsal_failure_rejects_checksum_mismatch(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/api/v1/releases/rollbacks/rehearsals",
-            headers={"X-Reviewer-Api-Key": settings.reviewer_api_key},
+            headers=build_service_principal_headers(
+                roles=["release"],
+                subject="svc-rollback-rehearsal-failure",
+            ),
             json=request_body,
         )
 

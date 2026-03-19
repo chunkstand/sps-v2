@@ -11,8 +11,14 @@ const stalledMeta = document.getElementById("metric-stalled-review-meta");
 const refreshButton = document.getElementById("ops-refresh");
 
 function apiHeaders() {
-  const key = document.getElementById("ops-api-key").value.trim();
-  return key ? { "X-Reviewer-Api-Key": key } : {};
+  const token = document.getElementById("ops-bearer-token").value.trim();
+  const mtlsHeaderName = document.getElementById("ops-mtls-header-name").value.trim();
+  const mtlsHeaderValue = document.getElementById("ops-mtls-header-value").value.trim();
+  if (!token || !mtlsHeaderName || !mtlsHeaderValue) return null;
+  return {
+    Authorization: `Bearer ${token}`,
+    [mtlsHeaderName]: mtlsHeaderValue,
+  };
 }
 
 function setStatus(message, variant) {
@@ -47,9 +53,14 @@ function updateMetrics(payload) {
 }
 
 async function fetchMetrics() {
-  setStatus("Fetching metrics snapshot using the legacy/manual reviewer key...");
+  const headers = apiHeaders();
+  if (!headers) {
+    setStatus("Provide a bearer token and mTLS signal to fetch protected metrics.");
+    return;
+  }
+  setStatus("Fetching metrics snapshot using service-principal auth...");
   try {
-    const resp = await fetch(endpoint, { headers: apiHeaders() });
+    const resp = await fetch(endpoint, { headers });
     const text = await resp.text();
     if (!resp.ok) {
       throw { status: resp.status, body: text };

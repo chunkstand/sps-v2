@@ -23,7 +23,6 @@ from sps.workflows.permit_case.activities import (
     apply_state_transition,
     ensure_permit_case_exists,
     fetch_permit_case_state,
-    persist_review_decision,
 )
 from sps.workflows.permit_case.contracts import (
     PermitCaseWorkflowResult,
@@ -34,6 +33,8 @@ from sps.workflows.permit_case.ids import permit_case_workflow_id
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import connect_client
 
+
+pytestmark = pytest.mark.integration
 
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
@@ -99,12 +100,37 @@ async def _wait_for_failpoint_fired(key: str, timeout_s: float = 15.0) -> None:
     raise AssertionError(f"failpoint did not fire within {timeout_s}s (key={key})")
 
 
-def test_temporal_activity_retry_idempotency_post_commit_failpoint_integration() -> None:
-    """Prove DB idempotency under real Temporal activity retry.
+def _seed_review_decision(case_id: str, decision_id: str) -> None:
+    SessionLocal = get_sessionmaker()
+    with SessionLocal() as session:
+        session.add(
+            ReviewDecision(
+                decision_id=decision_id,
+                schema_version="1.0",
+                case_id=case_id,
+                object_type="permit_case",
+                object_id=case_id,
+                decision_outcome="ACCEPT",
+                reviewer_id="reviewer-1",
+                subject_author_id="author-1",
+                reviewer_independence_status="PASS",
+                evidence_ids=[],
+                contradiction_resolution=None,
+                dissent_flag=False,
+                notes="activity retry idempotency integration test",
+                decision_at=sa.func.now(),
+                idempotency_key=f"idem/{decision_id}",
+            )
+        )
+        session.commit()
 
-    We deliberately raise *after commit* inside targeted activities so Temporal retries
-    them. The assertions then prove the authoritative Postgres side effects are still
-    exactly-once.
+
+def test_temporal_activity_retry_idempotency_post_commit_failpoint_integration() -> None:
+    """Prove guarded-transition DB idempotency under real Temporal activity retry.
+
+    We deliberately raise *after commit* inside apply_state_transition so Temporal retries
+    it. The assertions then prove the authoritative Postgres side effects are still
+    exactly-once even when the review decision already exists before signaling.
     """
 
     asyncio.run(_run_integration())
@@ -138,17 +164,15 @@ async def _run_integration() -> None:
     transition_name = "review_pending_to_approved_for_submission"
     req1 = _transition_request_id(workflow_id=workflow_id, run_id=run_id, transition=transition_name, attempt=1)
     req2 = _transition_request_id(workflow_id=workflow_id, run_id=run_id, transition=transition_name, attempt=2)
-
-    review_idempotency_key = f"review/{workflow_id}/{run_id}"
+    decision_id = f"DEC-{ulid.new()}"
 
     apply_failpoint_key = f"apply_state_transition.after_commit/{req2}"
-    review_failpoint_key = f"persist_review_decision.after_commit/{review_idempotency_key}"
 
     prior_enable = os.environ.get("SPS_ENABLE_TEST_FAILPOINTS")
     prior_keys = os.environ.get("SPS_TEST_FAILPOINT_KEYS")
 
     os.environ["SPS_ENABLE_TEST_FAILPOINTS"] = "1"
-    os.environ["SPS_TEST_FAILPOINT_KEYS"] = f"{review_failpoint_key},{apply_failpoint_key}"
+    os.environ["SPS_TEST_FAILPOINT_KEYS"] = apply_failpoint_key
     failpoints.reset_for_tests()
 
     executor = ThreadPoolExecutor(max_workers=10)
@@ -160,7 +184,6 @@ async def _run_integration() -> None:
             ensure_permit_case_exists,
             fetch_permit_case_state,
             apply_state_transition,
-            persist_review_decision,
         ],
         activity_executor=executor,
     )
@@ -188,26 +211,19 @@ async def _run_integration() -> None:
         else:
             raise AssertionError(f"expected denial ledger row not found for transition_id={req1}")
 
+        _seed_review_decision(case_id, decision_id)
+
         await handle.signal(
             PermitCaseWorkflow.review_decision,
             ReviewDecisionSignal(
+                decision_id=decision_id,
                 decision_outcome=ReviewDecisionOutcome.ACCEPT,
                 reviewer_id="reviewer-1",
                 notes="activity retry idempotency integration test",
             ),
         )
 
-        # Must-have: failpoints fire after commit. Once the failpoint has fired we should
-        # be able to observe the committed DB row immediately.
-        await _wait_for_failpoint_fired(review_failpoint_key)
-        with SessionLocal() as session:
-            review_rows = (
-                session.query(ReviewDecision)
-                .filter(ReviewDecision.idempotency_key == review_idempotency_key)
-                .all()
-            )
-            assert len(review_rows) == 1
-
+        # Must-have: failpoint fires after the final transition commit.
         await _wait_for_failpoint_fired(apply_failpoint_key)
         with SessionLocal() as session:
             ledger = session.get(CaseTransitionLedger, req2)
@@ -228,10 +244,11 @@ async def _run_integration() -> None:
         assert result.correlation_id == correlation_id
         assert result.initial_request_id == req1
         assert result.final_request_id == req2
+        assert result.review_decision_id == decision_id
         assert result.final_result.result == "applied"
 
         # Observability + proof: Temporal history should include the failpoint exception message
-        # for the first attempt of each targeted activity.
+        # for the first apply_state_transition attempt.
         history = await handle.fetch_history()
         history_dict = history.to_json_dict()
 
@@ -254,11 +271,9 @@ async def _run_integration() -> None:
         _collect_strings(history_dict, strings)
         history_text = "\n".join(strings)
 
-        assert f"FAILPOINT_FIRED key={review_failpoint_key}" in history_text
         assert f"FAILPOINT_FIRED key={apply_failpoint_key}" in history_text
 
-        # Must-have: prove the activities were retried (post-commit crash then retry).
-        assert failpoints.get_seen_count(review_failpoint_key) >= 2
+        # Must-have: prove the activity was retried (post-commit crash then retry).
         assert failpoints.get_seen_count(apply_failpoint_key) >= 2
 
         # Must-have: prove exactly-once Postgres effects.
@@ -272,11 +287,7 @@ async def _run_integration() -> None:
             assert len(ledgers) == 2
             assert {row.transition_id for row in ledgers} == {req1, req2}
 
-            review_rows = (
-                session.query(ReviewDecision)
-                .filter(ReviewDecision.idempotency_key == review_idempotency_key)
-                .all()
-            )
+            review_rows = session.query(ReviewDecision).filter(ReviewDecision.decision_id == decision_id).all()
             assert len(review_rows) == 1
 
     finally:

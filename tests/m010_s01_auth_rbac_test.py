@@ -24,7 +24,7 @@ def _migrate_db() -> None:
 def auth_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPS_AUTH_JWT_ISSUER", "test-issuer")
     monkeypatch.setenv("SPS_AUTH_JWT_AUDIENCE", "test-audience")
-    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret")
+    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret-0123456789abcdef0123456789")
     monkeypatch.setenv("SPS_AUTH_JWT_ALGORITHM", "HS256")
     get_settings.cache_clear()
     yield
@@ -55,7 +55,11 @@ def test_auth_required_missing_token(auth_env: None) -> None:
 
 def test_auth_required_invalid_token(auth_env: None) -> None:
     client = TestClient(app)
-    token = build_jwt(subject="user-1", roles=["ops"], secret="wrong-secret")
+    token = build_jwt(
+        subject="user-1",
+        roles=["ops"],
+        secret="wrong-secret-0123456789abcdef01234567",
+    )
     response = client.get("/api/v1/ops/dashboard/metrics", headers=_auth_headers(token))
     assert response.status_code == 401
     payload = response.json()["detail"]

@@ -247,8 +247,12 @@
       <h1>Queue Health</h1>
     </div>
     <div class="controls">
-      <label for="ops-api-key">Legacy API Key</label>
-      <input id="ops-api-key" type="password" placeholder="X-Reviewer-Api-Key" autocomplete="off" />
+      <label for="ops-bearer-token">Bearer Token</label>
+      <input id="ops-bearer-token" type="password" placeholder="Authorization: Bearer <token>" autocomplete="off" />
+      <label for="ops-mtls-header-name">mTLS Header</label>
+      <input id="ops-mtls-header-name" type="text" value="{{ mtls_header_name }}" autocomplete="off" />
+      <label for="ops-mtls-header-value">mTLS Signal</label>
+      <input id="ops-mtls-header-value" type="text" value="cert-present" autocomplete="off" />
       <button id="ops-refresh" type="button">Refresh</button>
     </div>
   </header>
@@ -256,7 +260,7 @@
   <main id="ops-dashboard" data-metrics-endpoint="{{ metrics_endpoint }}">
     <section class="status-panel">
       <h2>Access Model</h2>
-      <div class="status-text">This page renders without protected data. Metrics load only after you provide a legacy/manual reviewer key or call the API directly with service-principal JWT + mTLS.</div>
+      <div class="status-text">This page renders without protected data. Metrics load only after you provide a service-principal bearer token plus the mTLS signal header required by the protected ops API.</div>
     </section>
 
     <section class="metrics-grid">

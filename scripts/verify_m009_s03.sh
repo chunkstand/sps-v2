@@ -26,10 +26,20 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 2
 fi
 
-REVIEWER_API_KEY="${SPS_REVIEWER_API_KEY:-dev-reviewer-key}"
 API_HOST="${API_HOST:-localhost}"
 API_PORT="${API_PORT:-8000}"
 API_BASE="http://${API_HOST}:${API_PORT}"
+SERVICE_PRINCIPAL_TOKEN="$($PYTHON - <<'PY'
+from sps.auth.service_principal import mint_service_principal_jwt
+print(mint_service_principal_jwt(subject="svc-m009-s03-runbook", roles=["release"]))
+PY
+)"
+MTLS_HEADER_NAME="$($PYTHON - <<'PY'
+from sps.config import get_settings
+print(get_settings().auth_mtls_signal_header)
+PY
+)"
+MTLS_HEADER_VALUE="${SPS_MTLS_HEADER_VALUE:-cert-present}"
 
 RELEASE_ID="REL-M009-S03-$(date +%Y%m%d%H%M%S)-$$"
 REHEARSAL_ID="REH-M009-S03-$(date +%Y%m%d%H%M%S)-$$"
@@ -65,7 +75,8 @@ export HTTP_RESPONSE_FILE
 if ! HTTP_STATUS="$(curl -sS -o "$HTTP_RESPONSE_FILE" -w "%{http_code}" \
   -X POST "${API_BASE}/api/v1/releases/rollbacks/rehearsals" \
   -H "Content-Type: application/json" \
-  -H "X-Reviewer-Api-Key: ${REVIEWER_API_KEY}" \
+  -H "Authorization: Bearer ${SERVICE_PRINCIPAL_TOKEN}" \
+  -H "${MTLS_HEADER_NAME}: ${MTLS_HEADER_VALUE}" \
   -d "$REQUEST_BODY")"; then
   echo "runbook.fail: curl_error action=create_rehearsal" >&2
   exit 1

@@ -20,7 +20,7 @@ export SPS_DB_DSN="${SPS_DB_DSN:-postgresql+psycopg://sps:sps@localhost:5432/sps
 export SPS_LOG_LEVEL="${SPS_LOG_LEVEL:-info}"
 export SPS_AUTH_JWT_ISSUER="${SPS_AUTH_JWT_ISSUER:-sps.local}"
 export SPS_AUTH_JWT_AUDIENCE="${SPS_AUTH_JWT_AUDIENCE:-sps.api}"
-export SPS_AUTH_JWT_SECRET="${SPS_AUTH_JWT_SECRET:-dev-secret}"
+export SPS_AUTH_JWT_SECRET="${SPS_AUTH_JWT_SECRET:-dev-secret-0123456789abcdef0123456789}"
 export SPS_AUTH_JWT_ALGORITHM="${SPS_AUTH_JWT_ALGORITHM:-HS256}"
 
 WORKER_PID=""

@@ -26,6 +26,7 @@ _SECRET_FIELD_NAMES = {
 _BASE_RECORD_ATTRS = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys())
 
 _AUTH_PATTERN = re.compile(r"(?i)(authorization\s*[:=]\s*)(?:Bearer\s+)?([^\s,;]+)")
+_BARE_BEARER_PATTERN = re.compile(r"(?i)^Bearer\s+[^\s,;]+$")
 _KEY_VALUE_PATTERN = re.compile(
     r"(?i)\b(?P<key>api_key|reviewer_api_key|jwt_secret|password|token|access_token|dsn)\b\s*[:=]\s*(?P<value>[^\s,;]+)"
 )
@@ -44,6 +45,9 @@ def _is_secret_key(key: str) -> bool:
 
 
 def redact_string(value: str) -> str:
+    if _BARE_BEARER_PATTERN.match(value):
+        return REDACTION_TOKEN
+
     redacted = _AUTH_PATTERN.sub(r"\1" + REDACTION_TOKEN, value)
 
     def _replace_key_value(match: re.Match[str]) -> str:
@@ -69,9 +73,26 @@ def redact_value(value: Any) -> Any:
     return value
 
 
+def _redact_args(value: Any) -> Any:
+    if isinstance(value, tuple):
+        return tuple(redact_value(item) for item in value)
+    if isinstance(value, list):
+        return [redact_value(item) for item in value]
+    if isinstance(value, Mapping):
+        return {
+            key: (REDACTION_TOKEN if _is_secret_key(str(key)) else redact_value(item))
+            for key, item in value.items()
+        }
+    return redact_value(value)
+
+
 def _redact_record(record: logging.LogRecord) -> logging.LogRecord:
-    record.msg = redact_string(record.getMessage())
-    record.args = ()
+    if record.args:
+        record.args = _redact_args(record.args)
+    elif isinstance(record.msg, str):
+        record.msg = redact_string(record.msg)
+    else:
+        record.msg = redact_value(record.msg)
 
     for key, value in list(record.__dict__.items()):
         if key in _BASE_RECORD_ATTRS:

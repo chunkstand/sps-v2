@@ -48,7 +48,7 @@ def _migrate_db() -> None:
 def auth_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPS_AUTH_JWT_ISSUER", "test-issuer")
     monkeypatch.setenv("SPS_AUTH_JWT_AUDIENCE", "test-audience")
-    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret")
+    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret-0123456789abcdef0123456789")
     monkeypatch.setenv("SPS_AUTH_JWT_ALGORITHM", "HS256")
     get_settings.cache_clear()
     yield

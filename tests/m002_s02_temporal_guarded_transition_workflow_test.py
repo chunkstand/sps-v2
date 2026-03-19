@@ -16,13 +16,12 @@ from temporalio.worker import Worker
 import ulid
 
 from sps.config import get_settings
-from sps.db.models import CaseTransitionLedger, PermitCase
+from sps.db.models import CaseTransitionLedger, PermitCase, ReviewDecision
 from sps.db.session import get_engine, get_sessionmaker
 from sps.workflows.permit_case.activities import (
     apply_state_transition,
     ensure_permit_case_exists,
     fetch_permit_case_state,
-    persist_review_decision,
 )
 from sps.workflows.permit_case.contracts import (
     PermitCaseWorkflowResult,
@@ -33,6 +32,8 @@ from sps.workflows.permit_case.ids import permit_case_workflow_id
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import connect_client
 
+
+pytestmark = pytest.mark.integration
 
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
@@ -109,6 +110,31 @@ async def _wait_for_ledger_row(transition_id: str, timeout_s: float = 10.0) -> C
     )
 
 
+def _seed_review_decision(case_id: str, decision_id: str) -> None:
+    SessionLocal = get_sessionmaker()
+    with SessionLocal() as session:
+        session.add(
+            ReviewDecision(
+                decision_id=decision_id,
+                schema_version="1.0",
+                case_id=case_id,
+                object_type="permit_case",
+                object_id=case_id,
+                decision_outcome="ACCEPT",
+                reviewer_id="reviewer-1",
+                subject_author_id="author-1",
+                reviewer_independence_status="PASS",
+                evidence_ids=[],
+                contradiction_resolution=None,
+                dissent_flag=False,
+                notes="integration test",
+                decision_at=sa.func.now(),
+                idempotency_key=f"idem/{decision_id}",
+            )
+        )
+        session.commit()
+
+
 def test_temporal_guarded_transition_workflow_denial_signal_unblock_integration() -> None:
     """End-to-end proof: denial → wait → signal → persist → apply.
 
@@ -139,7 +165,6 @@ async def _run_integration() -> None:
             ensure_permit_case_exists,
             fetch_permit_case_state,
             apply_state_transition,
-            persist_review_decision,
         ],
         activity_executor=executor,
     )
@@ -193,9 +218,13 @@ async def _run_integration() -> None:
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(handle.result(), timeout=1.0)
 
+        decision_id = f"DEC-{ulid.new()}"
+        _seed_review_decision(case_id, decision_id)
+
         await handle.signal(
             PermitCaseWorkflow.review_decision,
             ReviewDecisionSignal(
+                decision_id=decision_id,
                 decision_outcome=ReviewDecisionOutcome.ACCEPT,
                 reviewer_id="reviewer-1",
                 notes="integration test",
@@ -213,6 +242,7 @@ async def _run_integration() -> None:
         assert result.correlation_id == correlation_id
         assert result.initial_request_id == req1
         assert result.final_request_id == req2
+        assert result.review_decision_id == decision_id
         assert result.final_result.result == "applied"
 
         with SessionLocal() as session:

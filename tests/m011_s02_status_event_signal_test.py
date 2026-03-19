@@ -12,6 +12,7 @@ import asyncio
 import datetime as dt
 import os
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 
@@ -24,11 +25,11 @@ from temporalio.worker import Worker
 from sps.config import get_settings
 from sps.db.models import (
     ApprovalRecord,
+    CaseTransitionLedger,
     CorrectionTask,
     InspectionMilestone,
     PermitCase,
     ResubmissionPackage,
-    SubmissionAttempt,
 )
 from sps.db.session import get_engine, get_sessionmaker
 from sps.workflows.permit_case.activities import (
@@ -49,6 +50,9 @@ from sps.workflows.permit_case.contracts import (
 from sps.workflows.permit_case.ids import permit_case_workflow_id
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import connect_client
+from tests.fixtures.seed_submission_package import seed_submission_attempt
+
+pytestmark = pytest.mark.integration
 
 
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
@@ -96,27 +100,71 @@ async def _connect_temporal_with_retry(timeout_s: float = 30.0):
     )
 
 
-def _clear_case_row(case_id: str) -> None:
+async def _wait_for_ledger_row_by_event(
+    *,
+    case_id: str,
+    event_type: str,
+    timeout_s: float = 30.0,
+) -> CaseTransitionLedger:
+    deadline = time.time() + timeout_s
     SessionLocal = get_sessionmaker()
-    with SessionLocal() as session:
-        session.execute(sa.delete(PermitCase).where(PermitCase.case_id == case_id))
-        session.execute(sa.delete(SubmissionAttempt).where(SubmissionAttempt.case_id == case_id))
-        session.execute(sa.delete(CorrectionTask).where(CorrectionTask.case_id == case_id))
-        session.execute(sa.delete(ResubmissionPackage).where(ResubmissionPackage.case_id == case_id))
-        session.execute(sa.delete(ApprovalRecord).where(ApprovalRecord.case_id == case_id))
-        session.execute(sa.delete(InspectionMilestone).where(InspectionMilestone.case_id == case_id))
-        session.commit()
+
+    while time.time() < deadline:
+        with SessionLocal() as session:
+            row = (
+                session.query(CaseTransitionLedger)
+                .filter(
+                    CaseTransitionLedger.case_id == case_id,
+                    CaseTransitionLedger.event_type == event_type,
+                )
+                .first()
+            )
+            if row is not None:
+                return row
+        await asyncio.sleep(0.25)
+
+    raise AssertionError(
+        f"case_transition_ledger row not found: case_id={case_id} event_type={event_type}"
+    )
+
+
+async def _wait_for_record(model: type[sa.orm.DeclarativeBase], record_id_field, record_id: str, timeout_s: float = 10.0):
+    deadline = time.time() + timeout_s
+    SessionLocal = get_sessionmaker()
+
+    while time.time() < deadline:
+        with SessionLocal() as session:
+            row = session.query(model).filter(record_id_field == record_id).first()
+            if row is not None:
+                return row
+        await asyncio.sleep(0.25)
+
+    raise AssertionError(
+        f"{model.__name__} row not found within {timeout_s}s for id={record_id}"
+    )
+
+
+def _reset_db() -> None:
+    engine = get_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            sa.text(
+                "TRUNCATE TABLE correction_tasks, resubmission_packages, approval_records, "
+                "inspection_milestones, external_status_events, submission_attempts, "
+                "submission_packages, evidence_artifacts, permit_cases CASCADE"
+            )
+        )
 
 
 def _seed_case_and_submission(case_id: str, submission_attempt_id: str) -> None:
-    """Seed PermitCase + SubmissionAttempt for test setup."""
+    """Seed PermitCase plus a schema-valid submission attempt graph for test setup."""
     SessionLocal = get_sessionmaker()
     with SessionLocal() as session:
         case = PermitCase(
             case_id=case_id,
             tenant_id="tenant-local",
             project_id=f"project-{case_id}",
-            case_state=CaseState.SUBMITTED.value,
+            case_state=CaseState.REVIEW_PENDING.value,
             review_state="PENDING",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
@@ -126,27 +174,11 @@ def _seed_case_and_submission(case_id: str, submission_attempt_id: str) -> None:
             closure_reason=None,
         )
         session.add(case)
-        
-        attempt = SubmissionAttempt(
-            submission_attempt_id=submission_attempt_id,
-            case_id=case_id,
-            package_id=f"PKG-{case_id}",
-            manifest_artifact_id=f"MANIFEST-{case_id}",
-            target_portal_family="CITY_PORTAL_FAMILY_A",
-            portal_support_level="FULLY_SUPPORTED",
-            request_id=f"REQ-{case_id}",
-            idempotency_key=f"submit/{case_id}/attempt-1",
-            attempt_number=1,
-            status="SUBMITTED",
-            outcome="SUCCESS",
-            external_tracking_id=f"EXT-{case_id}",
-            receipt_artifact_id=None,
-            submitted_at=dt.datetime.now(dt.UTC),
-            failure_class=None,
-            last_error=None,
-            last_error_context=None,
-        )
-        session.add(attempt)
+        session.flush()
+        attempt = seed_submission_attempt(session, case_id, submission_attempt_id, attempt_number=1)
+        attempt.outcome = "SUCCESS"
+        attempt.external_tracking_id = f"EXT-{case_id}"
+        attempt.submitted_at = dt.datetime.now(dt.UTC)
         session.commit()
 
 
@@ -158,11 +190,12 @@ def test_status_event_signal_comment_issued() -> None:
 async def _run_comment_issued_test() -> None:
     _wait_for_postgres_ready()
     _migrate_db()
-    
-    case_id = "CASE-COMMENT-TEST-001"
-    submission_attempt_id = "SUB-ATT-001"
-    
-    _clear_case_row(case_id)
+
+    suffix = uuid.uuid4().hex[:8]
+    case_id = f"CASE-COMMENT-TEST-{suffix}"
+    submission_attempt_id = f"SUB-ATT-COMMENT-{suffix}"
+
+    _reset_db()
     _seed_case_and_submission(case_id, submission_attempt_id)
     
     client = await _connect_temporal_with_retry()
@@ -184,8 +217,9 @@ async def _run_comment_issued_test() -> None:
         ],
         activity_executor=executor,
     )
-    
+
     worker_task = asyncio.create_task(worker.run())
+    handle = None
     try:
         workflow_id = permit_case_workflow_id(case_id)
         handle = await client.start_workflow(
@@ -194,7 +228,8 @@ async def _run_comment_issued_test() -> None:
             id=workflow_id,
             task_queue=settings.temporal_task_queue,
         )
-        
+        await _wait_for_ledger_row_by_event(case_id=case_id, event_type="APPROVAL_GATE_DENIED")
+
         # Send StatusEvent signal with COMMENT_ISSUED
         event_id = "ESE-COMMENT-001"
         signal = StatusEventSignal(
@@ -204,22 +239,20 @@ async def _run_comment_issued_test() -> None:
             normalized_status=ExternalStatusClass.COMMENT_ISSUED,
         )
         await handle.signal("StatusEvent", signal)
-        
-        # Allow workflow to process signal
-        await asyncio.sleep(2)
-        
+
         # Verify correction_tasks row exists
-        SessionLocal = get_sessionmaker()
-        with SessionLocal() as session:
-            correction_task = session.query(CorrectionTask).filter(
-                CorrectionTask.correction_task_id == f"CORRECTION-{event_id}"
-            ).first()
-            
-            assert correction_task is not None
-            assert correction_task.case_id == case_id
-            assert correction_task.submission_attempt_id == submission_attempt_id
-            assert correction_task.status == "PENDING"
+        correction_task = await _wait_for_record(
+            CorrectionTask,
+            CorrectionTask.correction_task_id,
+            f"CORRECTION-{event_id}",
+        )
+        assert correction_task.case_id == case_id
+        assert correction_task.submission_attempt_id == submission_attempt_id
+        assert correction_task.status == "PENDING"
     finally:
+        if handle is not None:
+            with suppress(Exception):
+                await handle.terminate("test cleanup")
         worker_task.cancel()
         with suppress(asyncio.CancelledError):
             await worker_task
@@ -233,11 +266,12 @@ def test_status_event_signal_resubmission_requested() -> None:
 async def _run_resubmission_requested_test() -> None:
     _wait_for_postgres_ready()
     _migrate_db()
+
+    suffix = uuid.uuid4().hex[:8]
+    case_id = f"CASE-RESUBMIT-TEST-{suffix}"
+    submission_attempt_id = f"SUB-ATT-RESUBMIT-{suffix}"
     
-    case_id = "CASE-RESUBMIT-TEST-001"
-    submission_attempt_id = "SUB-ATT-002"
-    
-    _clear_case_row(case_id)
+    _reset_db()
     _seed_case_and_submission(case_id, submission_attempt_id)
     
     client = await _connect_temporal_with_retry()
@@ -259,8 +293,9 @@ async def _run_resubmission_requested_test() -> None:
         ],
         activity_executor=executor,
     )
-    
+
     worker_task = asyncio.create_task(worker.run())
+    handle = None
     try:
         workflow_id = permit_case_workflow_id(case_id)
         handle = await client.start_workflow(
@@ -269,7 +304,8 @@ async def _run_resubmission_requested_test() -> None:
             id=workflow_id,
             task_queue=settings.temporal_task_queue,
         )
-        
+        await _wait_for_ledger_row_by_event(case_id=case_id, event_type="APPROVAL_GATE_DENIED")
+
         # Send StatusEvent signal with RESUBMISSION_REQUESTED
         event_id = "ESE-RESUBMIT-001"
         signal = StatusEventSignal(
@@ -279,22 +315,20 @@ async def _run_resubmission_requested_test() -> None:
             normalized_status=ExternalStatusClass.RESUBMISSION_REQUESTED,
         )
         await handle.signal("StatusEvent", signal)
-        
-        # Allow workflow to process signal
-        await asyncio.sleep(2)
-        
+
         # Verify resubmission_packages row exists
-        SessionLocal = get_sessionmaker()
-        with SessionLocal() as session:
-            resubmission_package = session.query(ResubmissionPackage).filter(
-                ResubmissionPackage.resubmission_package_id == f"RESUBMISSION-{event_id}"
-            ).first()
-            
-            assert resubmission_package is not None
-            assert resubmission_package.case_id == case_id
-            assert resubmission_package.submission_attempt_id == submission_attempt_id
-            assert resubmission_package.status == "REQUESTED"
+        resubmission_package = await _wait_for_record(
+            ResubmissionPackage,
+            ResubmissionPackage.resubmission_package_id,
+            f"RESUBMISSION-{event_id}",
+        )
+        assert resubmission_package.case_id == case_id
+        assert resubmission_package.submission_attempt_id == submission_attempt_id
+        assert resubmission_package.status == "REQUESTED"
     finally:
+        if handle is not None:
+            with suppress(Exception):
+                await handle.terminate("test cleanup")
         worker_task.cancel()
         with suppress(asyncio.CancelledError):
             await worker_task
@@ -308,11 +342,12 @@ def test_status_event_signal_approval_final() -> None:
 async def _run_approval_final_test() -> None:
     _wait_for_postgres_ready()
     _migrate_db()
+
+    suffix = uuid.uuid4().hex[:8]
+    case_id = f"CASE-APPROVAL-TEST-{suffix}"
+    submission_attempt_id = f"SUB-ATT-APPROVAL-{suffix}"
     
-    case_id = "CASE-APPROVAL-TEST-001"
-    submission_attempt_id = "SUB-ATT-003"
-    
-    _clear_case_row(case_id)
+    _reset_db()
     _seed_case_and_submission(case_id, submission_attempt_id)
     
     client = await _connect_temporal_with_retry()
@@ -334,8 +369,9 @@ async def _run_approval_final_test() -> None:
         ],
         activity_executor=executor,
     )
-    
+
     worker_task = asyncio.create_task(worker.run())
+    handle = None
     try:
         workflow_id = permit_case_workflow_id(case_id)
         handle = await client.start_workflow(
@@ -344,7 +380,8 @@ async def _run_approval_final_test() -> None:
             id=workflow_id,
             task_queue=settings.temporal_task_queue,
         )
-        
+        await _wait_for_ledger_row_by_event(case_id=case_id, event_type="APPROVAL_GATE_DENIED")
+
         # Send StatusEvent signal with APPROVAL_FINAL
         event_id = "ESE-APPROVAL-001"
         signal = StatusEventSignal(
@@ -354,22 +391,20 @@ async def _run_approval_final_test() -> None:
             normalized_status=ExternalStatusClass.APPROVAL_FINAL,
         )
         await handle.signal("StatusEvent", signal)
-        
-        # Allow workflow to process signal
-        await asyncio.sleep(2)
-        
+
         # Verify approval_records row exists
-        SessionLocal = get_sessionmaker()
-        with SessionLocal() as session:
-            approval_record = session.query(ApprovalRecord).filter(
-                ApprovalRecord.approval_record_id == f"APPROVAL-{event_id}"
-            ).first()
-            
-            assert approval_record is not None
-            assert approval_record.case_id == case_id
-            assert approval_record.submission_attempt_id == submission_attempt_id
-            assert approval_record.decision == "APPROVED"
+        approval_record = await _wait_for_record(
+            ApprovalRecord,
+            ApprovalRecord.approval_record_id,
+            f"APPROVAL-{event_id}",
+        )
+        assert approval_record.case_id == case_id
+        assert approval_record.submission_attempt_id == submission_attempt_id
+        assert approval_record.decision == "APPROVED"
     finally:
+        if handle is not None:
+            with suppress(Exception):
+                await handle.terminate("test cleanup")
         worker_task.cancel()
         with suppress(asyncio.CancelledError):
             await worker_task
@@ -383,11 +418,12 @@ def test_status_event_signal_inspection_passed() -> None:
 async def _run_inspection_passed_test() -> None:
     _wait_for_postgres_ready()
     _migrate_db()
+
+    suffix = uuid.uuid4().hex[:8]
+    case_id = f"CASE-INSPECTION-TEST-{suffix}"
+    submission_attempt_id = f"SUB-ATT-INSPECTION-{suffix}"
     
-    case_id = "CASE-INSPECTION-TEST-001"
-    submission_attempt_id = "SUB-ATT-004"
-    
-    _clear_case_row(case_id)
+    _reset_db()
     _seed_case_and_submission(case_id, submission_attempt_id)
     
     client = await _connect_temporal_with_retry()
@@ -409,8 +445,9 @@ async def _run_inspection_passed_test() -> None:
         ],
         activity_executor=executor,
     )
-    
+
     worker_task = asyncio.create_task(worker.run())
+    handle = None
     try:
         workflow_id = permit_case_workflow_id(case_id)
         handle = await client.start_workflow(
@@ -419,7 +456,8 @@ async def _run_inspection_passed_test() -> None:
             id=workflow_id,
             task_queue=settings.temporal_task_queue,
         )
-        
+        await _wait_for_ledger_row_by_event(case_id=case_id, event_type="APPROVAL_GATE_DENIED")
+
         # Send StatusEvent signal with INSPECTION_PASSED
         event_id = "ESE-INSPECTION-001"
         signal = StatusEventSignal(
@@ -429,23 +467,21 @@ async def _run_inspection_passed_test() -> None:
             normalized_status=ExternalStatusClass.INSPECTION_PASSED,
         )
         await handle.signal("StatusEvent", signal)
-        
-        # Allow workflow to process signal
-        await asyncio.sleep(2)
-        
+
         # Verify inspection_milestones row exists
-        SessionLocal = get_sessionmaker()
-        with SessionLocal() as session:
-            inspection_milestone = session.query(InspectionMilestone).filter(
-                InspectionMilestone.inspection_milestone_id == f"INSPECTION-{event_id}"
-            ).first()
-            
-            assert inspection_milestone is not None
-            assert inspection_milestone.case_id == case_id
-            assert inspection_milestone.submission_attempt_id == submission_attempt_id
-            assert inspection_milestone.milestone_type == "FINAL"
-            assert inspection_milestone.status == "INSPECTION_PASSED"
+        inspection_milestone = await _wait_for_record(
+            InspectionMilestone,
+            InspectionMilestone.inspection_milestone_id,
+            f"INSPECTION-{event_id}",
+        )
+        assert inspection_milestone.case_id == case_id
+        assert inspection_milestone.submission_attempt_id == submission_attempt_id
+        assert inspection_milestone.milestone_type == "FINAL"
+        assert inspection_milestone.status == "INSPECTION_PASSED"
     finally:
+        if handle is not None:
+            with suppress(Exception):
+                await handle.terminate("test cleanup")
         worker_task.cancel()
         with suppress(asyncio.CancelledError):
             await worker_task

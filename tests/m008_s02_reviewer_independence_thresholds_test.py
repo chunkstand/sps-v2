@@ -38,6 +38,8 @@ from sps.config import get_settings
 from sps.db.models import PermitCase, ReviewDecision
 from sps.db.session import get_engine, get_sessionmaker
 
+pytestmark = pytest.mark.integration
+
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
         "Temporal integration tests are opt-in (set SPS_RUN_TEMPORAL_INTEGRATION=1)",

@@ -23,7 +23,10 @@ from sps.config import get_settings
 from sps.db.models import ContradictionArtifact, PermitCase
 from sps.db.session import get_engine, get_sessionmaker
 from sps.services.ops_metrics import STALLED_REVIEW_THRESHOLD
+from tests.helpers.auth_tokens import build_service_principal_headers
 
+
+pytestmark = pytest.mark.integration
 
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
@@ -133,6 +136,7 @@ def _seed_contradiction(
 
 @pytest.mark.anyio
 async def test_ops_dashboard_page_renders() -> None:
+    settings = get_settings()
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/ops")
@@ -142,7 +146,8 @@ async def test_ops_dashboard_page_renders() -> None:
         f"Expected 200 from /ops, got {response.status_code}: {response.text}"
     )
     assert "Queue Health" in response.text
-    assert "Legacy API Key" in response.text
+    assert "Bearer Token" in response.text
+    assert settings.auth_mtls_signal_header in response.text
     assert "This page renders without protected data." in response.text
     assert "/static/ops.js" in response.text
     assert 'data-metrics-endpoint="/api/v1/ops/dashboard/metrics"' in response.text
@@ -150,14 +155,12 @@ async def test_ops_dashboard_page_renders() -> None:
     assert static_response.status_code == 200
     assert "/api/v1/ops/dashboard/metrics" in static_response.text
     assert "metrics_fetch_failed" in static_response.text
-    assert "X-Reviewer-Api-Key" in static_response.text
-    assert "legacy/manual reviewer key" in static_response.text
+    assert "Authorization" in static_response.text
+    assert "service-principal auth" in static_response.text
 
 
 @pytest.mark.anyio
 async def test_ops_metrics_endpoint_returns_expected_counts() -> None:
-    settings = get_settings()
-
     _wait_for_postgres_ready()
     _migrate_db()
     _reset_db()
@@ -192,7 +195,7 @@ async def test_ops_metrics_endpoint_returns_expected_counts() -> None:
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get(
             "/api/v1/ops/dashboard/metrics",
-            headers={"X-Reviewer-Api-Key": settings.reviewer_api_key},
+            headers=build_service_principal_headers(roles=["ops"], subject="svc-ops-dashboard"),
         )
 
     assert response.status_code == 200, (
