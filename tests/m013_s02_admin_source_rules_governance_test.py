@@ -40,6 +40,8 @@ from sps.db.models import AuditEvent, SourceRule
 from sps.db.session import get_engine, get_sessionmaker
 from tests.helpers.auth_tokens import build_jwt
 
+pytestmark = pytest.mark.integration
+
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
         "Temporal integration tests are opt-in (set SPS_RUN_TEMPORAL_INTEGRATION=1)",
@@ -112,7 +114,7 @@ def _db_lifecycle() -> None:  # type: ignore[return]
 def auth_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPS_AUTH_JWT_ISSUER", "test-issuer")
     monkeypatch.setenv("SPS_AUTH_JWT_AUDIENCE", "test-audience")
-    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret")
+    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret-0123456789abcdef0123456789")
     monkeypatch.setenv("SPS_AUTH_JWT_ALGORITHM", "HS256")
     get_settings.cache_clear()
     yield

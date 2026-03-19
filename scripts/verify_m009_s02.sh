@@ -25,7 +25,6 @@ if [[ ! -x "$ALEMBIC" ]]; then
   exit 2
 fi
 
-REVIEWER_API_KEY="${SPS_REVIEWER_API_KEY:-dev-reviewer-key}"
 API_HOST="${API_HOST:-localhost}"
 API_PORT="${API_PORT:-8000}"
 API_BASE="http://${API_HOST}:${API_PORT}"
@@ -212,8 +211,7 @@ _make_good_manifest
   --manifest "$GOOD_MANIFEST_DIR/sps_full_spec_package/PACKAGE-MANIFEST.json" \
   --root "$GOOD_MANIFEST_DIR/sps_full_spec_package" \
   --release-id "RUNBOOK-REL-001" \
-  --api-base "$API_BASE" \
-  --reviewer-api-key "$REVIEWER_API_KEY" >/dev/null
+  --api-base "$API_BASE" >/dev/null
 
 popd >/dev/null
 

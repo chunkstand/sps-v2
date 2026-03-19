@@ -16,6 +16,8 @@ from sps.workflows.permit_case.activities import apply_state_transition
 from sps.workflows.permit_case.contracts import ActorType, CaseState, StateTransitionRequest
 
 
+pytestmark = pytest.mark.integration
+
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
         "DB-backed integration tests are opt-in (set SPS_RUN_TEMPORAL_INTEGRATION=1)",

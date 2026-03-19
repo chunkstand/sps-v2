@@ -78,7 +78,10 @@ class Settings(BaseSettings):
     # IMPORTANT: secrets must never be logged.
     auth_jwt_issuer: str = Field(default="sps.local", validation_alias="SPS_AUTH_JWT_ISSUER")
     auth_jwt_audience: str = Field(default="sps.api", validation_alias="SPS_AUTH_JWT_AUDIENCE")
-    auth_jwt_secret: str = Field(default="dev-secret", validation_alias="SPS_AUTH_JWT_SECRET")
+    auth_jwt_secret: str = Field(
+        default="dev-secret-0123456789abcdef0123456789",
+        validation_alias="SPS_AUTH_JWT_SECRET",
+    )
     auth_jwt_algorithm: str = Field(default="HS256", validation_alias="SPS_AUTH_JWT_ALGORITHM")
     auth_mtls_signal_header: str = Field(
         default="X-Forwarded-Client-Cert",

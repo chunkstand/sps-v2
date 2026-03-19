@@ -145,7 +145,7 @@ async def _run_post_submission_artifact_api_lists() -> None:
     import os
     os.environ["SPS_AUTH_JWT_ISSUER"] = "test-issuer"
     os.environ["SPS_AUTH_JWT_AUDIENCE"] = "test-audience"
-    os.environ["SPS_AUTH_JWT_SECRET"] = "test-secret"
+    os.environ["SPS_AUTH_JWT_SECRET"] = "test-secret-0123456789abcdef0123456789"
     os.environ["SPS_AUTH_JWT_ALGORITHM"] = "HS256"
     get_settings.cache_clear()
     

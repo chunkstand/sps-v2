@@ -41,6 +41,11 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=[e.value for e in ReviewDecisionOutcome],
         help="ACCEPT, ACCEPT_WITH_DISSENT, or BLOCK", 
     )
+    signal.add_argument(
+        "--decision-id",
+        required=True,
+        help="Existing review_decisions.decision_id to re-signal into the workflow",
+    )
     signal.add_argument("--reviewer-id", required=True)
     signal.add_argument("--notes", default=None)
     signal.add_argument(
@@ -78,6 +83,7 @@ async def _cmd_start(case_id: str) -> WorkflowHandle:
 async def _cmd_signal_review(
     *,
     case_id: str,
+    decision_id: str,
     decision_outcome: str,
     reviewer_id: str,
     notes: str | None,
@@ -89,6 +95,7 @@ async def _cmd_signal_review(
     handle = client.get_workflow_handle(workflow_id)
 
     signal = ReviewDecisionSignal(
+        decision_id=decision_id,
         decision_outcome=ReviewDecisionOutcome(decision_outcome),
         reviewer_id=reviewer_id,
         notes=notes,
@@ -120,6 +127,7 @@ async def _run(argv: list[str] | None = None) -> int:
         if args.command == "signal-review":
             await _cmd_signal_review(
                 case_id=args.case_id,
+                decision_id=args.decision_id,
                 decision_outcome=args.decision_outcome,
                 reviewer_id=args.reviewer_id,
                 notes=args.notes,

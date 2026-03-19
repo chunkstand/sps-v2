@@ -35,6 +35,8 @@ from sps.workflows.permit_case.contracts import (
     StateTransitionRequest,
 )
 
+pytestmark = pytest.mark.integration
+
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
         "Temporal integration tests are opt-in (set SPS_RUN_TEMPORAL_INTEGRATION=1)",

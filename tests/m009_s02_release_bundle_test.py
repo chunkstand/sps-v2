@@ -41,7 +41,10 @@ from sps.services.release_bundle_manifest import (
     ReleaseBundleManifestError,
     build_release_bundle_components,
 )
+from tests.helpers.auth_tokens import build_service_principal_headers
 
+
+pytestmark = pytest.mark.integration
 
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
@@ -261,8 +264,6 @@ def _db_lifecycle() -> Generator[None, None, None]:
 
 @pytest.mark.anyio
 async def test_release_blockers_endpoint_filters_scope() -> None:
-    settings = get_settings()
-
     case_id = "CASE-REL-BLOCK-001"
     decision_id = "DEC-REL-BLOCK-001"
     decision_id_low = "DEC-REL-BLOCK-LOW"
@@ -301,7 +302,7 @@ async def test_release_blockers_endpoint_filters_scope() -> None:
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get(
             "/api/v1/ops/release-blockers",
-            headers={"X-Reviewer-Api-Key": settings.reviewer_api_key},
+            headers=build_service_principal_headers(roles=["ops"], subject="svc-release-blockers"),
         )
 
     assert response.status_code == 200, (
@@ -322,8 +323,6 @@ async def test_release_blockers_endpoint_filters_scope() -> None:
 
 @pytest.mark.anyio
 async def test_release_bundle_persists_rows() -> None:
-    settings = get_settings()
-
     release_id = "REL-2026-03-16"
 
     request_body = {
@@ -347,7 +346,7 @@ async def test_release_bundle_persists_rows() -> None:
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/api/v1/releases/bundles",
-            headers={"X-Reviewer-Api-Key": settings.reviewer_api_key},
+            headers=build_service_principal_headers(roles=["release"], subject="svc-release-create"),
             json=request_body,
         )
 
@@ -379,8 +378,6 @@ async def test_release_bundle_persists_rows() -> None:
 
 @pytest.mark.anyio
 async def test_release_bundle_rejects_mismatched_artifact_digests() -> None:
-    settings = get_settings()
-
     request_body = {
         "release_id": "REL-2026-03-16-BAD",
         "spec_version": "spec-1",
@@ -402,7 +399,10 @@ async def test_release_bundle_rejects_mismatched_artifact_digests() -> None:
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/api/v1/releases/bundles",
-            headers={"X-Reviewer-Api-Key": settings.reviewer_api_key},
+            headers=build_service_principal_headers(
+                roles=["release"],
+                subject="svc-release-digest-check",
+            ),
             json=request_body,
         )
 
@@ -417,12 +417,10 @@ async def test_release_bundle_rejects_mismatched_artifact_digests() -> None:
 
 
 def test_release_bundle_cli_success(tmp_path: Path) -> None:
-    settings = get_settings()
     manifest_path, root_dir = _write_temp_manifest(tmp_path)
 
     env = os.environ.copy()
     env["API_BASE"] = "http://test"
-    env["SPS_REVIEWER_API_KEY"] = settings.reviewer_api_key
     env["SPS_RELEASE_BUNDLE_HTTP_MODE"] = "asgi"
 
     result = _run_release_bundle_cli(
@@ -496,12 +494,10 @@ def test_release_bundle_manifest_missing_artifact_id_raises(tmp_path: Path) -> N
 
 
 def test_release_bundle_cli_dry_run_surfaces_runtime_adapter_versions(tmp_path: Path) -> None:
-    settings = get_settings()
     manifest_path, root_dir = _write_temp_manifest(tmp_path)
 
     env = os.environ.copy()
     env["API_BASE"] = "http://test"
-    env["SPS_REVIEWER_API_KEY"] = settings.reviewer_api_key
     env["SPS_RELEASE_BUNDLE_HTTP_MODE"] = "asgi"
 
     result = _run_release_bundle_cli(
@@ -523,14 +519,12 @@ def test_release_bundle_cli_dry_run_surfaces_runtime_adapter_versions(tmp_path: 
 
 
 def test_release_bundle_cli_manifest_path_includes_root(tmp_path: Path) -> None:
-    settings = get_settings()
     root_dir = tmp_path / "sps_full_spec_package"
     root_dir.mkdir()
     _write_temp_manifest(tmp_path, root_dir=root_dir)
 
     env = os.environ.copy()
     env["API_BASE"] = "http://test"
-    env["SPS_REVIEWER_API_KEY"] = settings.reviewer_api_key
     env["SPS_RELEASE_BUNDLE_HTTP_MODE"] = "asgi"
 
     result = _run_release_bundle_cli(
@@ -555,12 +549,10 @@ def test_release_bundle_cli_manifest_path_includes_root(tmp_path: Path) -> None:
 
 
 def test_release_bundle_cli_manifest_mismatch(tmp_path: Path) -> None:
-    settings = get_settings()
     manifest_path, root_dir = _write_temp_manifest(tmp_path, bad_hash=True)
 
     env = os.environ.copy()
     env["API_BASE"] = "http://test"
-    env["SPS_REVIEWER_API_KEY"] = settings.reviewer_api_key
     env["SPS_RELEASE_BUNDLE_HTTP_MODE"] = "asgi"
 
     result = _run_release_bundle_cli(
@@ -580,7 +572,6 @@ def test_release_bundle_cli_manifest_mismatch(tmp_path: Path) -> None:
 
 
 def test_release_bundle_cli_blockers(tmp_path: Path) -> None:
-    settings = get_settings()
     manifest_path, root_dir = _write_temp_manifest(tmp_path)
 
     case_id = "CASE-CLI-BLOCK"
@@ -602,7 +593,6 @@ def test_release_bundle_cli_blockers(tmp_path: Path) -> None:
 
     env = os.environ.copy()
     env["API_BASE"] = "http://test"
-    env["SPS_REVIEWER_API_KEY"] = settings.reviewer_api_key
     env["SPS_RELEASE_BUNDLE_HTTP_MODE"] = "asgi"
 
     result = _run_release_bundle_cli(

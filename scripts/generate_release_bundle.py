@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from sps.auth.service_principal import build_service_principal_headers
 from sps.config import get_settings
 from sps.services.release_bundle_manifest import (
     ReleaseBundleManifestError,
@@ -57,7 +58,7 @@ def _load_approvals(path: Path | None) -> list[dict[str, Any]]:
     return payload
 
 
-def _http_get_blockers(api_base: str, api_key: str, *, http_mode: str) -> dict[str, Any]:
+def _http_get_blockers(api_base: str, headers: dict[str, str], *, http_mode: str) -> dict[str, Any]:
     if http_mode == "asgi":
         import anyio
         import httpx
@@ -68,7 +69,7 @@ def _http_get_blockers(api_base: str, api_key: str, *, http_mode: str) -> dict[s
             async with httpx.AsyncClient(transport=transport, base_url=api_base) as client:
                 response = await client.get(
                     "/api/v1/ops/release-blockers",
-                    headers={"X-Reviewer-Api-Key": api_key},
+                    headers=headers,
                 )
                 response.raise_for_status()
                 return response.json()
@@ -79,7 +80,7 @@ def _http_get_blockers(api_base: str, api_key: str, *, http_mode: str) -> dict[s
 
     req = request.Request(
         f"{api_base}/api/v1/ops/release-blockers",
-        headers={"Content-Type": "application/json", "X-Reviewer-Api-Key": api_key},
+        headers={"Content-Type": "application/json", **headers},
     )
     with request.urlopen(req, timeout=10) as response:  # nosec B310
         payload = json.loads(response.read().decode("utf-8"))
@@ -88,7 +89,7 @@ def _http_get_blockers(api_base: str, api_key: str, *, http_mode: str) -> dict[s
 
 def _http_post_bundle(
     api_base: str,
-    api_key: str,
+    headers: dict[str, str],
     payload: dict[str, Any],
     *,
     http_mode: str,
@@ -105,7 +106,7 @@ def _http_post_bundle(
             async with httpx.AsyncClient(transport=transport, base_url=api_base) as client:
                 response = await client.post(
                     "/api/v1/releases/bundles",
-                    headers={"X-Reviewer-Api-Key": api_key},
+                    headers=headers,
                     json=payload,
                 )
                 payload_json = None
@@ -124,7 +125,7 @@ def _http_post_bundle(
         f"{api_base}/api/v1/releases/bundles",
         data=body,
         method="POST",
-        headers={"Content-Type": "application/json", "X-Reviewer-Api-Key": api_key},
+        headers={"Content-Type": "application/json", **headers},
     )
     try:
         with request.urlopen(req, timeout=10) as response:  # nosec B310
@@ -176,9 +177,16 @@ def run_release_bundle(args: argparse.Namespace) -> int:
             manifest_path = (root_dir / manifest_path).resolve()
 
     settings = get_settings()
-    reviewer_api_key = args.reviewer_api_key or settings.reviewer_api_key
     api_base = args.api_base
     repo_root = Path(__file__).resolve().parents[1]
+    headers = build_service_principal_headers(
+        roles=["ops", "release"],
+        subject="svc-release-bundle-cli",
+        bearer_token=args.bearer_token,
+        mtls_header_name=args.mtls_header_name,
+        mtls_header_value=args.mtls_header_value,
+        settings=settings,
+    )
 
     exit_code, verifier_output = _run_manifest_verifier(
         manifest_path, root_dir, repo_root=repo_root
@@ -215,7 +223,7 @@ def run_release_bundle(args: argparse.Namespace) -> int:
             "dissents": [],
         }
     else:
-        blockers_payload = _http_get_blockers(api_base, reviewer_api_key, http_mode=args.http_mode)
+        blockers_payload = _http_get_blockers(api_base, headers, http_mode=args.http_mode)
     if blockers_payload.get("blocker_count", 0) > 0:
         blocker_list = _format_blockers(blockers_payload)
         message_lines = [
@@ -235,7 +243,7 @@ def run_release_bundle(args: argparse.Namespace) -> int:
     payload["artifacts"] = components.artifacts
 
     status_code, response_payload, response_text = _http_post_bundle(
-        api_base, reviewer_api_key, payload, http_mode=args.http_mode
+        api_base, headers, payload, http_mode=args.http_mode
     )
     if status_code != 201:
         message = (
@@ -252,8 +260,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         description=(
             "Generate and submit SPS release bundle "
-            "(manual CLI flow uses the legacy reviewer API key; "
-            "the API also accepts service-principal JWT + mTLS)."
+            "(service-principal JWT + mTLS)."
         )
     )
     ap.add_argument(
@@ -268,10 +275,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument("--release-id", required=True)
     ap.add_argument("--api-base", default=os.environ.get("API_BASE", "http://localhost:8000"))
+    ap.add_argument("--bearer-token", default=os.environ.get("SPS_BEARER_TOKEN"))
     ap.add_argument(
-        "--reviewer-api-key",
-        default=os.environ.get("SPS_REVIEWER_API_KEY"),
-        help="Legacy/manual reviewer API key used by this CLI flow",
+        "--mtls-header-value",
+        default=os.environ.get("SPS_MTLS_HEADER_VALUE", "cert-present"),
+        help="Non-empty value for the configured mTLS signal header",
+    )
+    ap.add_argument(
+        "--mtls-header-name",
+        default=os.environ.get("SPS_MTLS_HEADER_NAME"),
+        help="Override the header name used for the mTLS signal",
     )
     ap.add_argument("--approvals-file")
     ap.add_argument("--adapter-version", action="append", default=None)

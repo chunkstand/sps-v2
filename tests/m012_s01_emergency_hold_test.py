@@ -56,6 +56,8 @@ from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import connect_client
 from tests.helpers.auth_tokens import build_jwt
 
+pytestmark = pytest.mark.integration
+
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
         "Temporal integration tests are opt-in (set SPS_RUN_TEMPORAL_INTEGRATION=1)",
@@ -227,7 +229,7 @@ async def _create_review_decision(case_id: str, decision_id: str) -> None:
 def auth_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPS_AUTH_JWT_ISSUER", "test-issuer")
     monkeypatch.setenv("SPS_AUTH_JWT_AUDIENCE", "test-audience")
-    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret")
+    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret-0123456789abcdef0123456789")
     monkeypatch.setenv("SPS_AUTH_JWT_ALGORITHM", "HS256")
     get_settings.cache_clear()
     yield

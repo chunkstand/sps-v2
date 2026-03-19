@@ -22,7 +22,6 @@ from sps.workflows.permit_case.activities import (
     apply_state_transition,
     ensure_permit_case_exists,
     fetch_permit_case_state,
-    persist_review_decision,
 )
 from sps.workflows.permit_case.contracts import (
     PermitCaseWorkflowResult,
@@ -35,6 +34,8 @@ from sps.workflows.temporal import connect_client
 
 from tests.helpers.temporal_replay import replay_permit_case_workflow_history
 
+
+pytestmark = pytest.mark.integration
 
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
     pytest.skip(
@@ -94,6 +95,44 @@ def _transition_request_id(*, workflow_id: str, run_id: str, transition: str, at
     return f"{workflow_id}/{run_id}/{transition}/attempt-{attempt}"
 
 
+async def _wait_for_permit_case_exists(case_id: str, timeout_s: float = 10.0) -> None:
+    deadline = time.time() + timeout_s
+    SessionLocal = get_sessionmaker()
+
+    while time.time() < deadline:
+        with SessionLocal() as session:
+            if session.get(PermitCase, case_id) is not None:
+                return
+        await asyncio.sleep(0.25)
+
+    raise AssertionError(f"permit_cases row not found for case_id={case_id} within {timeout_s}s")
+
+
+def _seed_review_decision(case_id: str, decision_id: str) -> None:
+    SessionLocal = get_sessionmaker()
+    with SessionLocal() as session:
+        session.add(
+            ReviewDecision(
+                decision_id=decision_id,
+                schema_version="1.0",
+                case_id=case_id,
+                object_type="permit_case",
+                object_id=case_id,
+                decision_outcome="ACCEPT",
+                reviewer_id="reviewer-1",
+                subject_author_id="author-1",
+                reviewer_independence_status="PASS",
+                evidence_ids=[],
+                contradiction_resolution=None,
+                dissent_flag=False,
+                notes="integration test",
+                decision_at=sa.func.now(),
+                idempotency_key=f"idem/{decision_id}",
+            )
+        )
+        session.commit()
+
+
 def test_temporal_permit_case_offline_replay_determinism_integration() -> None:
     """Determinism closure proof.
 
@@ -125,7 +164,6 @@ async def _run_integration() -> None:
             ensure_permit_case_exists,
             fetch_permit_case_state,
             apply_state_transition,
-            persist_review_decision,
         ],
         activity_executor=executor,
     )
@@ -153,8 +191,10 @@ async def _run_integration() -> None:
         req2 = _transition_request_id(
             workflow_id=workflow_id, run_id=run_id, transition=transition_name, attempt=2
         )
+        decision_id = f"DEC-{ulid.new()}"
 
         # Sanity: we expect the workflow to be running (waiting on the signal).
+        await _wait_for_permit_case_exists(case_id)
         desc = await handle.describe()
         assert (
             desc.status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
@@ -163,9 +203,12 @@ async def _run_integration() -> None:
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(handle.result(), timeout=1.0)
 
+        _seed_review_decision(case_id, decision_id)
+
         await handle.signal(
             PermitCaseWorkflow.review_decision,
             ReviewDecisionSignal(
+                decision_id=decision_id,
                 decision_outcome=ReviewDecisionOutcome.ACCEPT,
                 reviewer_id="reviewer-1",
                 notes="integration test",
@@ -183,6 +226,7 @@ async def _run_integration() -> None:
         assert result.correlation_id == correlation_id
         assert result.initial_request_id == req1
         assert result.final_request_id == req2
+        assert result.review_decision_id == decision_id
         assert result.final_result.result == "applied"
 
         # Must-have: fetch history from a real workflow run.
@@ -213,7 +257,7 @@ async def _run_integration() -> None:
             assert len(ledgers) == 2
             assert {row.transition_id for row in ledgers} == {req1, req2}
 
-            review = session.get(ReviewDecision, f"review/{workflow_id}/{run_id}")
+            review = session.get(ReviewDecision, decision_id)
             assert review is not None
             assert review.case_id == case_id
 
