@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "sps"
 version = "0.0.0"
-description = "Solar Permitting System (SPS) — implementation scaffold for SPS v2.0.1 canonical spec package"
+description = "Solar Permitting System (SPS) application service"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
@@ -43,6 +43,7 @@ dependencies = [
 dev = [
   "check-jsonschema>=0.30.0",
   "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
   "httpx>=0.27.0",
   "ruff>=0.6.0",
 ]
@@ -51,9 +52,11 @@ dev = [
 packages = ["src/sps"]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 markers = [
   "fixtures: Fixture loading and schema validation tests",
   "integration: Integration tests requiring database or Temporal runtime",
+  "unit: Pure tests without external services",
 ]
 
 [tool.ruff]

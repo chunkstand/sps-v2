@@ -186,8 +186,8 @@ pg_exec "TRUNCATE TABLE release_artifacts, release_bundles, dissent_artifacts, r
 # Phase 3: Start FastAPI server
 # ---------------------------------------------------------------------------
 
-mkdir -p "$ROOT_DIR/.gsd/runbook"
-API_LOG="$ROOT_DIR/.gsd/runbook/m009_s02_api_${RUNBOOK_TS}_$$.log"
+mkdir -p "$ROOT_DIR/artifacts/runbook"
+API_LOG="$ROOT_DIR/artifacts/runbook/m009_s02_api_${RUNBOOK_TS}_$$.log"
 
 echo "runbook: starting_api log=$API_LOG port=$API_PORT" >&2
 "$PYTHON" -m uvicorn sps.api.main:app --host 0.0.0.0 --port "$API_PORT" >"$API_LOG" 2>&1 &
@@ -204,12 +204,13 @@ echo "runbook: api_ready pid=$API_PID" >&2
 echo "runbook: generating_release_bundle" >&2
 
 GOOD_MANIFEST_DIR="$(mktemp -d /tmp/m009_s02_manifest_ok_XXXXXX)"
-pushd "$GOOD_MANIFEST_DIR" >/dev/null
+mkdir -p "$GOOD_MANIFEST_DIR/sps_full_spec_package"
+pushd "$GOOD_MANIFEST_DIR/sps_full_spec_package" >/dev/null
 _make_good_manifest
 
 "$PYTHON" "$ROOT_DIR/scripts/generate_release_bundle.py" \
-  --manifest "PACKAGE-MANIFEST.json" \
-  --root "$GOOD_MANIFEST_DIR" \
+  --manifest "$GOOD_MANIFEST_DIR/sps_full_spec_package/PACKAGE-MANIFEST.json" \
+  --root "$GOOD_MANIFEST_DIR/sps_full_spec_package" \
   --release-id "RUNBOOK-REL-001" \
   --api-base "$API_BASE" \
   --reviewer-api-key "$REVIEWER_API_KEY" >/dev/null
@@ -228,12 +229,13 @@ pg_assert_int_eq \
 echo "runbook: manifest_mismatch_failure" >&2
 
 MANIFEST_TMP_DIR="$(mktemp -d /tmp/m009_s02_manifest_XXXXXX)"
-pushd "$MANIFEST_TMP_DIR" >/dev/null
+mkdir -p "$MANIFEST_TMP_DIR/sps_full_spec_package"
+pushd "$MANIFEST_TMP_DIR/sps_full_spec_package" >/dev/null
 _make_bad_manifest
 
 if "$PYTHON" "$ROOT_DIR/scripts/generate_release_bundle.py" \
-  --manifest "PACKAGE-MANIFEST.json" \
-  --root "$MANIFEST_TMP_DIR" \
+  --manifest "$MANIFEST_TMP_DIR/sps_full_spec_package/PACKAGE-MANIFEST.json" \
+  --root "$MANIFEST_TMP_DIR/sps_full_spec_package" \
   --release-id "RUNBOOK-REL-BAD" \
   --api-base "$API_BASE" \
   --reviewer-api-key "$REVIEWER_API_KEY" >/dev/null 2>"$MANIFEST_TMP_DIR/error.log"; then
@@ -258,8 +260,8 @@ pg_exec "insert into dissent_artifacts (dissent_id, linked_review_id, case_id, s
 pg_exec "insert into contradiction_artifacts (contradiction_id, case_id, scope, source_a, source_b, ranking_relation, blocking_effect, resolution_status, created_at) values ('CONTRA-RUNBOOK-001', $(pg_sql_quote "$CASE_ID"), 'RELEASE', 'source-a', 'source-b', 'SAME_RANK', true, 'OPEN', now()) on conflict (contradiction_id) do nothing" >/dev/null
 
 if "$PYTHON" "$ROOT_DIR/scripts/generate_release_bundle.py" \
-  --manifest "$GOOD_MANIFEST_DIR/PACKAGE-MANIFEST.json" \
-  --root "$GOOD_MANIFEST_DIR" \
+  --manifest "$GOOD_MANIFEST_DIR/sps_full_spec_package/PACKAGE-MANIFEST.json" \
+  --root "$GOOD_MANIFEST_DIR/sps_full_spec_package" \
   --release-id "RUNBOOK-REL-BLOCK" \
   --api-base "$API_BASE" \
   --reviewer-api-key "$REVIEWER_API_KEY" >/dev/null 2>"/tmp/m009_s02_blocker_error_$$.log"; then

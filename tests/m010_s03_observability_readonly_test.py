@@ -9,6 +9,8 @@ from sps.api.main import app
 from sps.config import get_settings
 from tests.helpers.auth_tokens import build_service_principal_jwt
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _migrate_db() -> None:

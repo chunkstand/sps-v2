@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Test-only failpoints.
 
 These are used by Temporal/Postgres integration tests to simulate rare failure modes
@@ -17,6 +15,8 @@ Configuration (opt-in):
 Example key:
 - apply_state_transition.after_commit/<request_id>
 """
+
+from __future__ import annotations
 
 import os
 import threading

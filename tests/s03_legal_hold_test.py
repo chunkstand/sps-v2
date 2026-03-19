@@ -10,9 +10,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from sps.api.main import app
+from sps.config import get_settings
 from sps.db.models import EvidenceArtifact, LegalHold, LegalHoldBinding
 from sps.db.session import get_engine, get_sessionmaker
 from sps.retention.purge import dry_run_purge
+from tests.helpers.auth_tokens import build_jwt
+
+pytestmark = pytest.mark.integration
 
 
 def _utcnow() -> dt.datetime:
@@ -23,6 +27,16 @@ def _utcnow() -> dt.datetime:
 def _migrate_db() -> None:
     cfg = Config("alembic.ini")
     command.upgrade(cfg, "head")
+
+
+@pytest.fixture(autouse=True)
+def _configure_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPS_AUTH_JWT_ISSUER", "test-issuer")
+    monkeypatch.setenv("SPS_AUTH_JWT_AUDIENCE", "test-audience")
+    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture()
@@ -38,6 +52,11 @@ def db_session() -> Session:
         yield session
     finally:
         session.close()
+
+
+def _auth_headers() -> dict[str, str]:
+    token = build_jwt(subject="intake-user", roles=["intake"])
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_can_insert_and_read_legal_hold_bound_to_artifact(db_session: Session):
@@ -140,7 +159,7 @@ def test_deny_delete_under_legal_hold_includes_invariant_id(db_session: Session)
     db_session.commit()
 
     client = TestClient(app)
-    resp = client.delete(f"/api/v1/evidence/artifacts/{artifact_id}")
+    resp = client.delete(f"/api/v1/evidence/artifacts/{artifact_id}", headers=_auth_headers())
 
     assert resp.status_code == 423, resp.text
     detail = resp.json()["detail"]

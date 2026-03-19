@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from sps.auth.rbac import Role, require_roles
+from sps.auth.rbac import require_reviewer_identity
 from sps.db.models import ContradictionArtifact
 from sps.db.session import get_db
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(
     tags=["contradictions"],
-    dependencies=[Depends(require_roles(Role.REVIEWER))],
+    dependencies=[Depends(require_reviewer_identity)],
 )
 
 

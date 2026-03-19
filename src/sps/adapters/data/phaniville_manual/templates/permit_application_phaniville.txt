@@ -1,0 +1,5 @@
+PHANIVILLE COMMERCIAL SOLAR PERMIT
+Case: {{case_id}}
+Applicant: {{applicant_name}}
+Project Address: {{project_address}}
+System Size (kW): {{system_size_kw}}

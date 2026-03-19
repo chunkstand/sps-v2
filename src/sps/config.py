@@ -85,7 +85,7 @@ class Settings(BaseSettings):
         validation_alias="SPS_AUTH_MTLS_SIGNAL_HEADER",
     )
 
-    # Reviewer API (deprecated in M010 S01; retained for compatibility until removal).
+    # Legacy/manual reviewer API credential.
     # IMPORTANT: this value must never be logged — treat it as a credential.
     reviewer_api_key: str = Field(default="dev-reviewer-key", validation_alias="SPS_REVIEWER_API_KEY")
 

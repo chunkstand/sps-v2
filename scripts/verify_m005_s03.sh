@@ -306,8 +306,8 @@ echo "runbook: applying_migrations" >&2
 # Phase 3: Start FastAPI server
 # ---------------------------------------------------------------------------
 
-mkdir -p "$ROOT_DIR/.gsd/runbook"
-API_LOG="$ROOT_DIR/.gsd/runbook/m005_s03_api_${RUNBOOK_TS}_$$.log"
+mkdir -p "$ROOT_DIR/artifacts/runbook"
+API_LOG="$ROOT_DIR/artifacts/runbook/m005_s03_api_${RUNBOOK_TS}_$$.log"
 
 echo "runbook: starting_api log=$API_LOG port=$API_PORT" >&2
 "$PYTHON" -m uvicorn sps.api.main:app --host 0.0.0.0 --port "$API_PORT" >"$API_LOG" 2>&1 &
@@ -517,7 +517,7 @@ echo "runbook: fixture_override_enabled phase4_case_id=$SPS_PHASE4_FIXTURE_CASE_
 # Phase 5: Start worker with fixture override
 # ---------------------------------------------------------------------------
 
-WORKER_LOG="$ROOT_DIR/.gsd/runbook/m005_s03_worker_${RUNBOOK_TS}_$$.log"
+WORKER_LOG="$ROOT_DIR/artifacts/runbook/m005_s03_worker_${RUNBOOK_TS}_$$.log"
 
 echo "runbook: starting_worker log=$WORKER_LOG" >&2
 "$PYTHON" -m sps.workflows.worker >"$WORKER_LOG" 2>&1 &

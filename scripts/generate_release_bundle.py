@@ -147,9 +147,7 @@ def _format_blockers(payload: dict[str, Any]) -> list[str]:
             )
     for dissent in payload.get("dissents", []) or []:
         if isinstance(dissent, dict):
-            blockers.append(
-                f"dissent:{dissent.get('dissent_id')} scope={dissent.get('scope')}"
-            )
+            blockers.append(f"dissent:{dissent.get('dissent_id')} scope={dissent.get('scope')}")
     return blockers
 
 
@@ -171,7 +169,11 @@ def run_release_bundle(args: argparse.Namespace) -> int:
     root_dir = Path(args.root).resolve()
     manifest_path = Path(args.manifest)
     if not manifest_path.is_absolute():
-        manifest_path = (root_dir / manifest_path).resolve()
+        resolved_from_cwd = manifest_path.resolve()
+        if resolved_from_cwd.exists():
+            manifest_path = resolved_from_cwd
+        else:
+            manifest_path = (root_dir / manifest_path).resolve()
 
     settings = get_settings()
     reviewer_api_key = args.reviewer_api_key or settings.reviewer_api_key
@@ -209,9 +211,7 @@ def run_release_bundle(args: argparse.Namespace) -> int:
     if args.simulate_blockers:
         blockers_payload = {
             "blocker_count": 1,
-            "contradictions": [
-                {"contradiction_id": "SIMULATED-BLOCKER", "scope": "RELEASE"}
-            ],
+            "contradictions": [{"contradiction_id": "SIMULATED-BLOCKER", "scope": "RELEASE"}],
             "dissents": [],
         }
     else:
@@ -249,12 +249,30 @@ def run_release_bundle(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(description="Generate and submit SPS release bundle")
-    ap.add_argument("--manifest", default="PACKAGE-MANIFEST.json")
-    ap.add_argument("--root", default=".")
+    ap = argparse.ArgumentParser(
+        description=(
+            "Generate and submit SPS release bundle "
+            "(manual CLI flow uses the legacy reviewer API key; "
+            "the API also accepts service-principal JWT + mTLS)."
+        )
+    )
+    ap.add_argument(
+        "--manifest",
+        default="sps_full_spec_package/PACKAGE-MANIFEST.json",
+        help="Bundle manifest path (default: sps_full_spec_package/PACKAGE-MANIFEST.json)",
+    )
+    ap.add_argument(
+        "--root",
+        default="sps_full_spec_package",
+        help="Bundle source root directory",
+    )
     ap.add_argument("--release-id", required=True)
     ap.add_argument("--api-base", default=os.environ.get("API_BASE", "http://localhost:8000"))
-    ap.add_argument("--reviewer-api-key", default=os.environ.get("SPS_REVIEWER_API_KEY"))
+    ap.add_argument(
+        "--reviewer-api-key",
+        default=os.environ.get("SPS_REVIEWER_API_KEY"),
+        help="Legacy/manual reviewer API key used by this CLI flow",
+    )
     ap.add_argument("--approvals-file")
     ap.add_argument("--adapter-version", action="append", default=None)
     ap.add_argument("--dry-run", action="store_true")

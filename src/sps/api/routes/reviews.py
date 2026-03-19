@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
@@ -18,7 +18,7 @@ from sps.api.contracts.reviews import (
     ReviewerQueueResponse,
 )
 from sps.audit.events import emit_audit_event
-from sps.auth.rbac import Role, require_roles
+from sps.auth.rbac import require_reviewer_identity
 from sps.db.models import (
     DissentArtifact,
     EvidenceArtifact,
@@ -39,7 +39,9 @@ from sps.workflows.permit_case.contracts import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["reviews"], dependencies=[Depends(require_roles(Role.REVIEWER))])
+router = APIRouter(tags=["reviews"], dependencies=[Depends(require_reviewer_identity)])
+_DEFAULT_QUEUE_LIMIT = 20
+_MAX_QUEUE_LIMIT = 100
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +108,10 @@ class ReviewDecisionResponse(BaseModel):
 
 def _utcnow() -> dt.datetime:
     return dt.datetime.now(tz=dt.UTC)
+
+
+def _clamp_queue_limit(limit: int) -> int:
+    return min(limit, _MAX_QUEUE_LIMIT)
 
 
 def _row_to_response(row: ReviewDecision) -> ReviewDecisionResponse:
@@ -176,7 +182,9 @@ def _decision_row_to_summary(row: ReviewDecision) -> ReviewDecisionSummaryRespon
 
 def _collect_evidence_ids(db: Session, case_id: str) -> list[str]:
     evidence_selects = [
-        sa.select(JurisdictionResolution.evidence_ids).where(JurisdictionResolution.case_id == case_id),
+        sa.select(JurisdictionResolution.evidence_ids).where(
+            JurisdictionResolution.case_id == case_id
+        ),
         sa.select(RequirementSet.evidence_ids).where(RequirementSet.case_id == case_id),
         sa.select(ReviewDecision.evidence_ids).where(ReviewDecision.case_id == case_id),
         sa.select(ExternalStatusEvent.evidence_ids).where(ExternalStatusEvent.case_id == case_id),
@@ -188,7 +196,6 @@ def _collect_evidence_ids(db: Session, case_id: str) -> list[str]:
         if entry:
             aggregated.update(entry)
     return sorted(aggregated)
-
 
 
 @dataclass(frozen=True)
@@ -310,7 +317,9 @@ def _check_reviewer_independence(
             detail={
                 "error": "REVIEW_INDEPENDENCE_DENIED",
                 "guard_assertion_id": "INV-SPS-REV-001",
-                "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+                "normalized_business_invariants": get_normalized_business_invariants(
+                    "INV-SPS-REV-001"
+                ),
                 "blocked_reason": "SELF_APPROVAL",
             },
         )
@@ -335,7 +344,9 @@ def _check_reviewer_independence(
             detail={
                 "error": "REVIEW_INDEPENDENCE_DENIED",
                 "guard_assertion_id": "INV-SPS-REV-001",
-                "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+                "normalized_business_invariants": get_normalized_business_invariants(
+                    "INV-SPS-REV-001"
+                ),
                 "blocked_reason": "METRICS_UNAVAILABLE",
             },
         )
@@ -372,7 +383,9 @@ def _check_reviewer_independence(
             detail={
                 "error": "REVIEW_INDEPENDENCE_DENIED",
                 "guard_assertion_id": "INV-SPS-REV-001",
-                "normalized_business_invariants": get_normalized_business_invariants("INV-SPS-REV-001"),
+                "normalized_business_invariants": get_normalized_business_invariants(
+                    "INV-SPS-REV-001"
+                ),
                 "blocked_reason": "INDEPENDENCE_THRESHOLD_BLOCKED",
             },
         )
@@ -392,7 +405,9 @@ async def _send_review_signal(
     Failures are logged but must not bubble up to the caller — the Postgres
     write is the authoritative event; signal delivery is best-effort.
     """
-    from sps.workflows.temporal import connect_client  # local import to avoid import-time side effects
+    from sps.workflows.temporal import (
+        connect_client,
+    )  # local import to avoid import-time side effects
 
     try:
         client = await asyncio.wait_for(connect_client(), timeout=10.0)
@@ -597,13 +612,18 @@ def get_review_decision(decision_id: str, db: Session = Depends(get_db)) -> Revi
 @router.get(
     "/queue",
 )
-def get_review_queue(db: Session = Depends(get_db)) -> ReviewerQueueResponse:
+def get_review_queue(
+    limit: int = Query(default=_DEFAULT_QUEUE_LIMIT, ge=1),
+    db: Session = Depends(get_db),
+) -> ReviewerQueueResponse:
     """Return the pending reviewer queue ordered by oldest cases first."""
+    bounded_limit = _clamp_queue_limit(limit)
     rows = (
         db.query(PermitCase, Project)
         .join(Project, Project.case_id == PermitCase.case_id)
         .filter(PermitCase.case_state == "REVIEW_PENDING")
         .order_by(PermitCase.created_at.asc(), PermitCase.case_id.asc())
+        .limit(bounded_limit)
         .all()
     )
     cases = [_queue_row_to_response(case, project) for case, project in rows]

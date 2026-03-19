@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from sps.auth.rbac import Role, require_roles, require_service_principal
+from sps.auth.rbac import Role, require_roles_for, require_service_principal
 from sps.db.session import get_db
 from sps.services.ops_metrics import OpsMetricsResponse, build_ops_metrics_response
 from sps.services.release_blockers import ReleaseBlockersResponse, build_release_blockers_response
@@ -21,9 +21,9 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 router = APIRouter(
     tags=["ops"],
-    dependencies=[Depends(require_service_principal), Depends(require_roles(Role.OPS))],
+    dependencies=[Depends(require_roles_for(require_service_principal, Role.OPS))],
 )
-page_router = APIRouter(tags=["ops"], dependencies=[Depends(require_roles(Role.OPS))])
+page_router = APIRouter(tags=["ops"])
 
 
 @page_router.get("/ops", response_class=HTMLResponse)

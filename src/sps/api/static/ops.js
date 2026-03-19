@@ -47,7 +47,7 @@ function updateMetrics(payload) {
 }
 
 async function fetchMetrics() {
-  setStatus("Fetching metrics snapshot...");
+  setStatus("Fetching metrics snapshot using the legacy/manual reviewer key...");
   try {
     const resp = await fetch(endpoint, { headers: apiHeaders() });
     const text = await resp.text();

@@ -44,6 +44,7 @@ pip install -e ".[dev]"
 ### 2) Run integrity checks
 ```bash
 python tools/check_repo_wiring.py
+python tools/refresh_spec_package.py --check-root-mirror
 python tools/verify_package_manifest.py
 check-jsonschema --check-metaschema model/sps/contracts/*.schema.json
 ```

@@ -11,6 +11,9 @@ from fastapi.testclient import TestClient
 
 from sps.api.main import app
 from sps.db.session import get_engine
+from tests.helpers.auth_tokens import build_jwt
+
+pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -28,6 +31,7 @@ def _clean_evidence_table() -> None:
 
 def test_evidence_roundtrip_register_upload_fetch_download(_clean_evidence_table):
     client = TestClient(app)
+    headers = {"Authorization": f"Bearer {build_jwt(subject='intake-user', roles=['intake'])}"}
 
     content = b"hello-evidence"
     sha = hashlib.sha256(content).hexdigest()
@@ -44,6 +48,7 @@ def test_evidence_roundtrip_register_upload_fetch_download(_clean_evidence_table
             "authoritativeness": "authoritative",
             "provenance": {"producer": "pytest"},
         },
+        headers=headers,
     )
     assert register_resp.status_code == 201, register_resp.text
     registered = register_resp.json()
@@ -52,18 +57,18 @@ def test_evidence_roundtrip_register_upload_fetch_download(_clean_evidence_table
     upload_resp = client.put(
         f"/api/v1/evidence/artifacts/{artifact_id}/content",
         content=content,
-        headers={"content-type": "application/octet-stream"},
+        headers={**headers, "content-type": "application/octet-stream"},
     )
     assert upload_resp.status_code == 200, upload_resp.text
 
-    meta_resp = client.get(f"/api/v1/evidence/artifacts/{artifact_id}")
+    meta_resp = client.get(f"/api/v1/evidence/artifacts/{artifact_id}", headers=headers)
     assert meta_resp.status_code == 200, meta_resp.text
     meta = meta_resp.json()
     assert meta["artifact_id"] == artifact_id
     assert meta["checksum"] == f"sha256:{sha}"
     assert meta["content_bytes"] == len(content)
 
-    dl_resp = client.get(f"/api/v1/evidence/artifacts/{artifact_id}/download")
+    dl_resp = client.get(f"/api/v1/evidence/artifacts/{artifact_id}/download", headers=headers)
     assert dl_resp.status_code == 200, dl_resp.text
     url = dl_resp.json()["url"]
 
@@ -74,6 +79,7 @@ def test_evidence_roundtrip_register_upload_fetch_download(_clean_evidence_table
 
 def test_evidence_upload_rejects_sha_mismatch(_clean_evidence_table):
     client = TestClient(app)
+    headers = {"Authorization": f"Bearer {build_jwt(subject='intake-user', roles=['intake'])}"}
 
     good = b"good"
     bad = b"bad"
@@ -89,6 +95,7 @@ def test_evidence_upload_rejects_sha_mismatch(_clean_evidence_table):
             "authoritativeness": "authoritative",
             "provenance": {"producer": "pytest"},
         },
+        headers=headers,
     )
     assert register_resp.status_code == 201
     artifact_id = register_resp.json()["artifact_id"]
@@ -96,6 +103,6 @@ def test_evidence_upload_rejects_sha_mismatch(_clean_evidence_table):
     upload_resp = client.put(
         f"/api/v1/evidence/artifacts/{artifact_id}/content",
         content=bad,
-        headers={"content-type": "application/octet-stream"},
+        headers={**headers, "content-type": "application/octet-stream"},
     )
     assert upload_resp.status_code == 422

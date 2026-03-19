@@ -19,7 +19,7 @@ htmlcov/
 # Docker volumes (compose creates named volumes; keep this for bind mounts if used)
 .docker/
 
-# ── GSD baseline (auto-generated) ──
+# Legacy generated state
 .gsd/activity/
 .gsd/runtime/
 .gsd/worktrees/
@@ -28,7 +28,10 @@ htmlcov/
 .gsd/completed-units.json
 .gsd/STATE.md
 
-# pi bg_shell runtime state
+# Local runbook logs
+artifacts/runbook/
+
+# Legacy bg-shell runtime state
 .bg-shell/
 
 Thumbs.db

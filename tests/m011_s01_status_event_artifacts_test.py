@@ -23,7 +23,6 @@ from sps.db.models import (
     InspectionMilestone,
     PermitCase,
     ResubmissionPackage,
-    SubmissionAttempt,
 )
 from sps.db.session import get_engine, get_sessionmaker
 from sps.workflows.permit_case.activities import (
@@ -48,6 +47,19 @@ if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
         "DB-backed integration tests are opt-in (set SPS_RUN_TEMPORAL_INTEGRATION=1)",
         allow_module_level=True,
     )
+
+
+@pytest.fixture(autouse=True)
+def _configure_phase7_fixture_override() -> None:
+    original_phase7 = os.environ.get("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE")
+    os.environ["SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE"] = "CASE-EXAMPLE-001"
+    try:
+        yield
+    finally:
+        if original_phase7 is not None:
+            os.environ["SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE"] = original_phase7
+        else:
+            os.environ.pop("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
 def _wait_for_postgres_ready(timeout_s: float = 30.0) -> None:
@@ -110,7 +122,10 @@ def test_persist_correction_task_creates_artifact(db_session, seed_fixtures):
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
@@ -157,7 +172,10 @@ def test_persist_correction_task_idempotent(db_session, seed_fixtures):
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
@@ -202,7 +220,10 @@ def test_persist_correction_task_validates_case_attempt_linkage(db_session, seed
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     db_session.add(
@@ -214,18 +235,13 @@ def test_persist_correction_task_validates_case_attempt_linkage(db_session, seed
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
-    db_session.add(
-        SubmissionAttempt(
-            submission_attempt_id=attempt_id,
-            case_id=other_case_id,  # Belongs to other_case_id
-            attempt_number=1,
-            status="SUBMITTED",
-            submission_mode="AUTOMATED",
-        )
-    )
+    seed_fixtures(other_case_id, attempt_id, attempt_number=1, status="SUBMITTED")
     db_session.commit()
     
     request = PersistCorrectionTaskRequest(
@@ -256,7 +272,10 @@ def test_persist_resubmission_package_creates_artifact(db_session, seed_fixtures
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     seed_fixtures(case_id, attempt_id, attempt_number=2, status="PENDING")
@@ -301,7 +320,10 @@ def test_persist_approval_record_creates_artifact(db_session, seed_fixtures):
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
@@ -344,7 +366,10 @@ def test_persist_inspection_milestone_creates_artifact(db_session, seed_fixtures
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
@@ -388,7 +413,10 @@ def test_external_status_normalization_with_new_statuses(db_session, seed_fixtur
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")
@@ -433,7 +461,10 @@ def test_approval_and_inspection_status_normalization(db_session, seed_fixtures)
             review_state="APPROVED",
             submission_mode="AUTOMATED",
             portal_support_level="FULLY_SUPPORTED",
+            current_package_id=None,
+            current_release_profile="default",
             legal_hold=False,
+            closure_reason=None,
         )
     )
     seed_fixtures(case_id, attempt_id, attempt_number=1, status="SUBMITTED")

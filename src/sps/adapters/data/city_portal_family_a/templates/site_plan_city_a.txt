@@ -1,0 +1,5 @@
+CITY A SITE PLAN CHECKLIST
+Case ID: {{case_id}}
+Project Address: {{project_address}}
+Parcel ID: {{parcel_id}}
+Utility: {{utility_name}}

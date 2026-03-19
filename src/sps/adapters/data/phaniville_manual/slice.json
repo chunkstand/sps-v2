@@ -1,0 +1,217 @@
+{
+  "slice_case_id": "CASE-PHANI-MANUAL-001",
+  "target_portal_family": "PHANIVILLE_MANUAL_PORTAL",
+  "jurisdiction": {
+    "jurisdiction_resolution_id": "JUR-PHANI-001",
+    "case_id": "CASE-PHANI-MANUAL-001",
+    "city_authority_id": "AUTH-PHANI-CITY-001",
+    "county_authority_id": "AUTH-PHANI-COUNTY-001",
+    "state_authority_id": "AUTH-PHANI-STATE-001",
+    "utility_authority_id": "AUTH-PHANI-UTILITY-001",
+    "zoning_district": "C-MIXED",
+    "overlays": [
+      "DOWNTOWN-REVIEW"
+    ],
+    "permitting_portal_family": "PHANIVILLE_MANUAL_PORTAL",
+    "support_level": "UNSUPPORTED",
+    "manual_requirements": [
+      "Two printed permit packets",
+      "Signed fire review addendum"
+    ],
+    "evidence_ids": [
+      "ART-01KKSPHANI00000000000001",
+      "ART-01KKSPHANI00000000000002"
+    ],
+    "provenance": {
+      "resolved_by": "phaniville_manual.adapter",
+      "resolved_at": "2026-03-17T09:00:00Z",
+      "source_bundle": "PHANIVILLE-MANUAL-2026-03"
+    },
+    "evidence_payload": {
+      "sources": [
+        "phaniville_counter_guide",
+        "county_fire_sheet"
+      ]
+    }
+  },
+  "requirements": {
+    "requirement_set_id": "REQ-PHANI-001",
+    "case_id": "CASE-PHANI-MANUAL-001",
+    "jurisdiction_ids": [
+      "AUTH-PHANI-CITY-001",
+      "AUTH-PHANI-COUNTY-001",
+      "AUTH-PHANI-STATE-001"
+    ],
+    "permit_types": [
+      "commercial_solar",
+      "electrical"
+    ],
+    "forms_required": [
+      "Phaniville-Commercial-Solar",
+      "County-Fire-Worksheet"
+    ],
+    "attachments_required": [
+      "SitePlan-PHANI",
+      "LoadSummary-PHANI"
+    ],
+    "fee_rules": [
+      {
+        "fee_code": "PHANI-PLAN-REVIEW",
+        "amount": 245.0,
+        "currency": "USD"
+      }
+    ],
+    "source_rankings": [
+      {
+        "source_id": "SRC-PHANI-MANUAL-GUIDE",
+        "rank": 1,
+        "confidence": "HIGH"
+      }
+    ],
+    "freshness_state": "FRESH",
+    "freshness_expires_at": "2026-06-17T00:00:00Z",
+    "contradiction_state": "NONE",
+    "evidence_ids": [
+      "ART-01KKSPHANI00000000000003"
+    ],
+    "provenance": {
+      "compiled_by": "phaniville_manual.adapter",
+      "compiled_at": "2026-03-17T09:05:00Z"
+    },
+    "evidence_payload": {
+      "source_urls": [
+        "https://phaniville.example.gov/manual-commercial-solar"
+      ]
+    }
+  },
+  "compliance": {
+    "compliance_evaluation_id": "COMP-PHANI-001",
+    "case_id": "CASE-PHANI-MANUAL-001",
+    "schema_version": "1.0.0",
+    "evaluated_at": "2026-03-17T09:10:00Z",
+    "rule_results": [
+      {
+        "rule_id": "RULE-PHANI-FIRE-001",
+        "outcome": "PASS",
+        "summary": "Fire turnaround sheet included."
+      },
+      {
+        "rule_id": "RULE-PHANI-SIGNATURE-002",
+        "outcome": "WARNING",
+        "summary": "Wet signature required before packet drop-off."
+      }
+    ],
+    "blockers": [],
+    "warnings": [
+      {
+        "issue_id": "WARN-PHANI-001",
+        "rule_id": "RULE-PHANI-SIGNATURE-002",
+        "summary": "Print and sign the addendum before submission.",
+        "recommendation": "Collect signature during reviewer handoff."
+      }
+    ],
+    "provenance": {
+      "evaluated_by": "phaniville_manual.adapter",
+      "run_id": "phaniville-manual-001"
+    },
+    "evidence_payload": {
+      "inputs": {
+        "jurisdiction_resolution_id": "JUR-PHANI-001",
+        "requirement_set_id": "REQ-PHANI-001"
+      }
+    }
+  },
+  "documents": {
+    "document_set_id": "DOCSET-PHANI-001",
+    "case_id": "CASE-PHANI-MANUAL-001",
+    "package_version": "phaniville-manual-v1",
+    "target_portal_family": "PHANIVILLE_MANUAL_PORTAL",
+    "required_attachments": [
+      "MANIFEST",
+      "DOCUMENTS",
+      "FIRE_WORKSHEET"
+    ],
+    "documents": [
+      {
+        "document_id": "DOC-PHANI-APP-001",
+        "document_type": "PERMIT_APPLICATION",
+        "template_name": "permit_application_phaniville.txt",
+        "variables": {
+          "applicant_name": "Helio Works",
+          "project_address": "77 Market Street",
+          "system_size_kw": "112.5"
+        }
+      },
+      {
+        "document_id": "DOC-PHANI-SITE-001",
+        "document_type": "SITE_PLAN_CHECKLIST",
+        "template_name": "site_plan_phaniville.txt",
+        "variables": {
+          "project_address": "77 Market Street",
+          "parcel_id": "PARCEL-PHANI-001",
+          "utility_name": "Phaniville Power"
+        }
+      }
+    ],
+    "provenance": {
+      "compiled_by": "phaniville_manual.adapter"
+    }
+  },
+  "submission": {
+    "case_id": "CASE-PHANI-MANUAL-001",
+    "target_portal_family": "PHANIVILLE_MANUAL_PORTAL",
+    "channel_type": "counter_dropoff",
+    "reason": "UNSUPPORTED_PORTAL_WORKFLOW",
+    "operator_instructions": [
+      "Print two copies of the packet.",
+      "Drop the packet at the Phaniville permit counter.",
+      "Upload stamped intake receipt and fire worksheet."
+    ],
+    "required_proof_types": [
+      "counter_receipt",
+      "fire_review_sheet"
+    ],
+    "required_attachment_sources": [
+      "MANIFEST",
+      "DOCUMENTS",
+      "FIRE_WORKSHEET"
+    ],
+    "escalation_owner": "OPS-PHANIVILLE"
+  },
+  "status_mapping": {
+    "adapter_family": "PHANIVILLE_MANUAL_PORTAL",
+    "mapping_version": "2026-03-17.1",
+    "mappings": [
+      {
+        "raw_status": "Packet Accepted",
+        "normalized_status": "RECEIVED_CONFIRMED",
+        "confidence": "HIGH",
+        "allowed_case_states": [
+          "SUBMITTED"
+        ],
+        "auto_advance": false,
+        "required_evidence": [
+          "counter_receipt"
+        ],
+        "reviewer_confirmation_required": false,
+        "contradiction_triggers": []
+      },
+      {
+        "raw_status": "Issued Final",
+        "normalized_status": "APPROVAL_FINAL",
+        "confidence": "HIGH",
+        "allowed_case_states": [
+          "SUBMITTED"
+        ],
+        "auto_advance": false,
+        "required_evidence": [
+          "final_approval_letter"
+        ],
+        "reviewer_confirmation_required": true,
+        "contradiction_triggers": [
+          "REJECTION_REPORTED"
+        ]
+      }
+    ]
+  }
+}

@@ -33,7 +33,7 @@ import ulid
 
 from sps.api.main import app
 from sps.config import get_settings
-from sps.db.models import CaseTransitionLedger, PermitCase, ReviewDecision
+from sps.db.models import CaseTransitionLedger, ReviewDecision
 from sps.db.session import get_engine, get_sessionmaker
 from sps.workflows.permit_case.activities import (
     apply_state_transition,

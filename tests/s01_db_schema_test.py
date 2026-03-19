@@ -23,6 +23,8 @@ from sps.db.models import (
 )
 from sps.db.session import get_engine, get_sessionmaker
 
+pytestmark = pytest.mark.integration
+
 
 def _utcnow() -> dt.datetime:
     return dt.datetime.now(tz=dt.UTC)
@@ -231,6 +233,9 @@ def test_submission_schema_smoke_insert_read(db_session):
         )
     )
 
+    # Ensure package parent row exists before FK-dependent attempt/fallback rows.
+    db_session.flush()
+
     db_session.add(
         SubmissionAttempt(
             submission_attempt_id="SUBATT-001",
@@ -252,6 +257,9 @@ def test_submission_schema_smoke_insert_read(db_session):
             last_error_context=None,
         )
     )
+
+    # Ensure submission attempt exists before FK-dependent manual fallback row.
+    db_session.flush()
 
     db_session.add(
         ManualFallbackPackage(
@@ -289,7 +297,7 @@ def test_submission_schema_smoke_insert_read(db_session):
         )
     )
 
-    # Ensure parent row exists for FK.
+    # Ensure parent release row exists for artifact FK.
     db_session.flush()
 
     db_session.add(

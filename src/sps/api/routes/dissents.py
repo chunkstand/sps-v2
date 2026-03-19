@@ -7,13 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
-from sps.auth.rbac import Role, require_roles
+from sps.auth.rbac import require_reviewer_identity
 from sps.db.models import DissentArtifact
 from sps.db.session import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["dissents"], dependencies=[Depends(require_roles(Role.REVIEWER))])
+router = APIRouter(tags=["dissents"], dependencies=[Depends(require_reviewer_identity)])
 
 
 # ---------------------------------------------------------------------------

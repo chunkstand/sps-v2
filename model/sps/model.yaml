@@ -80,7 +80,6 @@ enum_defs:
   - REVIEW_RECORD
   - INCIDENT_RECORD
   - OVERRIDE_RECORD
-  - ROLLBACK_REHEARSAL
   ContradictionState:
   - NONE
   - SAME_RANK_BLOCKING

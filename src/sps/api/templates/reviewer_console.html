@@ -323,7 +323,7 @@
         <h1>Reviewer Console</h1>
       </div>
       <div class="key-input">
-        <label for="reviewer-api-key">API Key</label>
+        <label for="reviewer-api-key">Legacy API Key</label>
         <input id="reviewer-api-key" type="password" placeholder="X-Reviewer-Api-Key" autocomplete="off" />
       </div>
     </header>
@@ -331,7 +331,7 @@
     <div class="console-grid">
       <section class="panel" id="queue-panel">
         <h2>Queue</h2>
-        <p>Pull the current REVIEW_PENDING queue. Select a case to hydrate evidence and seed a decision.</p>
+        <p>Pull the current REVIEW_PENDING queue. No protected data loads until you provide a legacy/manual reviewer key.</p>
         <div class="form-row" style="align-items:center;">
           <button id="queue-load">Load Queue</button>
           <span class="helper" id="queue-status">Waiting for fetch.</span>
@@ -365,7 +365,7 @@
 
     <section class="panel" id="decision-panel" style="margin-top:24px;">
       <h2>Decision Capture</h2>
-      <p>Submit a decision directly to <code>POST /api/v1/reviews/decisions</code>. Guard denials surface here.</p>
+      <p>Submit a decision directly to <code>POST /api/v1/reviews/decisions</code>. This shell is public, but all protected reads and writes stay behind API auth.</p>
       <div class="banner" id="banner-success"></div>
       <div class="banner" id="banner-error"></div>
       <form class="decision-form" id="decision-form">

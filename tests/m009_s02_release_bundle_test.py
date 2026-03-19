@@ -7,6 +7,7 @@ Checks:
   - POST /api/v1/releases/bundles persists bundle + artifact rows.
   - Artifact digest mismatches return structured 400 errors.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -17,6 +18,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Generator
 
 import httpx
 import pytest
@@ -35,6 +37,10 @@ from sps.db.models import (
     ReviewDecision,
 )
 from sps.db.session import get_engine, get_sessionmaker
+from sps.services.release_bundle_manifest import (
+    ReleaseBundleManifestError,
+    build_release_bundle_components,
+)
 
 
 if os.getenv("SPS_RUN_TEMPORAL_INTEGRATION") != "1":
@@ -193,8 +199,14 @@ def _hash_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def _write_temp_manifest(tmp_path: Path, *, bad_hash: bool = False) -> tuple[Path, Path]:
-    artifact_path = tmp_path / "artifact.yaml"
+def _write_temp_manifest(
+    tmp_path: Path,
+    *,
+    bad_hash: bool = False,
+    root_dir: Path | None = None,
+) -> tuple[Path, Path]:
+    root_dir = root_dir or tmp_path
+    artifact_path = root_dir / "artifact.yaml"
     artifact_path.write_text(
         """---\nartifact_metadata:\n  artifact_id: ART-TEST-001\n---\nname: test\n""",
         encoding="utf-8",
@@ -206,14 +218,26 @@ def _write_temp_manifest(tmp_path: Path, *, bad_hash: bool = False) -> tuple[Pat
     manifest_payload = [
         {"path": artifact_path.name, "sha256": sha, "bytes": len(content)},
     ]
-    manifest_path = tmp_path / "PACKAGE-MANIFEST.json"
+    manifest_path = root_dir / "PACKAGE-MANIFEST.json"
     manifest_path.write_text(json.dumps(manifest_payload), encoding="utf-8")
-    return manifest_path, tmp_path
+    return manifest_path, root_dir
 
 
-def _run_release_bundle_cli(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess:
-    cmd = [sys.executable, "scripts/generate_release_bundle.py", *args]
-    return subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=Path.cwd())
+def _run_release_bundle_cli(
+    args: list[str],
+    env: dict[str, str],
+    *,
+    cwd: Path | None = None,
+) -> subprocess.CompletedProcess:
+    repo_root = Path(__file__).resolve().parents[1]
+    cmd = [sys.executable, str(repo_root / "scripts/generate_release_bundle.py"), *args]
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=cwd or repo_root,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +246,7 @@ def _run_release_bundle_cli(args: list[str], env: dict[str, str]) -> subprocess.
 
 
 @pytest.fixture(autouse=True)
-def _db_lifecycle() -> None:  # type: ignore[return]
+def _db_lifecycle() -> Generator[None, None, None]:
     _wait_for_postgres_ready()
     _migrate_db()
     _reset_db()
@@ -418,6 +442,115 @@ def test_release_bundle_cli_success(tmp_path: Path) -> None:
     SessionLocal = get_sessionmaker()
     with SessionLocal() as session:
         bundle_row = session.get(ReleaseBundle, "REL-CLI-OK")
+        assert bundle_row is not None
+        assert bundle_row.adapter_versions["city_portal_family_a"] == "2026-03-17.1"
+        assert bundle_row.adapter_versions["phaniville_manual"] == "2026-03-17.1"
+
+
+def test_release_bundle_manifest_missing_file_raises(tmp_path: Path) -> None:
+    settings = get_settings()
+    manifest_path = tmp_path / "PACKAGE-MANIFEST.json"
+    manifest_path.write_text(
+        json.dumps([{"path": "missing.yaml", "sha256": "0" * 64, "bytes": 1}]),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ReleaseBundleManifestError, match="path does not exist"):
+        build_release_bundle_components(
+            manifest_path=manifest_path,
+            root_dir=tmp_path,
+            release_id="REL-MISSING-FILE",
+            settings=settings,
+            schema_path=Path(__file__).resolve().parents[1]
+            / "model/sps/contracts/release-bundle-manifest.schema.json",
+        )
+
+
+def test_release_bundle_manifest_missing_artifact_id_raises(tmp_path: Path) -> None:
+    settings = get_settings()
+    artifact_path = tmp_path / "artifact.yaml"
+    artifact_path.write_text("name: no artifact id\n", encoding="utf-8")
+    manifest_path = tmp_path / "PACKAGE-MANIFEST.json"
+    manifest_path.write_text(
+        json.dumps(
+            [
+                {
+                    "path": artifact_path.name,
+                    "sha256": _hash_bytes(artifact_path.read_bytes()),
+                    "bytes": len(artifact_path.read_bytes()),
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ReleaseBundleManifestError, match="missing artifact_id"):
+        build_release_bundle_components(
+            manifest_path=manifest_path,
+            root_dir=tmp_path,
+            release_id="REL-MISSING-ARTIFACT-ID",
+            settings=settings,
+            schema_path=Path(__file__).resolve().parents[1]
+            / "model/sps/contracts/release-bundle-manifest.schema.json",
+        )
+
+
+def test_release_bundle_cli_dry_run_surfaces_runtime_adapter_versions(tmp_path: Path) -> None:
+    settings = get_settings()
+    manifest_path, root_dir = _write_temp_manifest(tmp_path)
+
+    env = os.environ.copy()
+    env["API_BASE"] = "http://test"
+    env["SPS_REVIEWER_API_KEY"] = settings.reviewer_api_key
+    env["SPS_RELEASE_BUNDLE_HTTP_MODE"] = "asgi"
+
+    result = _run_release_bundle_cli(
+        [
+            "--manifest",
+            str(manifest_path),
+            "--root",
+            str(root_dir),
+            "--release-id",
+            "REL-CLI-DRY-RUN",
+            "--dry-run",
+        ],
+        env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert '"city_portal_family_a": "2026-03-17.1"' in result.stdout
+    assert '"phaniville_manual": "2026-03-17.1"' in result.stdout
+
+
+def test_release_bundle_cli_manifest_path_includes_root(tmp_path: Path) -> None:
+    settings = get_settings()
+    root_dir = tmp_path / "sps_full_spec_package"
+    root_dir.mkdir()
+    _write_temp_manifest(tmp_path, root_dir=root_dir)
+
+    env = os.environ.copy()
+    env["API_BASE"] = "http://test"
+    env["SPS_REVIEWER_API_KEY"] = settings.reviewer_api_key
+    env["SPS_RELEASE_BUNDLE_HTTP_MODE"] = "asgi"
+
+    result = _run_release_bundle_cli(
+        [
+            "--manifest",
+            "sps_full_spec_package/PACKAGE-MANIFEST.json",
+            "--root",
+            "sps_full_spec_package",
+            "--release-id",
+            "REL-CLI-ROOTPATH",
+        ],
+        env,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+    SessionLocal = get_sessionmaker()
+    with SessionLocal() as session:
+        bundle_row = session.get(ReleaseBundle, "REL-CLI-ROOTPATH")
         assert bundle_row is not None
 
 

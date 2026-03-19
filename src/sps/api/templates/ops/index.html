@@ -247,13 +247,18 @@
       <h1>Queue Health</h1>
     </div>
     <div class="controls">
-      <label for="ops-api-key">API Key</label>
+      <label for="ops-api-key">Legacy API Key</label>
       <input id="ops-api-key" type="password" placeholder="X-Reviewer-Api-Key" autocomplete="off" />
       <button id="ops-refresh" type="button">Refresh</button>
     </div>
   </header>
 
   <main id="ops-dashboard" data-metrics-endpoint="{{ metrics_endpoint }}">
+    <section class="status-panel">
+      <h2>Access Model</h2>
+      <div class="status-text">This page renders without protected data. Metrics load only after you provide a legacy/manual reviewer key or call the API directly with service-principal JWT + mTLS.</div>
+    </section>
+
     <section class="metrics-grid">
       <article class="metric-card">
         <div class="metric-label">Queue Depth</div>

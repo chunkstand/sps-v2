@@ -32,6 +32,7 @@ from sps.workflows.permit_case.activities import (
 )
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import connect_client
+from tests.helpers.auth_tokens import build_jwt
 
 
 # ---------------------------------------------------------------------------
@@ -130,11 +131,28 @@ async def _wait_for_ledger_row_by_event(
 # ---------------------------------------------------------------------------
 
 
-def test_contract_validation_rejects_extra_fields() -> None:
+def _auth_headers() -> dict[str, str]:
+    token = build_jwt(subject="intake-user-1", roles=["intake"])
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def auth_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPS_AUTH_JWT_ISSUER", "test-issuer")
+    monkeypatch.setenv("SPS_AUTH_JWT_AUDIENCE", "test-audience")
+    monkeypatch.setenv("SPS_AUTH_JWT_SECRET", "test-secret-with-at-least-32-bytes")
+    monkeypatch.setenv("SPS_AUTH_JWT_ALGORITHM", "HS256")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+def test_contract_validation_rejects_extra_fields(auth_env: None) -> None:
     asyncio.run(_run_contract_validation())
 
 
-def test_intake_flow_reaches_intake_complete() -> None:
+@pytest.mark.integration
+def test_intake_flow_reaches_intake_complete(auth_env: None) -> None:
     asyncio.run(_run_intake_flow())
 
 
@@ -166,7 +184,7 @@ async def _run_contract_validation() -> None:
     }
 
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/api/v1/cases", json=payload)
+        response = await client.post("/api/v1/cases", json=payload, headers=_auth_headers())
 
     assert response.status_code == 422
 
@@ -219,7 +237,7 @@ async def _run_intake_flow() -> None:
 
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as api_client:
-            response = await api_client.post("/api/v1/cases", json=payload)
+            response = await api_client.post("/api/v1/cases", json=payload, headers=_auth_headers())
 
         assert response.status_code == 201, (
             f"Expected 201 from intake API, got {response.status_code}: {response.text}"

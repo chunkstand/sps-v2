@@ -1,10 +1,5 @@
 [
   {
-    "path": "README.md",
-    "sha256": "dd38fa355d3141ef5bf8c575833e92971e40cdc5a746c3605fd5cdda446e5617",
-    "bytes": 3236
-  },
-  {
     "path": "ci/sps/merge-authorization.yaml",
     "sha256": "b06f8847869e58704d2f5e9ab3182739f796505ceb9ec361c2aa28737ea8d18f",
     "bytes": 873

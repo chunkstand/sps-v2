@@ -34,8 +34,7 @@
         "AUDIT_EVENT",
         "REVIEW_RECORD",
         "INCIDENT_RECORD",
-        "OVERRIDE_RECORD",
-        "ROLLBACK_REHEARSAL"
+        "OVERRIDE_RECORD"
       ]
     },
     "producing_service": {

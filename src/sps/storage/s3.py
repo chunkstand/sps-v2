@@ -53,6 +53,12 @@ class S3Storage:
         except (ClientError, BotoCoreError) as e:
             raise StorageError(f"S3 create_bucket failed for {bucket}") from e
 
+    def head_bucket(self, bucket: str) -> dict:
+        try:
+            return self._client.head_bucket(Bucket=bucket)
+        except (ClientError, BotoCoreError) as e:
+            raise StorageError(f"S3 head_bucket failed for {bucket}") from e
+
     def put_bytes(
         self,
         *,
@@ -92,6 +98,16 @@ class S3Storage:
             return self._client.head_object(Bucket=bucket, Key=key)
         except (ClientError, BotoCoreError) as e:
             raise StorageError(f"S3 head_object failed for s3://{bucket}/{key}") from e
+
+    def get_bytes(self, *, bucket: str, key: str) -> bytes:
+        try:
+            response = self._client.get_object(Bucket=bucket, Key=key)
+        except (ClientError, BotoCoreError) as e:
+            raise StorageError(f"S3 get_object failed for s3://{bucket}/{key}") from e
+        body = response.get("Body")
+        if body is None:
+            raise StorageError(f"S3 get_object returned empty body for s3://{bucket}/{key}")
+        return body.read()
 
     def presign_get(self, *, bucket: str, key: str) -> str:
         try:

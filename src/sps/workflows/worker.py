@@ -8,6 +8,7 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from sps.config import get_settings
+from sps.logging.setup import configure_logging
 from sps.workflows.permit_case.activities import (
     apply_state_transition,
     deterministic_submission_adapter,
@@ -29,7 +30,6 @@ from sps.workflows.permit_case.activities import (
 )
 from sps.workflows.permit_case.workflow import PermitCaseWorkflow
 from sps.workflows.temporal import try_get_pydantic_data_converter
-from sps.logging.redaction import attach_redaction_filter
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +37,7 @@ logger = logging.getLogger(__name__)
 async def _run_worker() -> None:
     settings = get_settings()
 
-    logging.basicConfig(
-        level=settings.log_level.upper(),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
-    attach_redaction_filter()
+    configure_logging()
 
     logger.info(
         "temporal.worker.start temporal_address=%s namespace=%s task_queue=%s",

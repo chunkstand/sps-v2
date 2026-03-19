@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from enum import StrEnum
-from typing import Iterable
+from typing import Callable, Iterable
 
 from fastapi import Depends, Header, HTTPException, Request
 
@@ -51,7 +51,40 @@ def _extract_bearer_token(authorization: str | None) -> str | None:
     return token
 
 
-def require_identity(authorization: str | None = Header(default=None, alias="Authorization")) -> Identity:
+def _identity_for_legacy_reviewer_api_key(api_key: str | None) -> Identity | None:
+    """Resolve the legacy/manual reviewer API key into a synthetic identity.
+
+    This remains intentionally supported for manual reviewer, ops, and release
+    flows. JWT + mTLS is still the preferred machine-to-machine path for
+    service-principal calls.
+    """
+    if api_key is None:
+        return None
+
+    settings = get_settings()
+    if api_key != settings.reviewer_api_key:
+        _emit_denied_log(
+            error_code="invalid_api_key",
+            subject=None,
+            roles=None,
+            auth_reason="invalid_api_key",
+        )
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "invalid_api_key"},
+        )
+
+    return Identity(
+        subject="reviewer-api-key",
+        roles=(Role.REVIEWER.value, Role.OPS.value, Role.RELEASE.value),
+        issuer=None,
+        audience=None,
+    )
+
+
+def require_identity(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+) -> Identity:
     token = _extract_bearer_token(authorization)
     if token is None:
         _emit_denied_log(
@@ -152,10 +185,10 @@ def _normalize_roles(roles: Iterable[str]) -> set[str]:
     return {role.lower() for role in roles}
 
 
-def require_roles(*required: Role):
+def require_roles_for(guard: Callable[..., Identity], *required: Role):
     required_values = tuple(role.value for role in required)
 
-    def _dependency(identity: Identity = Depends(require_identity)) -> Identity:
+    def _dependency(identity: Identity = Depends(guard)) -> Identity:
         identity_roles = _normalize_roles(identity.roles)
         if Role.ADMIN.value in identity_roles:
             return identity
@@ -174,3 +207,41 @@ def require_roles(*required: Role):
         return identity
 
     return _dependency
+
+
+def require_roles(*required: Role):
+    return require_roles_for(require_identity, *required)
+
+
+def require_reviewer_identity(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    x_reviewer_api_key: str | None = Header(default=None, alias="X-Reviewer-Api-Key"),
+) -> Identity:
+    api_identity = _identity_for_legacy_reviewer_api_key(x_reviewer_api_key)
+    if api_identity is not None:
+        return api_identity
+
+    if not authorization:
+        _emit_denied_log(
+            error_code="missing_api_key",
+            subject=None,
+            roles=None,
+            auth_reason="missing_api_key",
+        )
+        raise HTTPException(status_code=401, detail={"error": "missing_api_key"})
+
+    identity = require_identity(authorization)
+    identity_roles = _normalize_roles(identity.roles)
+    if Role.ADMIN.value in identity_roles or Role.REVIEWER.value in identity_roles:
+        return identity
+
+    _emit_denied_log(
+        error_code="role_denied",
+        subject=identity.subject,
+        roles=identity.roles,
+        required_roles=(Role.REVIEWER.value,),
+    )
+    raise HTTPException(
+        status_code=403,
+        detail={"error_code": "role_denied", "required_roles": [Role.REVIEWER.value]},
+    )

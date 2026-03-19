@@ -55,7 +55,8 @@ def seed_submission_attempt(
         manifest_sha256_digest="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     )
     session.add(package)
-    
+    session.flush()
+
     # Create SubmissionAttempt
     attempt = SubmissionAttempt(
         submission_attempt_id=submission_attempt_id,

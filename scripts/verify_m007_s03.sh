@@ -598,9 +598,9 @@ echo "runbook: fixture_cleanup_ok" >&2
 # Phase 4: Start FastAPI server + worker
 # ---------------------------------------------------------------------------
 
-mkdir -p "$ROOT_DIR/.gsd/runbook"
-API_LOG="$ROOT_DIR/.gsd/runbook/m007_s03_api_${RUNBOOK_TS}_$$.log"
-WORKER_LOG="$ROOT_DIR/.gsd/runbook/m007_s03_worker_${RUNBOOK_TS}_$$.log"
+mkdir -p "$ROOT_DIR/artifacts/runbook"
+API_LOG="$ROOT_DIR/artifacts/runbook/m007_s03_api_${RUNBOOK_TS}_$$.log"
+WORKER_LOG="$ROOT_DIR/artifacts/runbook/m007_s03_worker_${RUNBOOK_TS}_$$.log"
 
 echo "runbook: starting_api log=$API_LOG port=$API_PORT" >&2
 "$PYTHON" -m uvicorn sps.api.main:app --host 0.0.0.0 --port "$API_PORT" >"$API_LOG" 2>&1 &

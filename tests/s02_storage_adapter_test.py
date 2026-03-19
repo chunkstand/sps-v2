@@ -8,6 +8,8 @@ import pytest
 from sps.config import get_settings
 from sps.storage.s3 import IntegrityError, S3Storage
 
+pytestmark = pytest.mark.integration
+
 
 def test_storage_adapter_put_head_presign_roundtrip():
     settings = get_settings()

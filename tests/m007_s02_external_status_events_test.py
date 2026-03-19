@@ -27,6 +27,9 @@ from sps.workflows.permit_case.contracts import (
     SubmissionAdapterRequest,
     submission_attempt_idempotency_key,
 )
+from tests.helpers.auth_tokens import build_jwt
+
+pytestmark = pytest.mark.integration
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +123,11 @@ def _prepare_submission_attempt(*, case_id: str, request_suffix: str) -> str:
     return result.submission_attempt_id
 
 
-@pytest.mark.integration
+def _auth_headers() -> dict[str, str]:
+    token = build_jwt(subject="intake-user", roles=["intake"])
+    return {"Authorization": f"Bearer {token}"}
+
+
 def test_phase7_status_mapping_selection() -> None:
     original_override = os.environ.get("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE")
 
@@ -143,7 +150,6 @@ def test_phase7_status_mapping_selection() -> None:
             os.environ.pop("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
-@pytest.mark.integration
 def test_external_status_event_persistence_known_status() -> None:
     original_phase6 = os.environ.get("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE")
     original_phase7 = os.environ.get("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE")
@@ -194,7 +200,6 @@ def test_external_status_event_persistence_known_status() -> None:
             os.environ.pop("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
-@pytest.mark.integration
 def test_external_status_event_unknown_status_fails_closed() -> None:
     original_phase6 = os.environ.get("SPS_PHASE6_FIXTURE_CASE_ID_OVERRIDE")
     original_phase7 = os.environ.get("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE")
@@ -236,7 +241,6 @@ def test_external_status_event_unknown_status_fails_closed() -> None:
             os.environ.pop("SPS_PHASE7_FIXTURE_CASE_ID_OVERRIDE", None)
 
 
-@pytest.mark.integration
 def test_external_status_api_list_readback() -> None:
     asyncio.run(_run_external_status_api_list_readback())
 
@@ -255,6 +259,7 @@ async def _run_external_status_api_list_readback() -> None:
 
         case_id = "CASE-TEST-STATUS-API"
         submission_attempt_id = _prepare_submission_attempt(case_id=case_id, request_suffix="API")
+        headers = _auth_headers()
 
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -264,13 +269,17 @@ async def _run_external_status_api_list_readback() -> None:
                     "submission_attempt_id": submission_attempt_id,
                     "raw_status": "Approved",
                 },
+                headers=headers,
             )
 
             assert ingest_response.status_code == 201, ingest_response.text
             body = ingest_response.json()
             assert body["normalized_status"] == "APPROVAL_REPORTED"
 
-            list_response = await client.get(f"/api/v1/cases/{case_id}/external-status-events")
+            list_response = await client.get(
+                f"/api/v1/cases/{case_id}/external-status-events",
+                headers=headers,
+            )
             assert list_response.status_code == 200, list_response.text
             list_body = list_response.json()
             events = list_body["external_status_events"]
